@@ -37,8 +37,13 @@ type α × β = α ':× β
 type α ⟶ β = α ':-> β
 
 data Con α where
+  U1 :: Con U
+  U2 :: Con U
+  U3 :: Con U
   Rl :: Double -> Con R
-  Nml :: Con ((R × R) ⟶ (R ⟶ R) ⟶ R)
+  Indi :: Con (T ⟶ R)
+  Mult :: Con (R ⟶ (R ⟶ R))
+  Nml :: Con ((R × R) ⟶ ((R ⟶ R) ⟶ R))
   Tru :: Con T
   Fal :: Con T
   And :: Con (T ⟶ (T ⟶ T))
@@ -49,7 +54,7 @@ data Con α where
   Height :: Con (E ⟶ R)
   Human :: Con (E ⟶ T)
   Theta :: Con R
-  GTE :: Con (R ⟶ (R ⟶ R))
+  GTE :: Con (R ⟶ (R ⟶ T))
   Empty :: Con Γ
   Upd :: Con (E ⟶ (Γ ⟶ Γ))
   Sel :: Con (Γ ⟶ E)
@@ -63,6 +68,7 @@ data γ ⊢ α where
   Lam :: (α × γ) ⊢ β -> γ ⊢ (α ⟶ β)
   Fst :: γ ⊢ (α × β) -> γ ⊢ α
   Snd :: γ ⊢ (α × β) -> γ ⊢ β
+  TT :: γ ⊢ Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 deriving instance Show (γ ⊢ t)
 
@@ -74,6 +80,7 @@ subst (App m n) t = App (subst m t) (subst n t)
 subst (Lam m) t = Lam $ subst (exch m) (wkn t)
 subst (Fst m) t = Fst $ subst m t
 subst (Snd m ) t = Snd $ subst m t
+subst TT t = TT
 subst (Pair m n) t = Pair (subst m t) (subst n t)
 
 evalstepβ :: γ ⊢ α -> γ ⊢ α
@@ -88,6 +95,7 @@ evalstepβ (Fst m) = case m of
 evalstepβ (Snd m) = case m of
                       Pair m' n' -> evalstepβ n'
                       _ -> Snd $ evalstepβ m
+evalstepβ TT = TT
 evalstepβ (Pair m n) = Pair (evalstepβ m) (evalstepβ n)
 
 normalF :: γ ⊢ α -> Bool
@@ -103,6 +111,7 @@ normalF (Fst m) = case m of
 normalF (Snd m) = case m of
                     Pair m' n' -> False
                     _ -> normalF m
+normalF TT = True
 normalF (Pair m n) = normalF m && normalF n
 
 evalβ :: γ ⊢ α -> γ ⊢ α
@@ -119,7 +128,7 @@ lft f (Weaken i) = Weaken $ f i
 π (Weaken i) γ = π i (Snd γ)
 
 type Context
-  = (E ⟶ R × (E ⟶ T × (R × ((R ⟶ (R ⟶ R)) × (Γ × ((E ⟶ (Γ ⟶ Γ)) × ((Γ ⟶ E) × Unit)))))))
+  = (E ⟶ R × (E ⟶ T × (R × ((R ⟶ (R ⟶ T)) × (Γ × ((E ⟶ (Γ ⟶ Γ)) × ((Γ ⟶ E) × Unit)))))))
 
 findC :: Con α -> α ∈ Context
 findC Height = Get
