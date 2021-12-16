@@ -14,6 +14,7 @@ pkgs.stdenv.mkDerivation {
   name = "my-env-0";
   buildInputs = [
     ghc
+    pkgs.maxima
   ];
   shellHook = ''
     export LANG=C.UTF-8

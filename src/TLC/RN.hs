@@ -5,7 +5,8 @@ module TLC.RN where
 
 import Control.Monad (ap)
 
-data Distribution = Bernoulli RN | Normal RN RN deriving Show
+data Discrete1P = Bernoulli
+data Continuous2P = Normal
 
 data V = V Char Int
 
@@ -35,28 +36,41 @@ instance Enum V where
 instance Show V where
   show (V c i) = if i == 0 then [c] else c : show i
 
-data UnOp = Neg | Dirac
+data UnOp = Neg | Exp | Dirac
 data BinOp = Add | Sub | Mul | Equal
 
 data RN = Lit Double
-          | RNV V
-          | UnOp UnOp RN
-          | BinOp BinOp RN RN
-          | Integral Distribution RN RN (V -> RN)
+        | Inf
+        | RNV V
+        | Ind V
+        | UnOp UnOp RN
+        | BinOp BinOp RN RN
+        | Integral1 Discrete1P RN (V -> RN)
+        | Integral2 Continuous2P RN RN RN RN (V -> RN)
 
 helpShow :: RN -> V -> String
 helpShow (RNV i) j = show i
+helpShow (Ind i) j = "\\mathds{1}(" ++ show i ++ ")"
 helpShow (Lit d) i = show d
+helpShow Inf i = "\\infty"
 helpShow (UnOp Neg x) i = "-" ++ helpShow x i
-helpShow (UnOp Dirac x) i = "δ(" ++ helpShow x i ++ ")"
+helpShow (UnOp Exp x) i = "e^{" ++ helpShow x i ++ "}"
+helpShow (UnOp Dirac x) i = "\\delta(" ++ helpShow x i ++ ")"
 helpShow (BinOp Add x y) i = "(" ++ helpShow x i ++ " + " ++ helpShow y i ++ ")"
 helpShow (BinOp Mul x y) i = "(" ++ helpShow x i ++ " - " ++ helpShow y i ++ ")"
 helpShow (BinOp Sub x y) i = "(" ++ helpShow x i ++ " * " ++ helpShow y i ++ ")"
 helpShow (BinOp Equal x y) i = "(" ++ helpShow x i ++ " = " ++ helpShow y i ++ ")"
-helpShow (Integral distr x y f) i = show distr ++ "(" ++ helpShow x i ++ ", " ++ helpShow y i ++ ")" ++ show i ++ ":" ++ "(" ++ helpShow (f i) (succ i) ++ ")"
+helpShow (Integral1 Bernoulli x f) i = "\\begin{cases}" ++ helpShow x i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\top\\\\" ++ helpShow (UnOp Neg x) i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\bot\\end{cases}"
+helpShow (Integral2 Normal x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\frac{1}{" ++ helpShow y i ++ "\\sqrt{2\\pi}}e^{-\\frac{(" ++ show i ++ " - " ++ helpShow x i ++ ")^2}{2 * (" ++ helpShow y i ++ ")^2}} * " ++ helpShow (f i) (succ i) ++ "\\right)d" ++ show i
 
 instance Show RN where
   show x = helpShow x (toEnum 0)
+
+-- >>> Integral2 Normal (Lit 0) (Lit 1) (UnOp Neg Inf) Inf $ \x -> Integral1 Bernoulli (Lit 0.5) (\y -> BinOp Mul (Ind y) (RNV x) )
+-- \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(x - 0.0)^2}{2 * (1.0)^2}} * \begin{cases}0.5 * (\mathds{1}(y) - x) &y = \top\\-0.5 * (\mathds{1}(y) - x) &y = \bot\end{cases}\right)dx
+
+-- >>> Integral1 Bernoulli (Lit 0.5) (\y -> Integral2 Normal (Lit 0) (Lit 1) (UnOp Neg Inf) Inf $ \x -> BinOp Mul (Ind y) (RNV x))
+-- \begin{cases}0.5 * \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(y - 0.0)^2}{2 * (1.0)^2}} * (\mathds{1}(x) - y)\right)dy &x = \top\\-0.5 * \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(y - 0.0)^2}{2 * (1.0)^2}} * (\mathds{1}(x) - y)\right)dy &x = \bot\end{cases}
 
 rToDouble :: RN -> Double
 rToDouble (Lit x) = x

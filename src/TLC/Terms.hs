@@ -163,4 +163,3 @@ hmorph m = Lam (hmorph0 m)
 
 -- >>> Con (RN (Integral (Normal (Lit 0) (Lit 1)) (Lit (-1)) (Lit 1) (\x -> RNV x)))
 -- Con (RN Normal 0.0 1.0(-1.0, 1.0)x:(x))
-  
