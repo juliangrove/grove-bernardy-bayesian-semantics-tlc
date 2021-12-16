@@ -6,7 +6,7 @@ module TLC.RN where
 import Control.Monad (ap)
 
 data Discrete1P = Bernoulli
-data Continuous2P = Normal
+data Continuous2P = Normal | Uniform
 
 data V = V Char Int
 
@@ -57,20 +57,24 @@ helpShow (UnOp Neg x) i = "-" ++ helpShow x i
 helpShow (UnOp Exp x) i = "e^{" ++ helpShow x i ++ "}"
 helpShow (UnOp Dirac x) i = "\\delta(" ++ helpShow x i ++ ")"
 helpShow (BinOp Add x y) i = "(" ++ helpShow x i ++ " + " ++ helpShow y i ++ ")"
-helpShow (BinOp Mul x y) i = "(" ++ helpShow x i ++ " - " ++ helpShow y i ++ ")"
-helpShow (BinOp Sub x y) i = "(" ++ helpShow x i ++ " * " ++ helpShow y i ++ ")"
+helpShow (BinOp Mul x y) i = "(" ++ helpShow x i ++ " * " ++ helpShow y i ++ ")"
+helpShow (BinOp Sub x y) i = "(" ++ helpShow x i ++ " - " ++ helpShow y i ++ ")"
 helpShow (BinOp Equal x y) i = "(" ++ helpShow x i ++ " = " ++ helpShow y i ++ ")"
-helpShow (Integral1 Bernoulli x f) i = "\\begin{cases}" ++ helpShow x i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\top\\\\" ++ helpShow (UnOp Neg x) i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\bot\\end{cases}"
+helpShow (Integral1 Bernoulli x f) i = "\\begin{cases}" ++ helpShow x i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\top\\\\" ++ helpShow (BinOp Sub (Lit 1) x) i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\bot\\end{cases}"
 helpShow (Integral2 Normal x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\frac{1}{" ++ helpShow y i ++ "\\sqrt{2\\pi}}e^{-\\frac{(" ++ show i ++ " - " ++ helpShow x i ++ ")^2}{2 * (" ++ helpShow y i ++ ")^2}} * " ++ helpShow (f i) (succ i) ++ "\\right)d" ++ show i
+helpShow (Integral2 Uniform x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\begin{cases}\\frac{" ++ helpShow (f i) (succ i) ++ "}{" ++ helpShow y i ++ " - " ++ helpShow x i  ++ "} &" ++ helpShow x i ++ " \\le " ++ show i ++ " \\le " ++ helpShow y i ++ "\\\\0 &o.w.\\end{cases}\\right)d" ++ show i
 
 instance Show RN where
   show x = helpShow x (toEnum 0)
 
+-- >>> Integral2 Uniform (Lit 0) (Lit 1) (UnOp Neg Inf) Inf $ \x -> Integral1 Bernoulli (Lit 0.5) (\y -> BinOp Mul (Ind y) (RNV x))
+-- \int_{-\infty}^{\infty}\left(\begin{cases}\frac{\begin{cases}0.5 * (\mathds{1}(y) * x) &y = \top\\(1.0 - 0.5) * (\mathds{1}(y) * x) &y = \bot\end{cases}}{1.0 - 0.0} &0.0 \le x \le 1.0\\0 &o.w.\end{cases}\right)dx
+
 -- >>> Integral2 Normal (Lit 0) (Lit 1) (UnOp Neg Inf) Inf $ \x -> Integral1 Bernoulli (Lit 0.5) (\y -> BinOp Mul (Ind y) (RNV x) )
--- \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(x - 0.0)^2}{2 * (1.0)^2}} * \begin{cases}0.5 * (\mathds{1}(y) - x) &y = \top\\-0.5 * (\mathds{1}(y) - x) &y = \bot\end{cases}\right)dx
+-- \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(x - 0.0)^2}{2 * (1.0)^2}} * \begin{cases}0.5 * (\mathds{1}(y) * x) &y = \top\\(1.0 - 0.5) * (\mathds{1}(y) * x) &y = \bot\end{cases}\right)dx
 
 -- >>> Integral1 Bernoulli (Lit 0.5) (\y -> Integral2 Normal (Lit 0) (Lit 1) (UnOp Neg Inf) Inf $ \x -> BinOp Mul (Ind y) (RNV x))
--- \begin{cases}0.5 * \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(y - 0.0)^2}{2 * (1.0)^2}} * (\mathds{1}(x) - y)\right)dy &x = \top\\-0.5 * \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(y - 0.0)^2}{2 * (1.0)^2}} * (\mathds{1}(x) - y)\right)dy &x = \bot\end{cases}
+-- \begin{cases}0.5 * \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(y - 0.0)^2}{2 * (1.0)^2}} * (\mathds{1}(x) * y)\right)dy &x = \top\\(1.0 - 0.5) * \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(y - 0.0)^2}{2 * (1.0)^2}} * (\mathds{1}(x) * y)\right)dy &x = \bot\end{cases}
 
 rToDouble :: RN -> Double
 rToDouble (Lit x) = x
@@ -95,25 +99,25 @@ instance Num RN where
   fromInteger x = Lit (fromInteger x)
   negate = UnOp Neg
  
-data PP a = PP { expect :: (a -> RN) -> RN }
+-- data PP α = PP { expect :: (α -> R) -> R }
 
-instance Functor PP where
-  fmap f (PP m) = PP $ \k -> m (k . f)
-instance Applicative PP where
-  pure = PP . flip ($)
-  (<*>) = ap
-instance Monad PP where
-  return x = PP (\k -> k x)
-  (PP a) >>= f = PP (\k -> a $ \x -> expect (f x) k) 
+-- instance Functor PP where
+--   fmap f (PP m) = PP $ \k -> m (k . f)
+-- instance Applicative PP where
+--   pure = PP . flip ($)
+--   (<*>) = ap
+-- instance Monad PP where
+--   return x = PP (\k -> k x)
+--   (PP a) >>= f = PP (\k -> a $ \x -> expect (f x) k) 
 
-pf :: Sampleable a => PP a -> a -> RN
-pf (PP p) y = p (equal y)
+-- pf :: Sampleable a => PP a -> a -> RN
+-- pf (PP p) y = p (equal y)
 
-class Sampleable a where
-  equal :: a -> a -> RN
+-- class Sampleable a where
+--   equal :: a -> a -> RN
 
-instance Sampleable RN where
-  equal x y = UnOp Dirac (x - y)
+-- instance Sampleable RN where
+--   equal x y = UnOp Dirac (x - y)
 
-instance (Sampleable a, Sampleable b) => Sampleable (a, b) where
-  equal (x1, x2) (y1, y2) = equal x1 y1 * equal x2 y2
+-- instance (Sampleable a, Sampleable b) => Sampleable (a, b) where
+--   equal (x1, x2) (y1, y2) = equal x1 y1 * equal x2 y2

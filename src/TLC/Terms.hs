@@ -20,7 +20,7 @@
 module TLC.Terms where
 
 import Data.Functor.Identity
-import Prelude
+import Prelude hiding (Monad(..))
 import TLC.RN
 
 data Type = E | T | R | U | Γ
@@ -37,20 +37,21 @@ type α × β = α ':× β
 type α ⟶ β = α ':-> β
 
 data Con α where
-  RN :: RN -> Con R
+  Rl :: Double -> Con R
+  Nml :: Con ((R × R) ⟶ (R ⟶ R) ⟶ R)
   Tru :: Con T
   Fal :: Con T
-  And :: Con (T ⟶ T ⟶ T)
-  Or :: Con (T ⟶ T ⟶ T)
-  Imp :: Con (T ⟶ T ⟶ T)
+  And :: Con (T ⟶ (T ⟶ T))
+  Or :: Con (T ⟶ (T ⟶ T))
+  Imp :: Con (T ⟶ (T ⟶ T))
   Exists :: Con ((α ⟶ T) ⟶ T)
   Forall :: Con ((α ⟶ T) ⟶ T)
   Height :: Con (E ⟶ R)
   Human :: Con (E ⟶ T)
   Theta :: Con R
-  GTE :: Con (R ⟶ R ⟶ R)
+  GTE :: Con (R ⟶ (R ⟶ R))
   Empty :: Con Γ
-  Upd :: Con (E ⟶ Γ ⟶ Γ)
+  Upd :: Con (E ⟶ (Γ ⟶ Γ))
   Sel :: Con (Γ ⟶ E)
 deriving instance Show (Con α)
 
@@ -105,7 +106,9 @@ normalF (Snd m) = case m of
 normalF (Pair m n) = normalF m && normalF n
 
 evalβ :: γ ⊢ α -> γ ⊢ α
-evalβ m = if normalF m then m else evalβ (evalstepβ m)
+evalβ m = case normalF m of
+            True -> m
+            False -> evalβ (evalstepβ m)
 
 lft :: (α ∈ γ -> α ∈ δ) -> α ∈ (β × γ) -> α ∈ (β × δ)
 lft f Get = Get
@@ -116,7 +119,7 @@ lft f (Weaken i) = Weaken $ f i
 π (Weaken i) γ = π i (Snd γ)
 
 type Context
-  = (E ⟶ R × (E ⟶ T × (R × ((R ⟶ R ⟶ R) × (Γ × ((E ⟶ Γ ⟶ Γ) × ((Γ ⟶ E) × Unit)))))))
+  = (E ⟶ R × (E ⟶ T × (R × ((R ⟶ (R ⟶ R)) × (Γ × ((E ⟶ (Γ ⟶ Γ)) × ((Γ ⟶ E) × Unit)))))))
 
 findC :: Con α -> α ∈ Context
 findC Height = Get
@@ -163,3 +166,13 @@ hmorph m = Lam (hmorph0 m)
 
 -- >>> Con (RN (Integral (Normal (Lit 0) (Lit 1)) (Lit (-1)) (Lit 1) (\x -> RNV x)))
 -- Con (RN Normal 0.0 1.0(-1.0, 1.0)x:(x))
+
+η :: γ ⊢ α -> γ ⊢ ((α ⟶ R) ⟶ R)
+η m = Lam (App (Var Get) (wkn m))
+
+(>>=) :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ ((β ⟶ R) ⟶ R)) -> γ ⊢ ((β ⟶ R) ⟶ R)
+m >>= k
+  = Lam (App (wkn m) (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
+
+(>>) :: γ ⊢ ((Unit ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R)
+m >> k = m >>= Lam (wkn k)
