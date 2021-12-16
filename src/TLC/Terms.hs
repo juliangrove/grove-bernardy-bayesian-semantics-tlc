@@ -21,7 +21,7 @@ module TLC.Terms where
 
 import Data.Functor.Identity
 import Prelude
-import RN
+import TLC.RN
 
 data Type = E | T | R | U | Γ
           | Type :-> Type
@@ -38,6 +38,13 @@ type α ⟶ β = α ':-> β
 
 data Con α where
   RN :: RN -> Con R
+  Tru :: Con T
+  Fal :: Con T
+  And :: Con (T ⟶ T ⟶ T)
+  Or :: Con (T ⟶ T ⟶ T)
+  Imp :: Con (T ⟶ T ⟶ T)
+  Exists :: Con ((α ⟶ T) ⟶ T)
+  Forall :: Con ((α ⟶ T) ⟶ T)
   Height :: Con (E ⟶ R)
   Human :: Con (E ⟶ T)
   Theta :: Con R
@@ -154,6 +161,6 @@ hmorph0 (Con c) = π (findC c) (Var Get)
 hmorph :: γ ⊢ α -> γ ⊢ (Context ⟶ α)
 hmorph m = Lam (hmorph0 m)
 
--- >>> evalβ $ hmorph (Lam (App (Lam (App (Con Height) (Var Get))) (Var Get)))
--- Lam (Lam (App (Fst (Var (Weaken Get))) (Var Get)))
+-- >>> Con (RN (Integral (Normal (Lit 0) (Lit 1)) (Lit (-1)) (Lit 1) (\x -> RNV x)))
+-- Con (RN Normal 0.0 1.0(-1.0, 1.0)x:(x))
   

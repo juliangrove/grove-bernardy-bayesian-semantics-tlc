@@ -12,11 +12,7 @@ copyright:           2021
 build-type:          Simple
 
 library 
-  exposed-modules: R
+  exposed-modules: TLC.RN, TLC.Terms
   hs-source-dirs: src
   build-depends: base
-               , containers
-               , gasp
-               , mwc-random
-               , statistics
   default-language: Haskell2010

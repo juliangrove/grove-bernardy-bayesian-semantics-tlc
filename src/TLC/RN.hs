@@ -39,11 +39,13 @@ data UnOp = Neg | Dirac
 data BinOp = Add | Sub | Mul | Equal
 
 data RN = Lit Double
+          | RNV V
           | UnOp UnOp RN
           | BinOp BinOp RN RN
           | Integral Distribution RN RN (V -> RN)
 
 helpShow :: RN -> V -> String
+helpShow (RNV i) j = show i
 helpShow (Lit d) i = show d
 helpShow (UnOp Neg x) i = "-" ++ helpShow x i
 helpShow (UnOp Dirac x) i = "δ(" ++ helpShow x i ++ ")"
