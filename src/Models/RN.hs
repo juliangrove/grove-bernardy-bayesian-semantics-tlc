@@ -4,6 +4,8 @@
 module Models.RN where
 
 import Control.Monad (ap)
+import Fragments.RSA
+import TLC.Terms
 
 data Discrete1P = Bernoulli
 data Continuous2P = Normal | Uniform
@@ -63,6 +65,17 @@ helpShow (BinOp Equal x y) i = "(" ++ helpShow x i ++ " = " ++ helpShow y i ++ "
 helpShow (Integral1 Bernoulli x f) i = "\\begin{cases}" ++ helpShow x i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\top\\\\" ++ helpShow (BinOp Sub (Lit 1) x) i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\bot\\end{cases}"
 helpShow (Integral2 Normal x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\frac{1}{" ++ helpShow y i ++ "\\sqrt{2\\pi}}e^{-\\frac{(" ++ show i ++ " - " ++ helpShow x i ++ ")^2}{2 * (" ++ helpShow y i ++ ")^2}} * " ++ helpShow (f i) (succ i) ++ "\\right)d" ++ show i
 helpShow (Integral2 Uniform x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\begin{cases}\\frac{" ++ helpShow (f i) (succ i) ++ "}{" ++ helpShow y i ++ " - " ++ helpShow x i  ++ "} &" ++ helpShow x i ++ " \\le " ++ show i ++ " \\le " ++ helpShow y i ++ "\\\\0 &o.w.\\end{cases}\\right)d" ++ show i
+
+-- >>> evalβ $ lower $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- <interactive>:783:31-33: error:
+--     Ambiguous occurrence ‘>>=’
+--     It could refer to
+--        either ‘Prelude.>>=’,
+--               imported from ‘Prelude’ at /tmp/danteK5nKIw.hs:4:8-16
+--               (and originally defined in ‘GHC.Base’)
+--            or ‘TLC.Terms.>>=’,
+--               imported from ‘TLC.Terms’ at /tmp/danteK5nKIw.hs:8:1-16
+--               (and originally defined at /tmp/dantenlnaCO.hs:242:3-5)
 
 instance Show RN where
   show x = helpShow x (toEnum 0)

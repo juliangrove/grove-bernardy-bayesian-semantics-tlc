@@ -1,20 +1,10 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UnicodeSyntax #-}
 
 module TLC.Terms where
@@ -73,6 +63,7 @@ instance Show (Rl α) where
 
 data Special α where
   Utt :: Int -> Special U
+  Vlad :: Special E
   Height :: Special (E ⟶ R)
   Human :: Special (E ⟶ T)
   Theta :: Special R
@@ -83,6 +74,7 @@ data Special α where
 
 instance Show (Special α) where
   show (Utt i) = "U" ++ show i
+  show Vlad = "v"
   show Height = "height"
   show Human = "human"
   show Theta = "θ"
@@ -194,17 +186,18 @@ lft f (Weaken i) = Weaken $ f i
 π (Weaken i) γ = π i (Snd γ)
 
 type Context
-  = (E ⟶ R × (E ⟶ T × (R × ((R ⟶ (R ⟶ T)) × (Γ × ((E ⟶ (Γ ⟶ Γ)) × ((Γ ⟶ E) × Unit)))))))
+  = (E × (E ⟶ R × (E ⟶ T × (R × ((R ⟶ (R ⟶ T)) × (Γ × ((E ⟶ (Γ ⟶ Γ)) × ((Γ ⟶ E) × Unit))))))))
 
 findC :: Special α -> α ∈ Context
-findC Height = Get
-findC Human = Weaken Get
-findC Theta = Weaken (Weaken Get)
-findC GTE = Weaken (Weaken (Weaken Get))
-findC Empty = Weaken (Weaken (Weaken (Weaken Get)))
-findC Upd = Weaken (Weaken (Weaken (Weaken (Weaken Get))))
-findC Sel = Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))
-
+findC Vlad = Get
+findC Height = Weaken Get
+findC Human = Weaken (Weaken Get)
+findC Theta = Weaken (Weaken (Weaken Get))
+findC GTE = Weaken (Weaken (Weaken (Weaken (Get))))
+findC Empty = Weaken (Weaken (Weaken (Weaken (Weaken Get))))
+findC Upd = Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))
+findC Sel = Weaken (Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get))))))
+                   
 rename :: (∀α. α ∈ γ -> α ∈ δ) -> γ ⊢ β -> δ ⊢ β
 rename f (Var i) = Var $ f i
 rename f (Con c) = (Con c)
