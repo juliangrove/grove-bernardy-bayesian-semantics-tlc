@@ -44,6 +44,7 @@ data Con α where
   Indi :: Con (T ⟶ R)
   Mult :: Con (R ⟶ (R ⟶ R))
   Nml :: Con ((R × R) ⟶ ((R ⟶ R) ⟶ R))
+  Distr :: Con (((α ⟶ R) ⟶ R) ⟶ (α ⟶ R))
   Tru :: Con T
   Fal :: Con T
   And :: Con (T ⟶ (T ⟶ T))

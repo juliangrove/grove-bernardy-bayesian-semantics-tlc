@@ -33,25 +33,35 @@ p /\ q = App (App (Con And) p) q
 exists :: γ ⊢ (α ⟶ T) -> γ ⊢ T
 exists φ = App (Con Exists) φ
 
+distr :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ R)
+distr p = App (Con Distr) p
+
 k :: γ ⊢ ((Context ⟶ R) ⟶ R)
 k = (App normal (Pair (Con $ Rl 68) (Con $ Rl 3))) >>= Lam (η (Pair height (Pair human (Pair (Var Get) (Pair (≥) (Pair emp (Pair upd (Pair sel TT))))))))
+
+utts :: γ ⊢ ((U ⟶ R) ⟶ R)
+utts = η (Con U1)
 
 interp :: γ ⊢ U -> γ ⊢ T
 interp (Con U1) = exists (Lam ((App human (Var Get)) /\ (App (App (≥) (App height (Var Get))) θ)))
 
+-- | RSA
+
+-- | Pragmatic listener
+l1 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
+l1 = Lam (k >>= Lam (
+             factor' (App (distr (App s1 (Var Get))) (Var (Weaken Get))) >>
+             η (Var Get)))
+
+-- | Pragmatic speaker
+s1 :: γ ⊢ (Context ⟶ ((U ⟶ R) ⟶ R))
+s1 = Lam (utts >>= Lam (
+             factor' (App (distr (App l0 (Var Get))) (Var (Weaken Get))) >>
+             η (Var Get)))
+
+-- | Literal listener
 l0 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
 l0 = Lam (k >>= Lam (
              observe' (App (hmorph (interp (Con U1))) (Var Get)) >>
              η (Var Get)))
 
--- >>> :t App (App And (App human (Var Get))) (App (App (≥) (App height (Var Get))) θ)
--- <interactive>:1:10-12: error:
---     • Couldn't match expected type ‘('E ':× γ1) ⊢ ('T ⟶ ('T ⟶ α))’
---                   with actual type ‘Con ('T ':-> ('T ⟶ 'T))’
---     • In the first argument of ‘App’, namely ‘And’
---       In the first argument of ‘App’, namely
---         ‘(App And (App human (Var Get)))’
---       In the expression:
---         App
---           (App And (App human (Var Get)))
---           (App (App (≥) (App height (Var Get))) θ)
