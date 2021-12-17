@@ -36,30 +36,69 @@ deriving instance Show (α ∈ γ)
 type α × β = α ':× β
 type α ⟶ β = α ':-> β
 
+data Logical α where
+  Tru :: Logical T
+  Fal :: Logical T
+  And :: Logical (T ⟶ (T ⟶ T))
+  Or :: Logical (T ⟶ (T ⟶ T))
+  Imp :: Logical (T ⟶ (T ⟶ T))
+  Forall :: Logical ((α ⟶ T) ⟶ T)
+  Exists :: Logical ((α ⟶ T) ⟶ T)
+  Equals :: Logical (α ⟶ (α ⟶ T))
+
+instance Show (Logical α) where
+  show Tru = "⊤"
+  show Fal = "⊥"
+  show And = "(∧)"
+  show Or = "(∨)"
+  show Imp = "(→)"
+  show Forall = "∀"
+  show Exists = "∃"
+  show Equals = "(=)"
+  
+data Rl α where
+  Incl :: Double -> Rl R
+  Indi :: Rl (T ⟶ R)
+  Mult :: Rl (R ⟶ (R ⟶ R))
+  Nml :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
+  Distr :: Rl (((α ⟶ R) ⟶ R) ⟶ (α ⟶ R))
+
+instance Show (Rl α) where
+  show (Incl x) = show x
+  show Indi = "𝟙"
+  show Mult = "(*)"
+  show Nml = "Normal"
+  show Distr = "Distr"
+
+data Special α where
+  Utt :: Int -> Special U
+  Height :: Special (E ⟶ R)
+  Human :: Special (E ⟶ T)
+  Theta :: Special R
+  GTE :: Special (R ⟶ (R ⟶ T))
+  Empty :: Special Γ
+  Upd :: Special (E ⟶ (Γ ⟶ Γ))
+  Sel :: Special (Γ ⟶ E)
+
+instance Show (Special α) where
+  show (Utt i) = "U" ++ show i
+  show Height = "height"
+  show Human = "human"
+  show Theta = "θ"
+  show GTE = "(≥)"
+  show Empty = "ε"
+  show Upd = "(∷)"
+  show Sel = "sel"
+
 data Con α where
-  U1 :: Con U
-  U2 :: Con U
-  U3 :: Con U
-  Rl :: Double -> Con R
-  Indi :: Con (T ⟶ R)
-  Mult :: Con (R ⟶ (R ⟶ R))
-  Nml :: Con ((R × R) ⟶ ((R ⟶ R) ⟶ R))
-  Distr :: Con (((α ⟶ R) ⟶ R) ⟶ (α ⟶ R))
-  Tru :: Con T
-  Fal :: Con T
-  And :: Con (T ⟶ (T ⟶ T))
-  Or :: Con (T ⟶ (T ⟶ T))
-  Imp :: Con (T ⟶ (T ⟶ T))
-  Exists :: Con ((α ⟶ T) ⟶ T)
-  Forall :: Con ((α ⟶ T) ⟶ T)
-  Height :: Con (E ⟶ R)
-  Human :: Con (E ⟶ T)
-  Theta :: Con R
-  GTE :: Con (R ⟶ (R ⟶ T))
-  Empty :: Con Γ
-  Upd :: Con (E ⟶ (Γ ⟶ Γ))
-  Sel :: Con (Γ ⟶ E)
-deriving instance Show (Con α)
+  Logical :: Logical α -> Con α
+  Rl :: Rl α -> Con α
+  Special :: Special α -> Con α
+
+instance Show (Con α) where
+  show (Logical c) = show c
+  show (Rl c) = show c
+  show (Special c) = show c
 
 -- Well-typed terms.
 data γ ⊢ α where
@@ -71,7 +110,29 @@ data γ ⊢ α where
   Snd :: γ ⊢ (α × β) -> γ ⊢ β
   TT :: γ ⊢ Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
-deriving instance Show (γ ⊢ t)
+
+instance Show (γ ⊢ α) where
+  show (Var Get) = "x"
+  show (Var (Weaken i)) = show (Var i) ++ "'"
+  show (App (App (Con (Logical And)) p) q)
+    = "(" ++ show p ++ " ∧ " ++ show q ++ ")"
+  show (App (App (Con (Logical Or)) p) q)
+    = "(" ++ show p ++ " ∨ " ++ show q ++ ")"
+  show (App (App (Con (Logical Imp)) p) q)
+    = "(" ++ show p ++ " → " ++ show q ++ ")"
+  show (App (App (Con (Logical Equals)) m) n)
+    = "(" ++ show m ++ " = " ++ show n ++ ")"
+  show (App (App (Con (Special GTE)) m) n)
+    = "(" ++ show m ++ " ≥ " ++ show n ++ ")"
+  show (App (App (Con (Special Upd)) m) n)
+    = "(" ++ show m ++ "∷" ++ show n ++ ")"
+  show (App m n) = show m ++ "(" ++ show n ++ ")"
+  show (Con c) = show c
+  show (Lam m) = "λ" ++ show m
+  show (Fst m) = "(π₁ " ++ show m ++ ")"
+  show (Snd m) = "(π₂" ++ show m ++ ")"
+  show TT = "⋄"
+  show (Pair m n) = "⟨" ++ show m ++ ", " ++ show n ++ "⟩"
 
 subst :: (α × γ) ⊢ β -> γ ⊢ α -> γ ⊢ β
 subst (Var Get) t = t
@@ -131,7 +192,7 @@ lft f (Weaken i) = Weaken $ f i
 type Context
   = (E ⟶ R × (E ⟶ T × (R × ((R ⟶ (R ⟶ T)) × (Γ × ((E ⟶ (Γ ⟶ Γ)) × ((Γ ⟶ E) × Unit)))))))
 
-findC :: Con α -> α ∈ Context
+findC :: Special α -> α ∈ Context
 findC Height = Get
 findC Human = Weaken Get
 findC Theta = Weaken (Weaken Get)
@@ -169,13 +230,11 @@ hmorph0 (Lam m) = Lam $ exch (hmorph0 m)
 hmorph0 (Fst m) = Fst $ hmorph0 m
 hmorph0 (Snd m) = Snd $ hmorph0 m
 hmorph0 (Pair m n) = Pair (hmorph0 m) (hmorph0 n)
-hmorph0 (Con c) = π (findC c) (Var Get)
+hmorph0 (Con (Special c)) = π (findC c) (Var Get)
+hmorph0 (Con c) = Con c
 
 hmorph :: γ ⊢ α -> γ ⊢ (Context ⟶ α)
 hmorph m = Lam (hmorph0 m)
-
--- >>> Con (RN (Integral (Normal (Lit 0) (Lit 1)) (Lit (-1)) (Lit 1) (\x -> RNV x)))
--- Con (RN Normal 0.0 1.0(-1.0, 1.0)x:(x))
 
 η :: γ ⊢ α -> γ ⊢ ((α ⟶ R) ⟶ R)
 η m = Lam (App (Var Get) (wkn m))
