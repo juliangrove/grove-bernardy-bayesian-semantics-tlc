@@ -10,9 +10,9 @@ author:              Julian Grove and Jean-Philippe Bernardy
 maintainer:          julian.grove@gmail.com
 copyright:           2021
 build-type:          Simple
-
 library 
-  exposed-modules: TLC.RN
+  exposed-modules: Fragments.RSA
+                 , Models.RN
                  , TLC.Terms
   hs-source-dirs: src
   build-depends: base

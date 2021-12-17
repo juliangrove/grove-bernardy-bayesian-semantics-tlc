@@ -21,7 +21,6 @@ module TLC.Terms where
 
 import Data.Functor.Identity
 import Prelude hiding (Monad(..))
-import TLC.RN
 
 data Type = E | T | R | U | Γ
           | Type :-> Type
@@ -61,6 +60,7 @@ data Rl α where
   Indi :: Rl (T ⟶ R)
   Mult :: Rl (R ⟶ (R ⟶ R))
   Nml :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
+  Uni :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
   Distr :: Rl (((α ⟶ R) ⟶ R) ⟶ (α ⟶ R))
 
 instance Show (Rl α) where
@@ -68,6 +68,7 @@ instance Show (Rl α) where
   show Indi = "𝟙"
   show Mult = "(*)"
   show Nml = "Normal"
+  show Uni = "Uniform"
   show Distr = "Distr"
 
 data Special α where
@@ -122,13 +123,15 @@ instance Show (γ ⊢ α) where
     = "(" ++ show p ++ " → " ++ show q ++ ")"
   show (App (App (Con (Logical Equals)) m) n)
     = "(" ++ show m ++ " = " ++ show n ++ ")"
+  show (App (App (Con (Rl Mult)) m) n)
+    = "(" ++ show m ++ " * " ++ show n ++ ")"
   show (App (App (Con (Special GTE)) m) n)
     = "(" ++ show m ++ " ≥ " ++ show n ++ ")"
   show (App (App (Con (Special Upd)) m) n)
     = "(" ++ show m ++ "∷" ++ show n ++ ")"
   show (App m n) = show m ++ "(" ++ show n ++ ")"
   show (Con c) = show c
-  show (Lam m) = "λ" ++ show m
+  show (Lam m) = "λ(" ++ show m ++ ")"
   show (Fst m) = "(π₁ " ++ show m ++ ")"
   show (Snd m) = "(π₂" ++ show m ++ ")"
   show TT = "⋄"
@@ -147,6 +150,7 @@ subst (Pair m n) t = Pair (subst m t) (subst n t)
 
 evalstepβ :: γ ⊢ α -> γ ⊢ α
 evalstepβ (Var i) = Var i
+evalstepβ (Con c) = Con c
 evalstepβ (App m n) = case m of
                         Lam m' -> subst m' n
                         _ -> App (evalstepβ m) (evalstepβ n)
@@ -208,6 +212,7 @@ rename f (App m n) = App (rename f m) (rename f n)
 rename f (Lam m) = Lam $ rename (lft f) m
 rename f (Fst m) = Fst $ rename f m
 rename f (Snd m) = Snd $ rename f m
+rename f TT = TT
 rename f (Pair m n) = Pair (rename f m) (rename f n)
 
 wkn :: γ ⊢ α -> (β × γ) ⊢ α
@@ -217,6 +222,7 @@ exch :: (α × (β × γ)) ⊢ ω -> (β × (α × γ)) ⊢ ω
 exch = rename $ \case
   Get -> Weaken Get
   Weaken Get -> Get
+  (Weaken (Weaken i)) -> Weaken (Weaken i)
 
 contr :: (α × (α × γ)) ⊢ β -> (α × γ) ⊢ β
 contr = rename $ \case
