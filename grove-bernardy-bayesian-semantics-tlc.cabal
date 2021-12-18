@@ -11,7 +11,7 @@ maintainer:          julian.grove@gmail.com
 copyright:           2021
 build-type:          Simple
 library 
-  exposed-modules: Fragments.RSA
+  exposed-modules: Examples.RSA
                  , Models.RN
                  , TLC.Terms
   hs-source-dirs: src

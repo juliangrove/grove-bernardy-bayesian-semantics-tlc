@@ -2,7 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Fragments.RSA where
+module Examples.RSA where
 
 import Prelude hiding (Monad(..))
 import TLC.Terms
@@ -62,6 +62,12 @@ interp (Con (Special (Utt 1))) = App (App (≥) (App height vlad)) θ
 lower :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
 lower m = App m (Lam (Var Get))
 
+measure :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
+measure m = App m (Lam (Con $ Rl $ Incl 1))
+
+expectedValue :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
+expectedValue m = App (App (Con $ Rl $ Divi) (lower m)) (measure m)
+
 -- | RSA
 
 -- | Pragmatic listener
@@ -84,8 +90,11 @@ l0 = Lam (k >>= Lam (
 
 
 
--- >>> clean $ evalβ $ lower $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x ≐ x'') * (x' ≐ x'''))))))) * x)))))
+-- >>> clean $ evalβ s1
+-- λ(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * (⟨v, ⟨λ(x'), ⟨human, ⟨x', ⟨(≥), ⟨ε, ⟨(∷), ⟨sel, ⋄⟩⟩⟩⟩⟩⟩⟩⟩ ≐ x''')))))) * x(U1))))
+
+-- >>> clean $ evalβ $ expectedValue $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- (Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x ≐ x'') * (x' ≐ x'''))))))) * x))))) / Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ(Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x ≐ x'') * (x' ≐ x'''))))))))))))
 
 -- >>> subEq $ (Pair vlad TT) ≐ (Pair vlad TT)
 -- (1.0 * 1.0)

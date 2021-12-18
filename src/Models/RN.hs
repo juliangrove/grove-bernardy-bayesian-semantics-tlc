@@ -1,10 +1,14 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Models.RN where
 
 import Control.Monad (ap)
-import Fragments.RSA
+import Examples.RSA
 import TLC.Terms
 
 data Discrete1P = Bernoulli
@@ -39,16 +43,49 @@ instance Show V where
   show (V c i) = if i == 0 then [c] else c : show i
 
 data UnOp = Neg | Exp | Dirac
-data BinOp = Add | Sub | Mul | Equal
+data BinOp = Add | Sub | Mul | Div | Equal
 
 data RN = Lit Double
         | Inf
         | RNV V
-        | Ind V
+        | Ind T
         | UnOp UnOp RN
         | BinOp BinOp RN RN
         | Integral1 Discrete1P RN (V -> RN)
         | Integral2 Continuous2P RN RN RN RN (V -> RN)
+
+data T = TV V | Gte RN RN
+
+instance Show T where
+  show (TV v) = show v
+  show (Gte x y) = show x ++ " \\geq " ++ show y
+
+data Env γ where
+  Emp :: Env Unit
+  Cons :: RN -> Env γ -> Env (R × γ)
+
+lookUp :: R ∈ γ -> Env γ -> RN
+lookUp Get (Cons x env) = x
+lookUp (Weaken i) (Cons x env) = lookUp i env 
+
+evalRN :: Env γ -> γ ⊢ R -> RN
+evalRN env (App (App (Con (Rl Nml)) (Pair x y)) f)
+  = Integral2 Normal (evalRN env x) (evalRN env y) (UnOp Neg Inf) Inf (\x -> evalRN (Cons (RNV x) env) $ evalβ $ App (wkn f) (Var Get))
+evalRN env (App (App (Con (Rl Uni)) (Pair x y)) f)
+  = Integral2 Uniform (evalRN env x) (evalRN env y) (UnOp Neg Inf) Inf (\x -> evalRN (Cons (RNV x) env) $ evalβ $ App (wkn f) (Var Get))
+evalRN env (Con (Rl (Incl x))) = Lit x
+evalRN env (Var i) = lookUp i env
+evalRN env (App (Con (Rl Indi)) (App (App (Con (Special GTE)) x) y))
+  = Ind (Gte (evalRN env x) (evalRN env y))
+evalRN env (App (App (Con (Rl Mult)) x) y) = BinOp Mul (evalRN env x) (evalRN env y)
+evalRN env (App (App (Con (Rl Divi)) x) y) = BinOp Div (evalRN env x) (evalRN env y)
+evalRN env (App (App (Con (Rl EqRl)) (x :: γ ⊢ R)) y) = UnOp Dirac (BinOp Sub (evalRN env x) (evalRN env y))
+
+-- >>> clean $ evalβ $ lower $ App l1 (u 1) TLC.Terms.>>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x ≐ x'') * (x' ≐ x'''))))))) * x)))))
+
+-- >>> evalRN Emp $ clean $ evalβ $ expectedValue $ App l1 (u 1) TLC.Terms.>>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- \frac{\int_{-\infty}^{\infty}\left(\begin{cases}\frac{\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * (\int_{-\infty}^{\infty}\left(\begin{cases}\frac{\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((u - y)) * \delta((z - x))))\right)du}{100.0 - 0.0} &0.0 \le z \le 100.0\\0 &o.w.\end{cases}\right)dz * y)\right)dy}{100.0 - 0.0} &0.0 \le x \le 100.0\\0 &o.w.\end{cases}\right)dx}{\int_{-\infty}^{\infty}\left(\begin{cases}\frac{\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * \int_{-\infty}^{\infty}\left(\begin{cases}\frac{\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((u - y)) * \delta((z - x))))\right)du}{100.0 - 0.0} &0.0 \le z \le 100.0\\0 &o.w.\end{cases}\right)dz\right)dy}{100.0 - 0.0} &0.0 \le x \le 100.0\\0 &o.w.\end{cases}\right)dx}
 
 helpShow :: RN -> V -> String
 helpShow (RNV i) j = show i
@@ -60,6 +97,7 @@ helpShow (UnOp Exp x) i = "e^{" ++ helpShow x i ++ "}"
 helpShow (UnOp Dirac x) i = "\\delta(" ++ helpShow x i ++ ")"
 helpShow (BinOp Add x y) i = "(" ++ helpShow x i ++ " + " ++ helpShow y i ++ ")"
 helpShow (BinOp Mul x y) i = "(" ++ helpShow x i ++ " * " ++ helpShow y i ++ ")"
+helpShow (BinOp Div x y) i = "\\frac{" ++ helpShow x i ++ "}{" ++ helpShow y i ++ "}"
 helpShow (BinOp Sub x y) i = "(" ++ helpShow x i ++ " - " ++ helpShow y i ++ ")"
 helpShow (BinOp Equal x y) i = "(" ++ helpShow x i ++ " = " ++ helpShow y i ++ ")"
 helpShow (Integral1 Bernoulli x f) i = "\\begin{cases}" ++ helpShow x i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\top\\\\" ++ helpShow (BinOp Sub (Lit 1) x) i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\bot\\end{cases}"

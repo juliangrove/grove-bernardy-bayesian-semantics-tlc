@@ -28,7 +28,7 @@ type α × β = α ':× β
 type α ⟶ β = α ':-> β
 
 (≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ R
-m ≐ n = App (App (Con (Rl EqRl)) m) n
+m ≐ n = App (App (Con (Rl EqGen)) m) n
 
 class Equality α where
   equals :: (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ R
@@ -40,7 +40,7 @@ instance Equality R where
                                                      True -> Con $ Rl $ Incl 1
                                                      False -> Con $ Rl $ Incl 0
   equals (Con (Special Theta)) (Con (Special Theta)) = Con $ Rl $ Incl 1
-  equals x y = x ≐ y 
+  equals x y = App (App (Con (Rl EqRl)) x) y 
 instance Equality U where
   equals (Con (Special (Utt i))) (Con (Special (Utt j))) = case i == j of
                              True -> Con $ Rl $ Incl 1
@@ -50,6 +50,7 @@ instance Equality Unit where
 instance (Equality α, Equality β) => Equality (α × β) where
   equals (Pair m n) (Pair m' n')
     = App (App (Con $ Rl $ Mult) (equals m m')) (equals n n')
+  equals m n = App (App (Con $ Rl $ EqGen) m) n
 instance Equality (E ⟶ R) where
   equals (Con (Special Height)) (Con (Special Height)) = Con $ Rl $ Incl 1
   equals (Lam m) (Lam n) | isConstant 0 m && isConstant 0 n = case equals m n of
@@ -57,7 +58,7 @@ instance Equality (E ⟶ R) where
                              Con (Rl (Incl 0)) -> Con $ Rl $ Incl 0
                              App (App (Con (Rl EqRl))
                                   (Var (Weaken i)))
-                               (Var (Weaken j)) -> (Var i) ≐ (Var j)
+                               (Var (Weaken j)) -> App (App (Con (Rl EqRl)) (Var i)) (Var j)
 instance Equality (E ⟶ T) where
   equals (Con (Special Human)) (Con (Special Human)) = Con $ Rl $ Incl 1
 instance Equality (R ⟶ (R ⟶ T)) where
@@ -70,7 +71,7 @@ instance Equality (Γ ⟶ E) where
   equals (Con (Special Sel)) (Con (Special Sel)) = Con $ Rl $ Incl 1
 
 subEq :: γ ⊢ α -> γ ⊢ α
-subEq (App (App (Con (Rl EqRl)) m) n) = equals m n
+subEq (App (App (Con (Rl EqGen)) m) n) = equals m n
 subEq (Var i) = Var i
 subEq (Con c) = Con c
 subEq (App m n) = App (subEq m) (subEq n)
@@ -144,16 +145,20 @@ data Rl α where
   Incl :: Double -> Rl R
   Indi :: Rl (T ⟶ R)
   Mult :: Rl (R ⟶ (R ⟶ R))
+  Divi :: Rl (R ⟶ (R ⟶ R))
   Nml :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
   Uni :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
-  EqRl :: Equality α => Rl (α ⟶ (α ⟶ R))
+  EqGen :: Equality α => Rl (α ⟶ (α ⟶ R))
+  EqRl :: Rl (R ⟶ (R ⟶ R))
 
 instance Show (Rl α) where
   show (Incl x) = show x
   show Indi = "𝟙"
   show Mult = "(*)"
+  show Divi = "(/)"
   show Nml = "Normal"
   show Uni = "Uniform"
+  show EqGen = "(≐)"
   show EqRl = "(≐)"
 
 data Special α where
@@ -212,12 +217,16 @@ instance Show (γ ⊢ α) where
     = "(" ++ show m ++ " = " ++ show n ++ ")"
   show (App (App (Con (Rl Mult)) m) n)
     = "(" ++ show m ++ " * " ++ show n ++ ")"
+  show (App (App (Con (Rl Divi)) m) n)
+    = "(" ++ show m ++ " / " ++ show n ++ ")"
+  show (App (App (Con (Rl EqGen)) m) n)
+    = "(" ++ show m ++ " ≐ " ++ show n ++ ")"
   show (App (App (Con (Rl EqRl)) m) n)
     = "(" ++ show m ++ " ≐ " ++ show n ++ ")"
   show (App (App (Con (Special GTE)) m) n)
     = "(" ++ show m ++ " ≥ " ++ show n ++ ")"
   show (App (App (Con (Special Upd)) m) n)
-    = "(" ++ show m ++ "∷" ++ show n ++ ")"
+    = show m ++ "∷" ++ show n
   show (App m n) = show m ++ "(" ++ show n ++ ")"
   show (Con c) = show c
   show (Lam m) = "λ(" ++ show m ++ ")"
