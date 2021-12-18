@@ -44,8 +44,8 @@ p --> q = App (App (Con (Logical Imp)) p) q
 exists :: γ ⊢ (α ⟶ T) -> γ ⊢ T
 exists φ = App (Con (Logical Exists)) φ
 
-distr :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ R)
-distr p = App (Con (Rl Distr)) p
+distr :: Equality α => γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ R)
+distr p = Lam (App (wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))))
 
 k :: γ ⊢ ((Context ⟶ R) ⟶ R)
 k = uniform 0 100 >>= Lam (normal 68 3 >>= Lam (η (Pair vlad (Pair (Lam (Var (Weaken Get))) (Pair human (Pair (Var (Weaken Get)) (Pair (≥) (Pair emp (Pair upd (Pair sel TT))))))))))
@@ -69,7 +69,7 @@ l1 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
 l1 = Lam (k >>= Lam (
              factor' (App (distr (App s1 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
-
+     
 -- | Pragmatic speaker
 s1 :: γ ⊢ (Context ⟶ ((U ⟶ R) ⟶ R))
 s1 = Lam (utts >>= Lam (
@@ -84,5 +84,8 @@ l0 = Lam (k >>= Lam (
 
 
 
--- >>> evalβ $ lower $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Distr(λ((Distr(λ(Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * x''(⟨v, ⟨λ(x'), ⟨human, ⟨x', ⟨(≥), ⟨ε, ⟨(∷), ⟨sel, ⋄⟩⟩⟩⟩⟩⟩⟩⟩))))))))(⟨v, ⟨λ(x''), ⟨human, ⟨x'', ⟨(≥), ⟨ε, ⟨(∷), ⟨sel, ⋄⟩⟩⟩⟩⟩⟩⟩⟩) * x(U1))))(U1) * x)))))
+-- >>> clean $ evalβ $ lower $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x ≐ x'') * (x' ≐ x'''))))))) * x)))))
+
+-- >>> subEq $ (Pair vlad TT) ≐ (Pair vlad TT)
+-- (1.0 * 1.0)

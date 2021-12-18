@@ -66,28 +66,8 @@ helpShow (Integral1 Bernoulli x f) i = "\\begin{cases}" ++ helpShow x i ++ " * "
 helpShow (Integral2 Normal x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\frac{1}{" ++ helpShow y i ++ "\\sqrt{2\\pi}}e^{-\\frac{(" ++ show i ++ " - " ++ helpShow x i ++ ")^2}{2 * (" ++ helpShow y i ++ ")^2}} * " ++ helpShow (f i) (succ i) ++ "\\right)d" ++ show i
 helpShow (Integral2 Uniform x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\begin{cases}\\frac{" ++ helpShow (f i) (succ i) ++ "}{" ++ helpShow y i ++ " - " ++ helpShow x i  ++ "} &" ++ helpShow x i ++ " \\le " ++ show i ++ " \\le " ++ helpShow y i ++ "\\\\0 &o.w.\\end{cases}\\right)d" ++ show i
 
--- >>> evalβ $ lower $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- <interactive>:783:31-33: error:
---     Ambiguous occurrence ‘>>=’
---     It could refer to
---        either ‘Prelude.>>=’,
---               imported from ‘Prelude’ at /tmp/danteK5nKIw.hs:4:8-16
---               (and originally defined in ‘GHC.Base’)
---            or ‘TLC.Terms.>>=’,
---               imported from ‘TLC.Terms’ at /tmp/danteK5nKIw.hs:8:1-16
---               (and originally defined at /tmp/dantenlnaCO.hs:242:3-5)
-
 instance Show RN where
   show x = helpShow x (toEnum 0)
-
--- >>> Integral2 Uniform (Lit 0) (Lit 1) (UnOp Neg Inf) Inf $ \x -> Integral1 Bernoulli (Lit 0.5) (\y -> BinOp Mul (Ind y) (RNV x))
--- \int_{-\infty}^{\infty}\left(\begin{cases}\frac{\begin{cases}0.5 * (\mathds{1}(y) * x) &y = \top\\(1.0 - 0.5) * (\mathds{1}(y) * x) &y = \bot\end{cases}}{1.0 - 0.0} &0.0 \le x \le 1.0\\0 &o.w.\end{cases}\right)dx
-
--- >>> Integral2 Normal (Lit 0) (Lit 1) (UnOp Neg Inf) Inf $ \x -> Integral1 Bernoulli (Lit 0.5) (\y -> BinOp Mul (Ind y) (RNV x) )
--- \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(x - 0.0)^2}{2 * (1.0)^2}} * \begin{cases}0.5 * (\mathds{1}(y) * x) &y = \top\\(1.0 - 0.5) * (\mathds{1}(y) * x) &y = \bot\end{cases}\right)dx
-
--- >>> Integral1 Bernoulli (Lit 0.5) (\y -> Integral2 Normal (Lit 0) (Lit 1) (UnOp Neg Inf) Inf $ \x -> BinOp Mul (Ind y) (RNV x))
--- \begin{cases}0.5 * \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(y - 0.0)^2}{2 * (1.0)^2}} * (\mathds{1}(x) * y)\right)dy &x = \top\\(1.0 - 0.5) * \int_{-\infty}^{\infty}\left(\frac{1}{1.0\sqrt{2\pi}}e^{-\frac{(y - 0.0)^2}{2 * (1.0)^2}} * (\mathds{1}(x) * y)\right)dy &x = \bot\end{cases}
 
 rToDouble :: RN -> Double
 rToDouble (Lit x) = x
@@ -112,25 +92,25 @@ instance Num RN where
   fromInteger x = Lit (fromInteger x)
   negate = UnOp Neg
  
--- data PP α = PP { expect :: (α -> R) -> R }
+data PP α = PP { expect :: (α -> RN) -> RN }
 
--- instance Functor PP where
---   fmap f (PP m) = PP $ \k -> m (k . f)
--- instance Applicative PP where
---   pure = PP . flip ($)
---   (<*>) = ap
--- instance Monad PP where
---   return x = PP (\k -> k x)
---   (PP a) >>= f = PP (\k -> a $ \x -> expect (f x) k) 
+instance Functor PP where
+  fmap f (PP m) = PP $ \k -> m (k . f)
+instance Applicative PP where
+  pure = PP . flip ($)
+  (<*>) = ap
+instance Monad PP where
+  return x = PP (\k -> k x)
+  (PP a) >>= f = PP (\k -> a $ \x -> expect (f x) k) 
 
--- pf :: Sampleable a => PP a -> a -> RN
--- pf (PP p) y = p (equal y)
+pf :: Sampleable a => PP a -> a -> RN
+pf (PP p) y = p (equal y)
 
--- class Sampleable a where
---   equal :: a -> a -> RN
+class Sampleable a where
+  equal :: a -> a -> RN
 
--- instance Sampleable RN where
---   equal x y = UnOp Dirac (x - y)
+instance Sampleable RN where
+  equal x y = UnOp Dirac (x - y)
 
--- instance (Sampleable a, Sampleable b) => Sampleable (a, b) where
---   equal (x1, x2) (y1, y2) = equal x1 y1 * equal x2 y2
+instance (Sampleable a, Sampleable b) => Sampleable (a, b) where
+  equal (x1, x2) (y1, y2) = equal x1 y1 * equal x2 y2

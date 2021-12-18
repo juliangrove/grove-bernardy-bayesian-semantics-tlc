@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UnicodeSyntax #-}
 
 module TLC.Terms where
@@ -24,6 +26,99 @@ deriving instance Show (α ∈ γ)
 
 type α × β = α ':× β
 type α ⟶ β = α ':-> β
+
+(≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ R
+m ≐ n = App (App (Con (Rl EqRl)) m) n
+
+class Equality α where
+  equals :: (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ R
+instance Equality E where
+  equals (Con (Special Vlad)) (Con (Special Vlad)) = Con $ Rl $ Incl 1
+-- instance Equality T
+instance Equality R where
+  equals (Con (Rl (Incl x))) (Con (Rl (Incl y))) = case x == y of
+                                                     True -> Con $ Rl $ Incl 1
+                                                     False -> Con $ Rl $ Incl 0
+  equals (Con (Special Theta)) (Con (Special Theta)) = Con $ Rl $ Incl 1
+  equals x y = x ≐ y 
+instance Equality U where
+  equals (Con (Special (Utt i))) (Con (Special (Utt j))) = case i == j of
+                             True -> Con $ Rl $ Incl 1
+                             False -> Con $ Rl $ Incl 0
+instance Equality Unit where
+  equals TT TT = Con $ Rl $ Incl 1
+instance (Equality α, Equality β) => Equality (α × β) where
+  equals (Pair m n) (Pair m' n')
+    = App (App (Con $ Rl $ Mult) (equals m m')) (equals n n')
+instance Equality (E ⟶ R) where
+  equals (Con (Special Height)) (Con (Special Height)) = Con $ Rl $ Incl 1
+  equals (Lam m) (Lam n) | isConstant 0 m && isConstant 0 n = case equals m n of
+                             Con (Rl (Incl 1)) -> Con $ Rl $ Incl 1
+                             Con (Rl (Incl 0)) -> Con $ Rl $ Incl 0
+                             App (App (Con (Rl EqRl))
+                                  (Var (Weaken i)))
+                               (Var (Weaken j)) -> (Var i) ≐ (Var j)
+instance Equality (E ⟶ T) where
+  equals (Con (Special Human)) (Con (Special Human)) = Con $ Rl $ Incl 1
+instance Equality (R ⟶ (R ⟶ T)) where
+  equals (Con (Special GTE)) (Con (Special GTE)) = Con $ Rl $ Incl 1 
+instance Equality Γ where
+  equals (Con (Special Empty)) (Con (Special Empty)) = Con $ Rl $ Incl 1
+instance Equality (E ⟶ (Γ ⟶ Γ)) where
+  equals (Con (Special Upd)) (Con (Special Upd)) = Con $ Rl $ Incl 1
+instance Equality (Γ ⟶ E) where
+  equals (Con (Special Sel)) (Con (Special Sel)) = Con $ Rl $ Incl 1
+
+subEq :: γ ⊢ α -> γ ⊢ α
+subEq (App (App (Con (Rl EqRl)) m) n) = equals m n
+subEq (Var i) = Var i
+subEq (Con c) = Con c
+subEq (App m n) = App (subEq m) (subEq n)
+subEq (Lam m) = Lam $ subEq m
+subEq (Fst m) = Fst $ subEq m
+subEq (Snd m) = Snd $ subEq m
+subEq TT = TT
+subEq (Pair m n) = Pair (subEq m) (subEq n)
+
+reduce1step :: γ ⊢ α -> γ ⊢ α
+reduce1step (App (App (Con (Rl Mult)) (Con (Rl (Incl 1)))) n) = reduce1step n
+reduce1step (App (App (Con (Rl Mult)) m) (Con (Rl (Incl 1)))) = reduce1step m
+reduce1step (Var i) = Var i
+reduce1step (Con c) = Con c
+reduce1step (App m n) = App (reduce1step m) (reduce1step n)
+reduce1step (Lam m) = Lam $ reduce1step m
+reduce1step (Fst m) = Fst $ reduce1step m
+reduce1step (Snd m) = Snd $ reduce1step m
+reduce1step TT = TT
+reduce1step (Pair m n) = Pair (reduce1step m) (reduce1step n)
+
+has1s :: γ ⊢ α -> Bool
+has1s (Con (Rl (Incl 1))) = True
+has1s (Var i) = False
+has1s (Con c) = False
+has1s (App m n) = has1s m || has1s n
+has1s (Lam m) = has1s m
+has1s (Fst m) = has1s m
+has1s (Snd m) = has1s m
+has1s TT = False
+has1s (Pair m n) = has1s m || has1s n
+
+reduce1s :: γ ⊢ α -> γ ⊢ α
+reduce1s m = if has1s m then reduce1s (reduce1step m) else m
+
+clean :: γ ⊢ α -> γ ⊢ α
+clean = reduce1s . subEq
+
+isConstant :: Int -> γ ⊢ α -> Bool
+isConstant i (Var Get) = i < 0
+isConstant i (Var (Weaken j)) = isConstant (i - 1) (Var j)
+isConstant i (Con c) = True
+isConstant i (App m n) = isConstant i m && isConstant i n
+isConstant i (Lam m) = isConstant (i + 1) m
+isConstant i (Fst m) = isConstant i m
+isConstant i (Snd m) = isConstant i m
+isConstant i TT = True
+isConstant i (Pair m n) = isConstant i m && isConstant i n
 
 data Logical α where
   Tru :: Logical T
@@ -51,7 +146,7 @@ data Rl α where
   Mult :: Rl (R ⟶ (R ⟶ R))
   Nml :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
   Uni :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
-  Distr :: Rl (((α ⟶ R) ⟶ R) ⟶ (α ⟶ R))
+  EqRl :: Equality α => Rl (α ⟶ (α ⟶ R))
 
 instance Show (Rl α) where
   show (Incl x) = show x
@@ -59,7 +154,7 @@ instance Show (Rl α) where
   show Mult = "(*)"
   show Nml = "Normal"
   show Uni = "Uniform"
-  show Distr = "Distr"
+  show EqRl = "(≐)"
 
 data Special α where
   Utt :: Int -> Special U
@@ -117,6 +212,8 @@ instance Show (γ ⊢ α) where
     = "(" ++ show m ++ " = " ++ show n ++ ")"
   show (App (App (Con (Rl Mult)) m) n)
     = "(" ++ show m ++ " * " ++ show n ++ ")"
+  show (App (App (Con (Rl EqRl)) m) n)
+    = "(" ++ show m ++ " ≐ " ++ show n ++ ")"
   show (App (App (Con (Special GTE)) m) n)
     = "(" ++ show m ++ " ≥ " ++ show n ++ ")"
   show (App (App (Con (Special Upd)) m) n)
@@ -186,7 +283,14 @@ lft f (Weaken i) = Weaken $ f i
 π (Weaken i) γ = π i (Snd γ)
 
 type Context
-  = (E × (E ⟶ R × (E ⟶ T × (R × ((R ⟶ (R ⟶ T)) × (Γ × ((E ⟶ (Γ ⟶ Γ)) × ((Γ ⟶ E) × Unit))))))))
+  = (E ×
+     (E ⟶ R ×
+      (E ⟶ T ×
+       (R ×
+        ((R ⟶ (R ⟶ T)) ×
+         (Γ ×
+          ((E ⟶ (Γ ⟶ Γ)) ×
+           ((Γ ⟶ E) × Unit))))))))
 
 findC :: Special α -> α ∈ Context
 findC Vlad = Get
