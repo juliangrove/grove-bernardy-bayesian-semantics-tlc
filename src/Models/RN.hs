@@ -48,44 +48,57 @@ data BinOp = Add | Sub | Mul | Div | Equal
 data RN = Lit Double
         | Inf
         | RNV V
-        | Ind T
+        | Ind Tr
         | UnOp UnOp RN
         | BinOp BinOp RN RN
         | Integral1 Discrete1P RN (V -> RN)
         | Integral2 Continuous2P RN RN RN RN (V -> RN)
 
-data T = TV V | Gte RN RN
+data En = EV V
+data Tr = TV V | Gte RN RN
+data Ut = UV V
+data Ga = Ga V
 
-instance Show T where
+type family Eval α where
+  Eval E = En
+  Eval T = Tr
+  Eval U = Ut
+  Eval Γ = Ga
+  Eval R = RN
+  Eval (α ⟶ β) = Eval α -> Eval β
+  Eval Unit = ()
+  Eval (α × β) = (Eval α, Eval β)
+
+instance Show Tr where
   show (TV v) = show v
   show (Gte x y) = show x ++ " \\geq " ++ show y
 
 data Env γ where
   Emp :: Env Unit
-  Cons :: RN -> Env γ -> Env (R × γ)
+  Cons :: Eval α -> Env γ -> Env (α × γ)
 
-lookUp :: R ∈ γ -> Env γ -> RN
+lookUp :: α ∈ γ -> Env γ -> Eval α
 lookUp Get (Cons x env) = x
 lookUp (Weaken i) (Cons x env) = lookUp i env 
 
-evalRN :: Env γ -> γ ⊢ R -> RN
-evalRN env (App (App (Con (Rl Nml)) (Pair x y)) f)
-  = Integral2 Normal (evalRN env x) (evalRN env y) (UnOp Neg Inf) Inf (\x -> evalRN (Cons (RNV x) env) $ evalβ $ App (wkn f) (Var Get))
-evalRN env (App (App (Con (Rl Uni)) (Pair x y)) f)
-  = Integral2 Uniform (evalRN env x) (evalRN env y) (UnOp Neg Inf) Inf (\x -> evalRN (Cons (RNV x) env) $ evalβ $ App (wkn f) (Var Get))
-evalRN env (Con (Rl (Incl x))) = Lit x
+evalRN :: Env γ -> γ ⊢ α -> Eval α
 evalRN env (Var i) = lookUp i env
-evalRN env (App (Con (Rl Indi)) (App (App (Con (Special GTE)) x) y))
-  = Ind (Gte (evalRN env x) (evalRN env y))
-evalRN env (App (App (Con (Rl Mult)) x) y) = BinOp Mul (evalRN env x) (evalRN env y)
-evalRN env (App (App (Con (Rl Divi)) x) y) = BinOp Div (evalRN env x) (evalRN env y)
-evalRN env (App (App (Con (Rl EqRl)) (x :: γ ⊢ R)) y) = UnOp Dirac (BinOp Sub (evalRN env x) (evalRN env y))
-
--- >>> clean $ evalβ $ lower $ App l1 (u 1) TLC.Terms.>>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x ≐ x'') * (x' ≐ x'''))))))) * x)))))
-
--- >>> evalRN Emp $ clean $ evalβ $ expectedValue $ App l1 (u 1) TLC.Terms.>>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- \frac{\int_{-\infty}^{\infty}\left(\begin{cases}\frac{\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * (\int_{-\infty}^{\infty}\left(\begin{cases}\frac{\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((u - y)) * \delta((z - x))))\right)du}{100.0 - 0.0} &0.0 \le z \le 100.0\\0 &o.w.\end{cases}\right)dz * y)\right)dy}{100.0 - 0.0} &0.0 \le x \le 100.0\\0 &o.w.\end{cases}\right)dx}{\int_{-\infty}^{\infty}\left(\begin{cases}\frac{\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * \int_{-\infty}^{\infty}\left(\begin{cases}\frac{\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((u - y)) * \delta((z - x))))\right)du}{100.0 - 0.0} &0.0 \le z \le 100.0\\0 &o.w.\end{cases}\right)dz\right)dy}{100.0 - 0.0} &0.0 \le x \le 100.0\\0 &o.w.\end{cases}\right)dx}
+evalRN env (Con (Rl (Incl x))) = Lit x
+evalRN env (Con (Rl Indi)) = Ind
+evalRN env (Con (Rl Mult)) = BinOp Mul
+evalRN env (Con (Rl Divi)) = BinOp Div
+evalRN env (Con (Rl Nml))
+  = \(x, y) f -> Integral2 Normal x y (UnOp Neg Inf) Inf (f . RNV)
+evalRN env (Con (Rl Uni))
+  = \(x, y) f -> Integral2 Uniform x y (UnOp Neg Inf) Inf (f . RNV)
+evalRN env (Con (Rl EqRl)) = \x y -> UnOp Dirac (BinOp Sub x y)
+evalRN env (Con (Special GTE)) = Gte
+evalRN env (App m n) = evalRN env m (evalRN env n)
+evalRN env (Lam m) = \x -> evalRN (Cons x env) m
+evalRN env (Fst m) = fst (evalRN env m)
+evalRN env (Snd m) = snd (evalRN env m)
+evalRN env TT = ()
+evalRN env (Pair m n) = (evalRN env m, evalRN env n)
 
 helpShow :: RN -> V -> String
 helpShow (RNV i) j = show i
@@ -97,12 +110,28 @@ helpShow (UnOp Exp x) i = "e^{" ++ helpShow x i ++ "}"
 helpShow (UnOp Dirac x) i = "\\delta(" ++ helpShow x i ++ ")"
 helpShow (BinOp Add x y) i = "(" ++ helpShow x i ++ " + " ++ helpShow y i ++ ")"
 helpShow (BinOp Mul x y) i = "(" ++ helpShow x i ++ " * " ++ helpShow y i ++ ")"
-helpShow (BinOp Div x y) i = "\\frac{" ++ helpShow x i ++ "}{" ++ helpShow y i ++ "}"
-helpShow (BinOp Sub x y) i = "(" ++ helpShow x i ++ " - " ++ helpShow y i ++ ")"
-helpShow (BinOp Equal x y) i = "(" ++ helpShow x i ++ " = " ++ helpShow y i ++ ")"
-helpShow (Integral1 Bernoulli x f) i = "\\begin{cases}" ++ helpShow x i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\top\\\\" ++ helpShow (BinOp Sub (Lit 1) x) i ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i ++ " = \\bot\\end{cases}"
-helpShow (Integral2 Normal x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\frac{1}{" ++ helpShow y i ++ "\\sqrt{2\\pi}}e^{-\\frac{(" ++ show i ++ " - " ++ helpShow x i ++ ")^2}{2 * (" ++ helpShow y i ++ ")^2}} * " ++ helpShow (f i) (succ i) ++ "\\right)d" ++ show i
-helpShow (Integral2 Uniform x y z w f) i = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}" ++ "\\left(\\begin{cases}\\frac{" ++ helpShow (f i) (succ i) ++ "}{" ++ helpShow y i ++ " - " ++ helpShow x i  ++ "} &" ++ helpShow x i ++ " \\le " ++ show i ++ " \\le " ++ helpShow y i ++ "\\\\0 &o.w.\\end{cases}\\right)d" ++ show i
+helpShow (BinOp Div x y) i
+  = "\\frac{" ++ helpShow x i ++ "}{" ++ helpShow y i ++ "}"
+helpShow (BinOp Sub x y) i
+  = "(" ++ helpShow x i ++ " - " ++ helpShow y i ++ ")"
+helpShow (BinOp Equal x y) i
+  = "(" ++ helpShow x i ++ " = " ++ helpShow y i ++ ")"
+helpShow (Integral1 Bernoulli x f) i
+  = "\\begin{cases}" ++ helpShow x i ++ " * " ++ helpShow (f i) (succ i)
+  ++ " &" ++ show i ++ " = \\top\\\\" ++ helpShow (BinOp Sub (Lit 1) x) i
+  ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i
+  ++ " = \\bot\\end{cases}"
+helpShow (Integral2 Normal x y z w f) i
+  = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i
+  ++ "}" ++ "\\left(\\frac{1}{" ++ helpShow y i ++ "\\sqrt{2\\pi}}e^{-\\frac{("
+  ++ show i ++ " - " ++ helpShow x i ++ ")^2}{2 * (" ++ helpShow y i
+  ++ ")^2}} * " ++ helpShow (f i) (succ i) ++ "\\right)d" ++ show i
+helpShow (Integral2 Uniform x y z w f) i
+  = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}"
+  ++ "\\left(\\begin{cases}\\frac{" ++ helpShow (f i) (succ i) ++ "}{"
+  ++ helpShow y i ++ " - " ++ helpShow x i  ++ "} &" ++ helpShow x i ++ " \\le "
+  ++ show i ++ " \\le " ++ helpShow y i ++ "\\\\0 &o.w.\\end{cases}\\right)d"
+  ++ show i
 
 instance Show RN where
   show x = helpShow x (toEnum 0)

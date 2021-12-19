@@ -34,7 +34,6 @@ class Equality α where
   equals :: (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ R
 instance Equality E where
   equals (Con (Special Vlad)) (Con (Special Vlad)) = Con $ Rl $ Incl 1
--- instance Equality T
 instance Equality R where
   equals (Con (Rl (Incl x))) (Con (Rl (Incl y))) = case x == y of
                                                      True -> Con $ Rl $ Incl 1
@@ -53,12 +52,12 @@ instance (Equality α, Equality β) => Equality (α × β) where
   equals m n = App (App (Con $ Rl $ EqGen) m) n
 instance Equality (E ⟶ R) where
   equals (Con (Special Height)) (Con (Special Height)) = Con $ Rl $ Incl 1
-  equals (Lam m) (Lam n) | isConstant 0 m && isConstant 0 n = case equals m n of
-                             Con (Rl (Incl 1)) -> Con $ Rl $ Incl 1
-                             Con (Rl (Incl 0)) -> Con $ Rl $ Incl 0
-                             App (App (Con (Rl EqRl))
-                                  (Var (Weaken i)))
-                               (Var (Weaken j)) -> App (App (Con (Rl EqRl)) (Var i)) (Var j)
+  equals (Lam m) (Lam n) | isConstant 0 m && isConstant 0 n
+    = case equals m n of
+        Con (Rl (Incl 1)) -> Con $ Rl $ Incl 1
+        Con (Rl (Incl 0)) -> Con $ Rl $ Incl 0
+        App (App (Con (Rl EqRl)) (Var (Weaken i))) (Var (Weaken j))
+          -> App (App (Con (Rl EqRl)) (Var i)) (Var j)
 instance Equality (E ⟶ T) where
   equals (Con (Special Human)) (Con (Special Human)) = Con $ Rl $ Incl 1
 instance Equality (R ⟶ (R ⟶ T)) where
@@ -352,8 +351,8 @@ hmorph m = Lam (hmorph0 m)
 η m = Lam (App (Var Get) (wkn m))
 
 (>>=) :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ ((β ⟶ R) ⟶ R)) -> γ ⊢ ((β ⟶ R) ⟶ R)
-m >>= k
-  = Lam (App (wkn m) (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
+m >>= k = Lam (App (wkn m)
+               (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
 
 (>>) :: γ ⊢ ((Unit ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R)
 m >> k = m >>= Lam (wkn k)
