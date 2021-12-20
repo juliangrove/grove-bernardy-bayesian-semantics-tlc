@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module TLC.Terms where
 
@@ -234,53 +235,55 @@ instance Show (γ ⊢ α) where
   show TT = "⋄"
   show (Pair m n) = "⟨" ++ show m ++ ", " ++ show n ++ "⟩"
 
-subst :: (α × γ) ⊢ β -> γ ⊢ α -> γ ⊢ β
-subst (Var Get) t = t
-subst (Var (Weaken i)) t = Var i
-subst (Con c) t = Con c
-subst (App m n) t = App (subst m t) (subst n t)
-subst (Lam m) t = Lam $ subst (exch m) (wkn t)
-subst (Fst m) t = Fst $ subst m t
-subst (Snd m ) t = Snd $ subst m t
-subst TT t = TT
-subst (Pair m n) t = Pair (subst m t) (subst n t)
+subst :: γ ⊢ α -> (forall β. β ∈ γ -> δ ⊢ β) -> δ ⊢ α
+subst (Var i) f = f i
+subst (Con c) f = Con c
+subst (App m n) f = case subst m f of
+                      Lam m' -> subst0 m' (subst n f)
+                      _ -> App (subst m f) (subst n f)
+subst (Lam m) f = Lam $ subst m (\i -> case i of
+                                         Get -> Var Get
+                                         Weaken j -> wkn $ f j)
+subst (Fst m) f = case subst m f of
+                    Pair m' _ -> m'
+                    _ -> Fst $ subst m f
+subst (Snd m) f = case subst m f of
+                    Pair _ n' -> n'
+                    _ -> Snd $ subst m f
+subst TT f = TT
+subst (Pair m n) f = Pair (subst m f) (subst n f)
 
-evalstepβ :: γ ⊢ α -> γ ⊢ α
-evalstepβ (Var i) = Var i
-evalstepβ (Con c) = Con c
-evalstepβ (App m n) = case m of
-                        Lam m' -> subst m' n
-                        _ -> App (evalstepβ m) (evalstepβ n)
-evalstepβ (Lam m) = Lam $ evalstepβ m
-evalstepβ (Fst m) = case m of
-                      Pair m' n' -> evalstepβ m'
-                      _ -> Fst $ evalstepβ m
-evalstepβ (Snd m) = case m of
-                      Pair m' n' -> evalstepβ n'
-                      _ -> Snd $ evalstepβ m
-evalstepβ TT = TT
-evalstepβ (Pair m n) = Pair (evalstepβ m) (evalstepβ n)
+subst0 :: (α × γ) ⊢ β -> γ ⊢ α -> γ ⊢ β
+subst0 m t = subst m $ \case
+  Get -> t
+  Weaken i -> Var i
 
-normalF :: γ ⊢ α -> Bool
-normalF (Var i) = True
-normalF (Con c) = True
-normalF (App m n) = case m of
-                      Lam m' -> False
-                      _-> normalF m && normalF n
-normalF (Lam m) = normalF m
-normalF (Fst m) = case m of
-                    Pair m' n' -> False
-                    _ -> normalF m
-normalF (Snd m) = case m of
-                    Pair m' n' -> False
-                    _ -> normalF m
-normalF TT = True
-normalF (Pair m n) = normalF m && normalF n
+isRedex :: γ ⊢ α -> Bool
+isRedex (App (Lam _) _) = True
+isRedex (Fst (Pair _ _)) = True
+isRedex (Snd (Pair _ _)) = True
+isRedex _ = False
 
 evalβ :: γ ⊢ α -> γ ⊢ α
-evalβ m = case normalF m of
-            True -> m
-            False -> evalβ (evalstepβ m)
+evalβ (Var i) = Var i
+evalβ (Con c) = Con c
+evalβ (App (Lam (evalβ -> m)) (evalβ -> n)) = if isRedex (subst0 m n)
+                                              then evalβ $ subst0 m n
+                                              else subst0 m n
+evalβ (App (evalβ -> m) (evalβ -> n)) = if isRedex (App m n)
+                                        then evalβ $ App m n
+                                        else App m n
+evalβ (Lam (evalβ -> m)) = Lam m
+evalβ (Fst (Pair (evalβ -> m) _)) = m
+evalβ (Fst (evalβ -> m)) = if isRedex (Fst m)
+                           then evalβ $ Fst m
+                           else Fst m
+evalβ (Snd (Pair _ (evalβ -> n))) = n
+evalβ (Snd (evalβ -> m)) = if isRedex (Snd m)
+                           then evalβ $ Snd m
+                           else Snd m
+evalβ TT = TT
+evalβ (Pair (evalβ -> m) (evalβ -> n)) = Pair m n
 
 lft :: (α ∈ γ -> α ∈ δ) -> α ∈ (β × γ) -> α ∈ (β × δ)
 lft f Get = Get
