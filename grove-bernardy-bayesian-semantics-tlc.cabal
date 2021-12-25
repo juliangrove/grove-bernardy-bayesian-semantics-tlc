@@ -12,6 +12,7 @@ copyright:           2021
 build-type:          Simple
 library 
   exposed-modules: Examples.RSA
+                 , Models.Optimizer
                  , Models.RN
                  , TLC.Terms
   hs-source-dirs: src

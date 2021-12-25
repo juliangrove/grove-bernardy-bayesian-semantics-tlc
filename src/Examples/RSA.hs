@@ -48,16 +48,34 @@ distr :: Equality α => γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ R)
 distr p = Lam (App (wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))))
 
 k :: γ ⊢ ((Context ⟶ R) ⟶ R)
-k = uniform 0 100 >>= Lam (normal 68 3 >>= Lam (η (Pair vlad (Pair (Lam (Var (Weaken Get))) (Pair human (Pair (Var (Weaken Get)) (Pair (≥) (Pair emp (Pair upd (Pair sel TT))))))))))
+k = uniform 0 100
+    >>= Lam (normal 68 3
+             >>= Lam (
+                η (Pair
+                   (Pair
+                    (Pair
+                     (Pair
+                      (Pair
+                       (Pair
+                        (Pair
+                         (Pair TT sel)
+                         upd)
+                        emp)
+                       (≥))
+                      (Var (Weaken Get)))
+                     human)
+                    (Lam (Var (Weaken Get))))
+                   vlad)))
 
 utts :: γ ⊢ ((U ⟶ R) ⟶ R)
-utts = η (Con (Special (Utt 1)))
+utts = η (Con (Special (Utt 2)))
 
 interp :: γ ⊢ U -> γ ⊢ T
 interp (Con (Special (Utt 1))) = App (App (≥) (App height vlad)) θ
+interp (Con (Special (Utt 2))) = exists (Lam (App (App (≥) (App height (Var Get))) θ))
 
--- >>> interp (Con $ Special $ Utt 1)
--- ∃(λ((human(x) ∧ (height(x) ≥ θ))))
+-- >>> interp (Con $ Special $ Utt 2)
+-- ∃(λ((height(x) ≥ θ)))
 
 lower :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
 lower m = App m (Lam (Var Get))
@@ -90,11 +108,11 @@ l0 = Lam (k >>= Lam (
 
 
 
--- >>> clean $ evalβ s1
--- λ(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * (⟨v, ⟨λ(x'), ⟨human, ⟨x', ⟨(≥), ⟨ε, ⟨(∷), ⟨sel, ⋄⟩⟩⟩⟩⟩⟩⟩⟩ ≐ x''')))))) * x(U1))))
+-- >>> evalβ $ s1
+-- λ(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, x'⟩, human⟩, λ(x')⟩, v⟩ ≐ x''')))))) * x(U2))))
 
 -- >>> clean $ evalβ $ expectedValue $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- (Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x ≐ x'') * (x' ≐ x'''))))))) * x))))) / Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ(Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x ≐ x'') * (x' ≐ x'''))))))))))))
+-- (Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ(((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x''))))))) * 0.0) * x))))) / Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x''))))))) * 0.0))))))
 
 -- >>> subEq $ (Pair vlad TT) ≐ (Pair vlad TT)
 -- (1.0 * 1.0)

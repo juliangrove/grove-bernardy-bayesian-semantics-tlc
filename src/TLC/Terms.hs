@@ -21,8 +21,8 @@ data Type = E | T | R | U | Γ
           | Type :× Type
 
 data (α :: Type) ∈ (γ :: Type) where
-  Get :: α ∈ (α × γ)
-  Weaken :: α ∈ γ -> α ∈ (β × γ)
+  Get :: α ∈ (γ × α)
+  Weaken :: α ∈ γ -> α ∈ (γ × β)
 deriving instance Show (α ∈ γ)
 
 type α × β = α ':× β
@@ -93,19 +93,20 @@ reduce1step (Snd m) = Snd $ reduce1step m
 reduce1step TT = TT
 reduce1step (Pair m n) = Pair (reduce1step m) (reduce1step n)
 
-has1s :: γ ⊢ α -> Bool
-has1s (Con (Rl (Incl 1))) = True
-has1s (Var i) = False
-has1s (Con c) = False
-has1s (App m n) = has1s m || has1s n
-has1s (Lam m) = has1s m
-has1s (Fst m) = has1s m
-has1s (Snd m) = has1s m
-has1s TT = False
-has1s (Pair m n) = has1s m || has1s n
+canReduce :: γ ⊢ α -> Bool
+canReduce (App (Con (Rl Mult)) (Con (Rl (Incl 1)))) = True
+canReduce (App (App (Con (Rl Mult)) x) (Con (Rl (Incl 1)))) = True
+canReduce (Var i) = False
+canReduce (Con c) = False
+canReduce (App m n) = canReduce m || canReduce n
+canReduce (Lam m) = canReduce m
+canReduce (Fst m) = canReduce m
+canReduce (Snd m) = canReduce m
+canReduce TT = False
+canReduce (Pair m n) = canReduce m || canReduce n
 
 reduce1s :: γ ⊢ α -> γ ⊢ α
-reduce1s m = if has1s m then reduce1s (reduce1step m) else m
+reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
 
 clean :: γ ⊢ α -> γ ⊢ α
 clean = reduce1s . subEq
@@ -198,11 +199,94 @@ data γ ⊢ α where
   Var :: α ∈ γ -> γ ⊢ α
   Con :: Con α -> γ ⊢ α
   App :: γ ⊢ (α ⟶ β) -> γ ⊢ α -> γ ⊢ β
-  Lam :: (α × γ) ⊢ β -> γ ⊢ (α ⟶ β)
+  Lam :: (γ × α) ⊢ β -> γ ⊢ (α ⟶ β)
   Fst :: γ ⊢ (α × β) -> γ ⊢ α
   Snd :: γ ⊢ (α × β) -> γ ⊢ β
   TT :: γ ⊢ Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
+
+data Neutral γ α where
+  NeuVar :: α ∈ γ -> Neutral γ α
+  NeuCon :: Con α -> Neutral γ α
+  NeuApp :: Neutral γ (α ⟶ β) -> NF γ α -> Neutral γ β
+  NeuFst :: Neutral γ (α × β) -> Neutral γ α
+  NeuSnd :: Neutral γ (α × β) -> Neutral γ β
+  NeuTT :: Neutral γ Unit
+
+data NF γ α where
+  NFLam :: NF (γ × α) β -> NF γ (α ⟶ β)
+  NFPair :: NF γ α -> NF γ β -> NF γ (α × β)
+  Neu :: Neutral γ α -> NF γ α
+
+wknNF :: NF γ α -> NF (γ × β) α
+wknNF = renameNF Weaken
+
+exchNF :: NF ((γ × α) × β) ω -> NF ((γ × β) × α) ω
+exchNF = renameNF $ \case
+  Get -> Weaken Get
+  Weaken Get -> Get
+  Weaken (Weaken i) -> Weaken $ Weaken i
+
+substNeu :: Neutral γ α -> (forall β.β ∈ γ -> NF δ β) -> NF δ α
+substNeu (NeuVar i) f = f i
+substNeu (NeuCon c) _ = Neu $ NeuCon c
+substNeu (NeuApp m n) f = case substNeu m f of
+                            NFLam m' -> substNF0 m' (substNF n f)
+                            Neu m' -> Neu $ NeuApp m' (substNF n f)
+substNeu (NeuFst m) f = case substNeu m f of
+                          NFPair m' n' -> m'
+                          Neu m' -> Neu $ NeuFst m'
+substNeu (NeuSnd m) f = case substNeu m f of
+                          NFPair m' n' -> n'
+                          Neu m' -> Neu $ NeuSnd m'
+substNeu NeuTT f = Neu NeuTT
+                            
+substNF :: NF γ α -> (forall β.β ∈ γ -> NF δ β) -> NF δ α
+substNF (NFLam m) f = NFLam $ substNF m $ \case
+  Get -> Neu $ NeuVar Get
+  Weaken i -> wknNF $ f i
+substNF (NFPair m n) f = NFPair (substNF m f) (substNF n f)
+substNF (Neu m) f = substNeu m f
+
+substNF0 :: NF (γ × α) β -> NF γ α -> NF γ β
+substNF0 m t = substNF m $ \case
+  Get -> t
+  (Weaken i) -> Neu $ NeuVar i
+
+normalForm :: γ ⊢ α -> NF γ α
+normalForm (Var i) = Neu $ NeuVar i
+normalForm (Con c) = Neu $ NeuCon c
+normalForm (App (normalForm -> m) (normalForm -> n))
+  = case m of
+      NFLam m' -> substNF0 m' n
+      Neu m' -> Neu $ NeuApp m' n
+normalForm (Lam (normalForm -> m)) = NFLam m
+normalForm (Fst (normalForm -> m))
+  = case m of
+      NFPair m' n' -> m'
+      Neu m' -> Neu $ NeuFst m'
+normalForm (Snd (normalForm -> m))
+  = case m of
+      NFPair m' n' -> n'
+      Neu m' -> Neu $ NeuSnd m'
+normalForm (Pair (normalForm -> m) (normalForm -> n)) = NFPair m n
+normalForm TT = Neu NeuTT
+
+nf_to_λ :: NF γ α -> γ ⊢ α
+nf_to_λ (Neu (neu_to_λ -> m)) = m
+nf_to_λ (NFLam (nf_to_λ -> m)) = Lam m
+nf_to_λ (NFPair (nf_to_λ -> m) (nf_to_λ -> n)) = Pair m n
+
+neu_to_λ :: Neutral γ α -> γ ⊢ α
+neu_to_λ (NeuVar i) = Var i
+neu_to_λ (NeuCon c) = Con c
+neu_to_λ (NeuApp (neu_to_λ -> m) (nf_to_λ -> n)) = App m n
+neu_to_λ (NeuFst (neu_to_λ -> m)) = Fst m
+neu_to_λ (NeuSnd (neu_to_λ -> m)) = Snd m
+neu_to_λ NeuTT = TT
+
+evalβ :: γ ⊢ α -> γ ⊢ α
+evalβ = nf_to_λ . normalForm
 
 instance Show (γ ⊢ α) where
   show (Var Get) = "x"
@@ -235,73 +319,24 @@ instance Show (γ ⊢ α) where
   show TT = "⋄"
   show (Pair m n) = "⟨" ++ show m ++ ", " ++ show n ++ "⟩"
 
-subst :: γ ⊢ α -> (forall β. β ∈ γ -> δ ⊢ β) -> δ ⊢ α
-subst (Var i) f = f i
-subst (Con c) f = Con c
-subst (App m n) f = case subst m f of
-                      Lam m' -> subst0 m' (subst n f)
-                      _ -> App (subst m f) (subst n f)
-subst (Lam m) f = Lam $ subst m (\i -> case i of
-                                         Get -> Var Get
-                                         Weaken j -> wkn $ f j)
-subst (Fst m) f = case subst m f of
-                    Pair m' _ -> m'
-                    _ -> Fst $ subst m f
-subst (Snd m) f = case subst m f of
-                    Pair _ n' -> n'
-                    _ -> Snd $ subst m f
-subst TT f = TT
-subst (Pair m n) f = Pair (subst m f) (subst n f)
-
-subst0 :: (α × γ) ⊢ β -> γ ⊢ α -> γ ⊢ β
-subst0 m t = subst m $ \case
-  Get -> t
-  Weaken i -> Var i
-
-isRedex :: γ ⊢ α -> Bool
-isRedex (App (Lam _) _) = True
-isRedex (Fst (Pair _ _)) = True
-isRedex (Snd (Pair _ _)) = True
-isRedex _ = False
-
-evalβ :: γ ⊢ α -> γ ⊢ α
-evalβ (Var i) = Var i
-evalβ (Con c) = Con c
-evalβ (App (Lam (evalβ -> m)) (evalβ -> n)) = if isRedex (subst0 m n)
-                                              then evalβ $ subst0 m n
-                                              else subst0 m n
-evalβ (App (evalβ -> m) (evalβ -> n)) = if isRedex (App m n)
-                                        then evalβ $ App m n
-                                        else App m n
-evalβ (Lam (evalβ -> m)) = Lam m
-evalβ (Fst (Pair (evalβ -> m) _)) = m
-evalβ (Fst (evalβ -> m)) = if isRedex (Fst m)
-                           then evalβ $ Fst m
-                           else Fst m
-evalβ (Snd (Pair _ (evalβ -> n))) = n
-evalβ (Snd (evalβ -> m)) = if isRedex (Snd m)
-                           then evalβ $ Snd m
-                           else Snd m
-evalβ TT = TT
-evalβ (Pair (evalβ -> m) (evalβ -> n)) = Pair m n
-
-lft :: (α ∈ γ -> α ∈ δ) -> α ∈ (β × γ) -> α ∈ (β × δ)
+lft :: (α ∈ γ -> α ∈ δ) -> α ∈ (γ × β) -> α ∈ (δ × β)
 lft f Get = Get
 lft f (Weaken i) = Weaken $ f i
 
 π :: α ∈ κ -> γ ⊢ κ -> γ ⊢ α
-π Get γ = Fst γ
-π (Weaken i) γ = π i (Snd γ)
+π Get γ = Snd γ
+π (Weaken i) γ = π i (Fst γ)
 
 type Context
-  = (E ×
-     (E ⟶ R ×
-      (E ⟶ T ×
-       (R ×
-        ((R ⟶ (R ⟶ T)) ×
-         (Γ ×
-          ((E ⟶ (Γ ⟶ Γ)) ×
-           ((Γ ⟶ E) × Unit))))))))
+  = (((((((Unit
+            × (Γ ⟶ E))
+           × (E ⟶ (Γ ⟶ Γ)))
+          × Γ)
+         × (R ⟶ (R ⟶ T))
+        × R)
+       × (E ⟶ T))
+      × (E ⟶ R))
+     × E)
 
 findC :: Special α -> α ∈ Context
 findC Vlad = Get
@@ -323,21 +358,36 @@ rename f (Snd m) = Snd $ rename f m
 rename f TT = TT
 rename f (Pair m n) = Pair (rename f m) (rename f n)
 
-wkn :: γ ⊢ α -> (β × γ) ⊢ α
+renameNeu :: (forall α. α ∈ γ -> α ∈ δ) -> Neutral γ β -> Neutral δ β
+renameNeu f = \case
+  NeuVar i -> NeuVar $ f i
+  NeuCon c -> NeuCon c
+  NeuApp (renameNeu f -> m) (renameNF f -> n) -> NeuApp m n
+  NeuFst (renameNeu f -> m) -> NeuFst m
+  NeuSnd (renameNeu f -> m) -> NeuSnd m
+  NeuTT -> NeuTT
+
+renameNF :: (forall α. α ∈ γ -> α ∈ δ) -> NF γ β -> NF δ β
+renameNF f = \case
+  (Neu (renameNeu f -> m)) -> Neu m
+  (NFLam (renameNF (lft f) -> m)) -> NFLam m
+  (NFPair (renameNF f -> m) (renameNF f -> n)) -> NFPair m n
+
+wkn :: γ ⊢ α -> (γ × β) ⊢ α
 wkn = rename Weaken
 
-exch :: (α × (β × γ)) ⊢ ω -> (β × (α × γ)) ⊢ ω
+exch :: ((γ × α) × β) ⊢ ω -> ((γ × β) × α) ⊢ ω
 exch = rename $ \case
   Get -> Weaken Get
   Weaken Get -> Get
   (Weaken (Weaken i)) -> Weaken (Weaken i)
 
-contr :: (α × (α × γ)) ⊢ β -> (α × γ) ⊢ β
+contr :: ((γ × α) × α) ⊢ β -> (γ × α) ⊢ β
 contr = rename $ \case
   Get -> Get
   Weaken i -> i
 
-hmorph0 :: γ ⊢ α -> (Context × γ) ⊢ α
+hmorph0 :: γ ⊢ α -> (γ × Context) ⊢ α
 hmorph0 (Var i) = Var (Weaken i)
 hmorph0 (App m n) = App (hmorph0 m) (hmorph0 n)
 hmorph0 (Lam m) = Lam $ exch (hmorph0 m)

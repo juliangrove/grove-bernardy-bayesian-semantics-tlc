@@ -9,11 +9,11 @@ module Models.RN where
 
 import Control.Monad (ap)
 import Examples.RSA
+import Prelude hiding (Monad(..))
 import TLC.Terms
 
-data Discrete1P = Bernoulli
-data Continuous2P = Normal | Uniform
 
+-- | Variables
 data V = V Char Int
 
 instance Enum V where
@@ -51,8 +51,9 @@ data RN = Lit Double
         | Ind Tr
         | UnOp UnOp RN
         | BinOp BinOp RN RN
-        | Integral1 Discrete1P RN (V -> RN)
-        | Integral2 Continuous2P RN RN RN RN (V -> RN)
+        | Bernoulli RN (V -> RN)
+        | Normal RN RN RN RN (V -> RN)
+        | Uniform RN RN (V -> RN)
 
 data En = EV V
 data Tr = TV V | Gte RN RN
@@ -75,7 +76,7 @@ instance Show Tr where
 
 data Env γ where
   Emp :: Env Unit
-  Cons :: Eval α -> Env γ -> Env (α × γ)
+  Cons :: Eval α -> Env γ -> Env (γ × α)
 
 lookUp :: α ∈ γ -> Env γ -> Eval α
 lookUp Get (Cons x env) = x
@@ -88,9 +89,9 @@ evalRN env (Con (Rl Indi)) = Ind
 evalRN env (Con (Rl Mult)) = BinOp Mul
 evalRN env (Con (Rl Divi)) = BinOp Div
 evalRN env (Con (Rl Nml))
-  = \(x, y) f -> Integral2 Normal x y (UnOp Neg Inf) Inf (f . RNV)
+  = \(x, y) f -> Normal x y (UnOp Neg Inf) Inf (f . RNV)
 evalRN env (Con (Rl Uni))
-  = \(x, y) f -> Integral2 Uniform x y (UnOp Neg Inf) Inf (f . RNV)
+  = \(x, y) f -> Uniform x y (f . RNV)
 evalRN env (Con (Rl EqRl)) = \x y -> UnOp Dirac (BinOp Sub x y)
 evalRN env (Con (Special GTE)) = Gte
 evalRN env (App m n) = evalRN env m (evalRN env n)
@@ -99,6 +100,9 @@ evalRN env (Fst m) = fst (evalRN env m)
 evalRN env (Snd m) = snd (evalRN env m)
 evalRN env TT = ()
 evalRN env (Pair m n) = (evalRN env m, evalRN env n)
+
+-- >>> evalRN Emp $ clean $ evalβ $ expectedValue $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- \frac{\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * (\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((u - y)) * \delta((z - x))))\right)du\right)dz * y)\right)dy\right)dx}{\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * \int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((u - y)) * \delta((z - x))))\right)du\right)dz\right)dy\right)dx}
 
 helpShow :: RN -> V -> String
 helpShow (RNV i) j = show i
@@ -116,22 +120,20 @@ helpShow (BinOp Sub x y) i
   = "(" ++ helpShow x i ++ " - " ++ helpShow y i ++ ")"
 helpShow (BinOp Equal x y) i
   = "(" ++ helpShow x i ++ " = " ++ helpShow y i ++ ")"
-helpShow (Integral1 Bernoulli x f) i
+helpShow (Bernoulli x f) i
   = "\\begin{cases}" ++ helpShow x i ++ " * " ++ helpShow (f i) (succ i)
   ++ " &" ++ show i ++ " = \\top\\\\" ++ helpShow (BinOp Sub (Lit 1) x) i
   ++ " * " ++ helpShow (f i) (succ i) ++ " &" ++ show i
   ++ " = \\bot\\end{cases}"
-helpShow (Integral2 Normal x y z w f) i
-  = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i
-  ++ "}" ++ "\\left(\\frac{1}{" ++ helpShow y i ++ "\\sqrt{2\\pi}}e^{-\\frac{("
+helpShow (Normal x y z w f) i
+  = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}"
+  ++ "\\left(\\frac{1}{" ++ helpShow y i ++ "\\sqrt{2\\pi}}e^{-\\frac{("
   ++ show i ++ " - " ++ helpShow x i ++ ")^2}{2 * (" ++ helpShow y i
   ++ ")^2}} * " ++ helpShow (f i) (succ i) ++ "\\right)d" ++ show i
-helpShow (Integral2 Uniform x y z w f) i
-  = "\\int_{" ++ helpShow z i ++ "}^{" ++ helpShow w i ++ "}"
-  ++ "\\left(\\begin{cases}\\frac{" ++ helpShow (f i) (succ i) ++ "}{"
-  ++ helpShow y i ++ " - " ++ helpShow x i  ++ "} &" ++ helpShow x i ++ " \\le "
-  ++ show i ++ " \\le " ++ helpShow y i ++ "\\\\0 &o.w.\\end{cases}\\right)d"
-  ++ show i
+helpShow (Uniform x y f) i
+  = "\\int_{" ++ helpShow x i ++ "}^{" ++ helpShow y i ++ "}"
+  ++ "\\left(\\frac{1}{" ++ helpShow y i ++ " - " ++ helpShow x i  ++ "}"
+  ++ helpShow (f i) (succ i) ++  "\\right)d" ++ show i
 
 instance Show RN where
   show x = helpShow x (toEnum 0)
@@ -159,25 +161,25 @@ instance Num RN where
   fromInteger x = Lit (fromInteger x)
   negate = UnOp Neg
  
-data PP α = PP { expect :: (α -> RN) -> RN }
+-- data PP α = PP { expect :: (α -> RN) -> RN }
 
-instance Functor PP where
-  fmap f (PP m) = PP $ \k -> m (k . f)
-instance Applicative PP where
-  pure = PP . flip ($)
-  (<*>) = ap
-instance Monad PP where
-  return x = PP (\k -> k x)
-  (PP a) >>= f = PP (\k -> a $ \x -> expect (f x) k) 
+-- instance Functor PP where
+--   fmap f (PP m) = PP $ \k -> m (k . f)
+-- instance Applicative PP where
+--   pure = PP . flip ($)
+--   (<*>) = ap
+-- instance Monad PP where
+--   return x = PP (\k -> k x)
+--   (PP a) >>= f = PP (\k -> a $ \x -> expect (f x) k) 
 
-pf :: Sampleable a => PP a -> a -> RN
-pf (PP p) y = p (equal y)
+-- pf :: Sampleable a => PP a -> a -> RN
+-- pf (PP p) y = p (equal y)
 
-class Sampleable a where
-  equal :: a -> a -> RN
+-- class Sampleable a where
+--   equal :: a -> a -> RN
 
-instance Sampleable RN where
-  equal x y = UnOp Dirac (x - y)
+-- instance Sampleable RN where
+--   equal x y = UnOp Dirac (x - y)
 
-instance (Sampleable a, Sampleable b) => Sampleable (a, b) where
-  equal (x1, x2) (y1, y2) = equal x1 y1 * equal x2 y2
+-- instance (Sampleable a, Sampleable b) => Sampleable (a, b) where
+--   equal (x1, x2) (y1, y2) = equal x1 y1 * equal x2 y2
