@@ -205,6 +205,7 @@ data γ ⊢ α where
   TT :: γ ⊢ Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 
+-- Neutral terms (no constructors, except in arguments).
 data Neutral γ α where
   NeuVar :: α ∈ γ -> Neutral γ α
   NeuCon :: Con α -> Neutral γ α
@@ -213,6 +214,7 @@ data Neutral γ α where
   NeuSnd :: Neutral γ (α × β) -> Neutral γ β
   NeuTT :: Neutral γ Unit
 
+-- Terms in normal form.
 data NF γ α where
   NFLam :: NF (γ × α) β -> NF γ (α ⟶ β)
   NFPair :: NF γ α -> NF γ β -> NF γ (α × β)
@@ -254,78 +256,80 @@ substNF0 m t = substNF m $ \case
   (Weaken i) -> Neu $ NeuVar i
 
 normalForm :: γ ⊢ α -> NF γ α
-normalForm (Var i) = Neu $ NeuVar i
-normalForm (Con c) = Neu $ NeuCon c
-normalForm (App (normalForm -> m) (normalForm -> n))
-  = case m of
-      NFLam m' -> substNF0 m' n
-      Neu m' -> Neu $ NeuApp m' n
-normalForm (Lam (normalForm -> m)) = NFLam m
-normalForm (Fst (normalForm -> m))
-  = case m of
-      NFPair m' n' -> m'
-      Neu m' -> Neu $ NeuFst m'
-normalForm (Snd (normalForm -> m))
-  = case m of
-      NFPair m' n' -> n'
-      Neu m' -> Neu $ NeuSnd m'
-normalForm (Pair (normalForm -> m) (normalForm -> n)) = NFPair m n
-normalForm TT = Neu NeuTT
+normalForm = \case
+  Var i -> Neu $ NeuVar i
+  Con c -> Neu $ NeuCon c
+  App (normalForm -> m) (normalForm -> n) -> case m of
+                                               NFLam m' -> substNF0 m' n
+                                               Neu m' -> Neu $ NeuApp m' n
+  Lam (normalForm -> m) -> NFLam m
+  Fst (normalForm -> m) -> case m of
+                             NFPair m' n' -> m'
+                             Neu m' -> Neu $ NeuFst m'
+  Snd (normalForm -> m) -> case m of
+                             NFPair m' n' -> n'
+                             Neu m' -> Neu $ NeuSnd m'
+  Pair (normalForm -> m) (normalForm -> n) -> NFPair m n
+  TT -> Neu NeuTT
 
 nf_to_λ :: NF γ α -> γ ⊢ α
-nf_to_λ (Neu (neu_to_λ -> m)) = m
-nf_to_λ (NFLam (nf_to_λ -> m)) = Lam m
-nf_to_λ (NFPair (nf_to_λ -> m) (nf_to_λ -> n)) = Pair m n
+nf_to_λ = \case
+  Neu (neu_to_λ -> m) -> m
+  NFLam (nf_to_λ -> m) -> Lam m
+  NFPair (nf_to_λ -> m) (nf_to_λ -> n) -> Pair m n
 
 neu_to_λ :: Neutral γ α -> γ ⊢ α
-neu_to_λ (NeuVar i) = Var i
-neu_to_λ (NeuCon c) = Con c
-neu_to_λ (NeuApp (neu_to_λ -> m) (nf_to_λ -> n)) = App m n
-neu_to_λ (NeuFst (neu_to_λ -> m)) = Fst m
-neu_to_λ (NeuSnd (neu_to_λ -> m)) = Snd m
-neu_to_λ NeuTT = TT
+neu_to_λ = \case
+  NeuVar i -> Var i
+  NeuCon c -> Con c
+  NeuApp (neu_to_λ -> m) (nf_to_λ -> n) -> App m n
+  NeuFst (neu_to_λ -> m) -> Fst m
+  NeuSnd (neu_to_λ -> m) -> Snd m
+  NeuTT -> TT
 
 evalβ :: γ ⊢ α -> γ ⊢ α
 evalβ = nf_to_λ . normalForm
 
 instance Show (γ ⊢ α) where
-  show (Var Get) = "x"
-  show (Var (Weaken i)) = show (Var i) ++ "'"
-  show (App (App (Con (Logical And)) p) q)
-    = "(" ++ show p ++ " ∧ " ++ show q ++ ")"
-  show (App (App (Con (Logical Or)) p) q)
-    = "(" ++ show p ++ " ∨ " ++ show q ++ ")"
-  show (App (App (Con (Logical Imp)) p) q)
-    = "(" ++ show p ++ " → " ++ show q ++ ")"
-  show (App (App (Con (Logical Equals)) m) n)
-    = "(" ++ show m ++ " = " ++ show n ++ ")"
-  show (App (App (Con (Rl Mult)) m) n)
-    = "(" ++ show m ++ " * " ++ show n ++ ")"
-  show (App (App (Con (Rl Divi)) m) n)
-    = "(" ++ show m ++ " / " ++ show n ++ ")"
-  show (App (App (Con (Rl EqGen)) m) n)
-    = "(" ++ show m ++ " ≐ " ++ show n ++ ")"
-  show (App (App (Con (Rl EqRl)) m) n)
-    = "(" ++ show m ++ " ≐ " ++ show n ++ ")"
-  show (App (App (Con (Special GTE)) m) n)
-    = "(" ++ show m ++ " ≥ " ++ show n ++ ")"
-  show (App (App (Con (Special Upd)) m) n)
-    = show m ++ "∷" ++ show n
-  show (App m n) = show m ++ "(" ++ show n ++ ")"
-  show (Con c) = show c
-  show (Lam m) = "λ(" ++ show m ++ ")"
-  show (Fst m) = "(π₁ " ++ show m ++ ")"
-  show (Snd m) = "(π₂" ++ show m ++ ")"
-  show TT = "⋄"
-  show (Pair m n) = "⟨" ++ show m ++ ", " ++ show n ++ "⟩"
+  show = \case
+    Var Get -> "x"
+    Var (Weaken i) -> show (Var i) ++ "'"
+    App (App (Con (Logical And)) (show -> p)) (show -> q)
+      -> "(" ++ p ++ " ∧ " ++ q ++ ")"
+    App (App (Con (Logical Or)) (show -> p)) (show -> q)
+      -> "(" ++ p ++ " ∨ " ++ q ++ ")"
+    App (App (Con (Logical Imp)) (show -> p)) (show -> q)
+      -> "(" ++ p ++ " → " ++ q ++ ")"
+    App (App (Con (Logical Equals)) (show -> m)) (show -> n)
+      -> "(" ++ m ++ " = " ++ n ++ ")"
+    App (App (Con (Rl Mult)) (show -> m)) (show -> n)
+      -> "(" ++ m ++ " * " ++ n ++ ")"
+    App (App (Con (Rl Divi)) (show -> m)) (show -> n)
+      -> "(" ++ m ++ " / " ++ n ++ ")"
+    App (App (Con (Rl EqGen)) (show -> m)) (show -> n)
+      -> "(" ++ m ++ " ≐ " ++ n ++ ")"
+    App (App (Con (Rl EqRl)) (show -> m)) (show -> n)
+      -> "(" ++ m ++ " ≐ " ++ n ++ ")"
+    App (App (Con (Special GTE)) (show -> m)) (show -> n)
+      -> "(" ++ m ++ " ≥ " ++ n ++ ")"
+    App (App (Con (Special Upd)) (show -> m)) (show -> n)
+      -> m ++ "∷" ++ n
+    App (show -> m) (show -> n) -> m ++ "(" ++ n ++ ")"
+    Con (show -> c) -> c
+    Lam (show -> m) -> "λ(" ++ m ++ ")"
+    Fst (show -> m) -> "(π₁ " ++ m ++ ")"
+    Snd (show -> m) -> "(π₂" ++ m ++ ")"
+    TT -> "⋄"
+    Pair (show -> m) (show -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
 
 lft :: (α ∈ γ -> α ∈ δ) -> α ∈ (γ × β) -> α ∈ (δ × β)
-lft f Get = Get
-lft f (Weaken i) = Weaken $ f i
+lft f = \case
+  Get -> Get
+  Weaken i -> Weaken $ f i
 
 π :: α ∈ κ -> γ ⊢ κ -> γ ⊢ α
-π Get γ = Snd γ
-π (Weaken i) γ = π i (Fst γ)
+π Get κ = Snd κ
+π (Weaken i) κ = π i (Fst κ)
 
 type Context
   = (((((((Unit
@@ -339,24 +343,26 @@ type Context
      × E)
 
 findC :: Special α -> α ∈ Context
-findC Vlad = Get
-findC Height = Weaken Get
-findC Human = Weaken (Weaken Get)
-findC Theta = Weaken (Weaken (Weaken Get))
-findC GTE = Weaken (Weaken (Weaken (Weaken (Get))))
-findC Empty = Weaken (Weaken (Weaken (Weaken (Weaken Get))))
-findC Upd = Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))
-findC Sel = Weaken (Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get))))))
+findC = \case
+  Vlad -> Get
+  Height -> Weaken Get
+  Human -> Weaken (Weaken Get)
+  Theta -> Weaken (Weaken (Weaken Get))
+  GTE -> Weaken (Weaken (Weaken (Weaken (Get))))
+  Empty -> Weaken (Weaken (Weaken (Weaken (Weaken Get))))
+  Upd -> Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))
+  Sel -> Weaken (Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get))))))
                    
 rename :: (∀α. α ∈ γ -> α ∈ δ) -> γ ⊢ β -> δ ⊢ β
-rename f (Var i) = Var $ f i
-rename f (Con c) = (Con c)
-rename f (App m n) = App (rename f m) (rename f n)
-rename f (Lam m) = Lam $ rename (lft f) m
-rename f (Fst m) = Fst $ rename f m
-rename f (Snd m) = Snd $ rename f m
-rename f TT = TT
-rename f (Pair m n) = Pair (rename f m) (rename f n)
+rename f = \case
+  Var i -> Var $ f i
+  Con c -> Con c
+  App (rename f -> m) (rename f -> n) -> App m n
+  Lam (rename (lft f) -> m) -> Lam m
+  Fst (rename f -> m) -> Fst m
+  Snd (rename f -> m) -> Snd m
+  TT -> TT
+  Pair (rename f -> m) (rename f -> n) -> Pair m n
 
 renameNeu :: (forall α. α ∈ γ -> α ∈ δ) -> Neutral γ β -> Neutral δ β
 renameNeu f = \case
@@ -388,24 +394,25 @@ contr = rename $ \case
   Weaken i -> i
 
 hmorph0 :: γ ⊢ α -> (γ × Context) ⊢ α
-hmorph0 (Var i) = Var (Weaken i)
-hmorph0 (App m n) = App (hmorph0 m) (hmorph0 n)
-hmorph0 (Lam m) = Lam $ exch (hmorph0 m)
-hmorph0 (Fst m) = Fst $ hmorph0 m
-hmorph0 (Snd m) = Snd $ hmorph0 m
-hmorph0 (Pair m n) = Pair (hmorph0 m) (hmorph0 n)
-hmorph0 (Con (Special c)) = π (findC c) (Var Get)
-hmorph0 (Con c) = Con c
+hmorph0 = \case
+  Var i -> Var $ Weaken i
+  Con (Special c) -> π (findC c) (Var Get)
+  Con c -> Con c
+  App (hmorph0 -> m) (hmorph0 -> n) -> App m n
+  Lam (hmorph0 -> m) -> Lam $ exch m
+  Fst (hmorph0 -> m) -> Fst m
+  Snd (hmorph0 -> m) -> Snd m
+  Pair (hmorph0 -> m) (hmorph0 -> n) -> Pair m n
 
 hmorph :: γ ⊢ α -> γ ⊢ (Context ⟶ α)
-hmorph m = Lam (hmorph0 m)
+hmorph (hmorph0 -> m) = Lam m
 
 η :: γ ⊢ α -> γ ⊢ ((α ⟶ R) ⟶ R)
 η m = Lam (App (Var Get) (wkn m))
 
-(>>=) :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ ((β ⟶ R) ⟶ R)) -> γ ⊢ ((β ⟶ R) ⟶ R)
-m >>= k = Lam (App (wkn m)
+(⋆) :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ ((β ⟶ R) ⟶ R)) -> γ ⊢ ((β ⟶ R) ⟶ R)
+m ⋆ k = Lam (App (wkn m)
                (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
 
 (>>) :: γ ⊢ ((Unit ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R)
-m >> k = m >>= Lam (wkn k)
+m >> k = m ⋆ Lam (wkn k)

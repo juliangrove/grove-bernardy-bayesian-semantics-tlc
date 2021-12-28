@@ -49,26 +49,26 @@ distr p = Lam (App (wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))))
 
 k :: γ ⊢ ((Context ⟶ R) ⟶ R)
 k = uniform 0 100
-    >>= Lam (normal 68 3
-             >>= Lam (
-                η (Pair
+    ⋆ Lam (normal 68 3
+           ⋆ Lam (
+              η (Pair
+                 (Pair
+                  (Pair
                    (Pair
                     (Pair
                      (Pair
                       (Pair
-                       (Pair
-                        (Pair
-                         (Pair TT sel)
-                         upd)
-                        emp)
-                       (≥))
-                      (Var (Weaken Get)))
-                     human)
-                    (Lam (Var (Weaken Get))))
-                   vlad)))
+                       (Pair TT sel)
+                       upd)
+                      emp)
+                     (≥))
+                    (Var (Weaken Get)))
+                   human)
+                  (Lam (Var (Weaken Get))))
+                 vlad)))
 
 utts :: γ ⊢ ((U ⟶ R) ⟶ R)
-utts = η (Con (Special (Utt 2)))
+utts = η (Con (Special (Utt 1)))
 
 interp :: γ ⊢ U -> γ ⊢ T
 interp (Con (Special (Utt 1))) = App (App (≥) (App height vlad)) θ
@@ -90,19 +90,19 @@ expectedValue m = App (App (Con $ Rl $ Divi) (lower m)) (measure m)
 
 -- | Pragmatic listener
 l1 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
-l1 = Lam (k >>= Lam (
+l1 = Lam (k ⋆ Lam (
              factor' (App (distr (App s1 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
      
 -- | Pragmatic speaker
 s1 :: γ ⊢ (Context ⟶ ((U ⟶ R) ⟶ R))
-s1 = Lam (utts >>= Lam (
+s1 = Lam (utts ⋆ Lam (
              factor' (App (distr (App l0 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
 
 -- | Literal listener
 l0 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
-l0 = Lam (k >>= Lam (
+l0 = Lam (k ⋆ Lam (
              observe' (App (hmorph (interp (Con (Special (Utt 1))))) (Var Get)) >>
              η (Var Get)))
 
@@ -112,7 +112,7 @@ l0 = Lam (k >>= Lam (
 -- λ(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, x'⟩, human⟩, λ(x')⟩, v⟩ ≐ x''')))))) * x(U2))))
 
 -- >>> clean $ evalβ $ expectedValue $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- (Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ(((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x''))))))) * 0.0) * x))))) / Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x''))))))) * 0.0))))))
+-- (Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x''))))))) * x))))) / Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ(Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x''))))))))))))
 
--- >>> subEq $ (Pair vlad TT) ≐ (Pair vlad TT)
--- (1.0 * 1.0)
+-- >>> clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
+-- 1.0

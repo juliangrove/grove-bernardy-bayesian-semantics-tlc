@@ -9,7 +9,6 @@ module Models.RN where
 
 import Control.Monad (ap)
 import Examples.RSA
-import Prelude hiding (Monad(..))
 import TLC.Terms
 
 
