@@ -182,6 +182,7 @@ solve ((c, Here) : xs) = (c + c', e)
 solve ((c, There x) : xs) = (c', (c, x) : e)
   where (c', e) = solve xs 
 
+-- FIXME: detect always true and always false cases.
 solve' :: Cond (γ, Re) -> Solution γ Re
 solve' c0 = case c0 of
       Eqlty _ -> (EQ, (-1/c) *^ e)
@@ -228,7 +229,7 @@ integrate d (Cond (Eqlty c') e) = case occurExpr c' of
   Nothing ->
     -- We apply the rule: ∫ f(x) δ(c x + k) dx = f(-k/c)
     
-    -- (The correct rule is: ∫ f(x) δ(c x + k) dx = 1/c f(-k/c)
+    -- (The correct rule is: ∫ f(x) δ(c x + k) dx = (1/abs c) * f(-k/c)
     -- HOWEVER, due to the way we generate the equalities, my hunch is
     -- that we already take into account this coefficient. To be
     -- investigated.)
@@ -258,17 +259,26 @@ full = Domain [] [] []
 example :: P ()
 example = Integrate full $ Integrate full $ Cond (InEqlty [(3, There Here), (2, Here)]) $ Cond (InEqlty [(1, There Here)]) One
 
-example1 :: P ()
-example1 = Integrate full $ Integrate full $ Cond (Eqlty [(1,(There Here)),(-1,Here)] ) One
-
 -- >>> example
 -- ∫∫𝟙((3.0 * x) + (2.0 * y) ≤ 0)*𝟙((1.0 * x) ≤ 0)*1
 
 -- >>> normalise example
 -- ∫{-∞≤x≤0}∫{-∞≤y≤(1.5 * x)}1
 
+example1 :: P ()
+example1 = Integrate full $ Integrate full $ Cond (Eqlty [(1,(There Here)),(-1,Here)] ) One
+
 -- >>> example1
 -- ∫∫((1.0 * x) + (-1.0 * y) ≐ 0)*1
 
 -- >>> normalise example1
 -- ∫1
+
+example2 :: P ()
+example2 = Integrate full $ Integrate full $ Cond (Eqlty [(1,(There Here)),(-1,Here)] ) $ Cond (InEqlty [(2, Here)]) $   One
+
+-- >>> example2
+-- ∫∫((1.0 * x) + (-1.0 * y) ≐ 0)*𝟙((2.0 * y) ≤ 0)*1
+
+-- >>> normalise example2
+-- ∫{-∞≤x≤0}1
