@@ -23,16 +23,30 @@ type Re = Double
 data Domain γ α = Domain {domainConditions :: [Cond (γ, α)]
                          ,domainLoBounds,domainHiBounds :: [Expr γ α]}
 
--- domainToConditions :: Available Re γ -> Domain γ Re -> P γ -> P γ
--- domainToConditions i = \case
---   Domain [] [] [] -> id
---   Domain (c:cs) los his
---     -> Cond (subVar0 i c) . domainToConditions i (Domain cs los his)
---   Domain cs (e:los) his
---     -> Cond (InEqlty $ (-1, i) : e) . domainToConditions i (Domain cs los his)
---   Domain cs los (e:his)
---     -> Cond (InEqlty $ (1, i) : map (\(c, v) -> (-c, v)) e) .
---        domainToConditions i (Domain cs los his)
+
+positive :: Expr γ Re -> Cond γ
+positive e = InEqlty e -- TODO: suggests renaming
+
+negative :: Expr γ Re -> Cond γ
+negative e = positive ((-1) *^ e)
+
+lessThan :: Expr γ Re -> Expr γ Re -> Cond γ
+t `lessThan` u = negative (t ++ (-1) *^ u)
+
+
+greaterThan :: Expr γ Re -> Expr γ Re -> Cond γ
+greaterThan = flip lessThan
+
+
+domainToConditions :: Expr γ Re -> Domain γ Re -> P γ -> P γ
+domainToConditions i = \case
+  Domain [] [] [] -> id
+  Domain (c:cs) los his
+    -> Cond (substCond (\Here -> i) c) . domainToConditions i (Domain cs los his)
+  Domain cs (e:los) his
+    -> Cond (e `lessThan` i) . domainToConditions i (Domain cs los his)
+  Domain cs los (e:his)
+    -> Cond (i `lessThan` e) . domainToConditions i (Domain cs los his)
 
 
 data Available α γ where
@@ -222,13 +236,10 @@ integrate d (Cond (Eqlty c') e) = case occurExpr c' of
     -- that we already take into account this coefficient. To be
     -- investigated.)
 
-    -- FIXME: if -k/c falls out of the integration domain, the result
-    -- is actually zero here. So we need to add a condition (Cond
-    -- constructor) to reflect this.
-    -- The condition is:  loBound ≤ -k/c  ≤ hiBound
-    substP (\Here -> (-1/coef) *^ expr) e
+    domainToConditions x0 d $ substP (\Here -> x0) e
     
-    where (coef,expr) = solve c' 
+    where (coef,expr) = solve c'
+          x0 = (-1/coef) *^ expr
   Just c'' -> cond (Eqlty c'') (integrate d e)
 integrate d e = Integrate d e
 
