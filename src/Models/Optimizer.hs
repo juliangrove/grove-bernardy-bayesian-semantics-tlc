@@ -20,9 +20,8 @@ import TLC.Terms
 
 type Re = Double
 
-data Domain γ α = Domain {domainConditions :: [Cond (γ, α)]
-                         ,domainLoBounds,domainHiBounds :: [Expr γ α]}
-
+data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
+                         , domainLoBounds, domainHiBounds :: [Expr γ α] }
 
 -- positive :: Expr γ Re -> Cond γ
 -- positive e = negative ((-1) *^ e)
@@ -46,7 +45,6 @@ domainToConditions i = \case
     -> Cond (e `lessThan` i) . domainToConditions i (Domain cs los his)
   Domain cs los (e:his)
     -> Cond (i `lessThan` e) . domainToConditions i (Domain cs los his)
-
 
 data Available α γ where
   Here :: Available α (γ, α)
@@ -76,7 +74,6 @@ data Cond γ = InEqlty {condExpr :: (Expr γ Re)}
             | Eqlty {condExpr :: (Expr γ Re)}
               -- Meaning of this constructor:  expression = 0
               -- Example: u = v is represented by u - v = 0
-            
 
 restrictDomain :: α ~ Re => Cond (γ, α) -> Domain γ α -> Domain γ α
   -- restrictDomain c (Domain cs' lowBounds highBounds) = Domain (c : cs') lowBounds highBounds
@@ -92,7 +89,7 @@ data P γ where
 
 type Subst γ δ = (forall x. Num x => Available x γ -> Expr δ x)
 
-wkSubst :: Subst γ δ -> Subst (γ,x) (δ,x)
+wkSubst :: Subst γ δ -> Subst (γ, x) (δ, x)
 wkSubst f = \case
   Here -> Expr 0 [(1,Here)]
   There x -> Expr k0 [(c, There y) | (c,y) <- xs]
@@ -132,10 +129,14 @@ evalVar = \case
 pattern Eqs i j
   = Neu (NeuApp (NeuApp (NeuCon (Rl EqRl)) (Neu (NeuVar i))) (Neu (NeuVar j)))
 
--- evalP :: NF γ R -> P (Eval γ)
--- evalP = \case
---   Eqs (evalVar -> i) (evalVar -> j) -> Cond (Eqlty i j) One
+pattern Mults x y
+  = Neu (NeuApp (NeuApp (NeuCon (Rl Mult)) x) y)
 
+evalP :: NF γ R -> P (Eval γ) -> P (Eval γ)
+evalP = \case
+  Eqs (evalVar -> i) (evalVar -> j) -> Cond (Eqlty $ Expr 1 [(1, i), (-1, j)])
+  Mults (evalP -> x) (evalP -> y) -> x . y
+  
 type Vars γ  = forall v. Available v γ -> String
 
 showExpr :: Show α => Vars γ -> Expr γ α -> String
@@ -241,10 +242,9 @@ integrate d (Cond (Eqlty c') e) = case occurExpr c' of
     -- that we already take into account this coefficient. To be
     -- investigated.)
 
-    domainToConditions x0 d $ substP (\Here -> x0) e
-    
-    where (coef,expr) = solve c'
-          x0 = (-1/coef) *^ expr
+    domainToConditions x0 d $ substP (\Here -> x0) e   
+    where (coef, expr) = solve c'
+          x0 = (-1 / coef) *^ expr
   Just c'' -> cond (Eqlty c'') (integrate d e)
 integrate d e = Integrate d e
 
