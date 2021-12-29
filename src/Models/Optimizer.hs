@@ -20,18 +20,20 @@ import TLC.Terms
 
 type Re = Double
 
-data Domain γ α = Domain [Cond (γ, α)] [Expr γ α] [Expr γ α]
+data Domain γ α = Domain {domainConditions :: [Cond (γ, α)]
+                         ,domainLoBounds,domainHiBounds :: [Expr γ α]}
 
-domainToConditions :: Available Re γ -> Domain γ Re -> P γ -> P γ
-domainToConditions i = \case
-  Domain [] [] [] -> id
-  Domain (c:cs) los his
-    -> Cond (subVar0 i c) . domainToConditions i (Domain cs los his)
-  Domain cs (e:los) his
-    -> Cond (InEqlty $ (-1, i) : e) . domainToConditions i (Domain cs los his)
-  Domain cs los (e:his)
-    -> Cond (InEqlty $ (1, i) : map (\(c, v) -> (-c, v)) e) .
-       domainToConditions i (Domain cs los his)
+-- domainToConditions :: Available Re γ -> Domain γ Re -> P γ -> P γ
+-- domainToConditions i = \case
+--   Domain [] [] [] -> id
+--   Domain (c:cs) los his
+--     -> Cond (subVar0 i c) . domainToConditions i (Domain cs los his)
+--   Domain cs (e:los) his
+--     -> Cond (InEqlty $ (-1, i) : e) . domainToConditions i (Domain cs los his)
+--   Domain cs los (e:his)
+--     -> Cond (InEqlty $ (1, i) : map (\(c, v) -> (-c, v)) e) .
+--        domainToConditions i (Domain cs los his)
+
 
 data Available α γ where
   Here :: Available α (γ, α)
@@ -42,12 +44,15 @@ type Expr γ α = [(Re, Available α γ)]
   -- linear combination. list of coefficients and variables [x is a ring]
   -- Example u - v is represented by [(1,"u"), (-1,"v")]
 
-data Cond γ = InEqlty (Expr γ Re) | Eqlty (Available Re γ) (Available Re γ)
-  -- Meaning of this result of expression is ≤ 0
-  -- Example u ≤ v is represented by u - v ≤ 0
 
-getInEqlty :: Cond γ-> Expr γ Re
-getInEqlty (InEqlty e) = e
+
+data Cond γ = InEqlty {condExpr :: (Expr γ Re)}
+              -- Meaning of this constructor:  expression ≤ 0
+              -- Example: u ≤ v is represented by u - v ≤ 0
+            | Eqlty {condExpr :: (Expr γ Re)}
+              -- Meaning of this constructor:  expression = 0
+              -- Example: u = v is represented by u - v = 0
+            
 
 restrictDomain :: α ~ Re => Cond (γ, α) -> Domain γ α -> Domain γ α
   -- restrictDomain c (Domain cs' lowBounds highBounds) = Domain (c : cs') lowBounds highBounds
@@ -56,28 +61,35 @@ restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
   (LT, e) -> Domain cs los (e:his) 
   (GT, e) -> Domain cs (e:los) (his)
 
-subVar0 :: Available α γ -> Cond (γ, α) -> Cond γ
-subVar0 v = \case
-  InEqlty [] -> InEqlty []
-  InEqlty ((x, Here) : (getInEqlty . subVar0 v . InEqlty -> xs))
-    -> InEqlty $ (x, v) : xs
-  InEqlty ((x, There i) : (getInEqlty . subVar0 v . InEqlty -> xs))
-    -> InEqlty $ (x, i) : xs
-  Eqlty Here (There j) -> Eqlty v j
-  Eqlty (There i) Here -> Eqlty i v
-  Eqlty (There i) (There j) -> Eqlty i j
-  Eqlty Here Here -> Eqlty v v
-
-subVar0' :: Available α γ -> P (γ, α) -> P γ
-subVar0' i = \case
-  Cond c (subVar0' i -> p) -> Cond (subVar0 i c) p
-  One -> One
-
 data P γ where
   Integrate :: (Re ~ d) => Domain γ d -> P (γ, d) -> P γ
   Cond :: Cond γ -> P γ -> P γ
   Ret  :: Expr γ Re -> P γ
-  One :: P γ
+  One :: P γ -- TODO: make sure expressions have constants too
+
+type Subst γ δ = (forall x. Available x γ -> Expr δ x)
+
+wkSubst :: Subst γ δ -> Subst (γ,x) (δ,x)
+wkSubst f = \case
+  Here -> [(1,Here)]
+  There x -> [(c, There y) | (c,y) <- f x]
+
+substExpr :: Subst γ δ -> forall x. Expr γ x -> Expr δ x
+substExpr f e = concat [c *^ f x | (c,x) <- e]
+
+substCond :: Subst γ δ -> Cond γ -> Cond δ
+substCond f (InEqlty e) = InEqlty (substExpr f e)
+substCond f (Eqlty e) = Eqlty (substExpr f e)
+
+substDomain :: Subst γ δ -> Domain γ d -> Domain δ d
+substDomain f (Domain c lo hi) = Domain (substCond (wkSubst f) <$> c) (substExpr f <$> lo) (substExpr f <$> hi)
+
+substP :: Subst γ δ -> P γ -> P δ
+substP f p0 = case p0 of
+  Ret e -> Ret (substExpr f e)
+  Cond c p -> Cond (substCond f c) (substP f p)
+  One -> One
+  Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p)
 
 type family Eval γ where
   Eval R = Re
@@ -97,9 +109,9 @@ evalVar = \case
 pattern Eqs i j
   = Neu (NeuApp (NeuApp (NeuCon (Rl EqRl)) (Neu (NeuVar i))) (Neu (NeuVar j)))
 
-evalP :: NF γ R -> P (Eval γ)
-evalP = \case
-  Eqs (evalVar -> i) (evalVar -> j) -> Cond (Eqlty i j) One
+-- evalP :: NF γ R -> P (Eval γ)
+-- evalP = \case
+--   Eqs (evalVar -> i) (evalVar -> j) -> Cond (Eqlty i j) One
 
 type Vars γ  = forall v. Available v γ -> String
 
@@ -111,7 +123,7 @@ showExpr v xs = intercalate " + " $
 showCond :: Vars γ -> Cond γ -> String
 showCond v = \case
   c@(InEqlty c') -> "𝟙" <> (parens $ showExpr v c' <> " ≤ 0")
-  c@(Eqlty i  j) -> parens $ v i ++ " ≐ " ++ v j
+  c@(Eqlty c') -> parens $ showExpr v c' ++ " ≐ 0"
 
 parens :: [Char] -> [Char]
 parens x = "(" ++ x ++ ")"
@@ -150,17 +162,20 @@ instance Show (P ()) where
 
 type Solution γ d  = (Ordering, Expr γ d)
 
-solve :: Num x => Cond (γ, x) -> (x, Expr γ Re)
-solve (InEqlty []) = (0, [])
-solve (InEqlty ((c, Here) : xs)) = (c + c', e)
-  where (c', e) = solve $ InEqlty xs
-solve (InEqlty ((c, There x) : xs)) = (c', (c, x) : e)
-  where (c', e) = solve $ InEqlty xs 
+-- @solve e x@ returns the coefficient of the 1st variable in the expression, and the rest (terms not involving the 1st variable).
+-- ie. c x + e = 0
+solve :: (x ~ Re) => Expr (γ,x) x -> (x, Expr γ x)
+solve [] = (0, [])
+solve ((c, Here) : xs) = (c + c', e)
+  where (c', e) = solve xs
+solve ((c, There x) : xs) = (c', (c, x) : e)
+  where (c', e) = solve xs 
 
 solve' :: Cond (γ, Re) -> Solution γ Re
-solve' = \case
-  InEqlty xs -> if c < 0 then (GT, (1 / (-c)) *^ e) else (LT, (1 / c) *^ e)
-    where (c, e) = solve $ InEqlty xs
+solve' c0 = case c0 of
+      Eqlty _ -> (EQ, (-1/c) *^ e)
+      InEqlty _ -> if c < 0 then (GT, (1 / (-c)) *^ e) else (LT, (1 / c) *^ e)
+    where (c, e) = solve (condExpr c0)
   
 -- multiplication by scalar (expresions are linear)
 (*^) :: Num t => t -> [(t, b)] -> [(t, b)]
@@ -184,7 +199,7 @@ minVar (SomeVar (There x)) (SomeVar (There y)) = case minVar (SomeVar x) (SomeVa
 deepest :: Cond γ -> SomeVar γ
 deepest = \case
   InEqlty e -> foldr1 minVar . map SomeVar . map snd $ e
-  Eqlty i j -> minVar (SomeVar i) (SomeVar j)
+  Eqlty e -> foldr1 minVar . map SomeVar . map snd $ e
 
 travExpr :: Applicative f => (forall v. Available v γ -> f (Available v δ)) -> Expr γ t -> f (Expr δ t)
 travExpr f xs = traverse (\(k, e) -> (k,) <$> f e) xs
@@ -198,10 +213,23 @@ integrate :: d ~ Re => Domain γ d -> P (γ, d) -> P γ
 integrate d (Cond c@(InEqlty c') e) = case occurExpr c' of
   Nothing -> integrate (restrictDomain c d) e
   Just c'' -> cond (InEqlty c'') (integrate d e)
-integrate d (Cond c@(Eqlty Here (There j)) p)
-  = domainToConditions j d $ subVar0' j p
-integrate d (Cond c@(Eqlty (There i) Here) p)
-  = domainToConditions i d $ subVar0' i p
+integrate d (Cond (Eqlty c') e) = case occurExpr c' of
+  Nothing ->
+    -- We apply the rule: ∫ f(x) δ(c x + k) dx = f(-k/c)
+    
+    -- (The correct rule is: ∫ f(x) δ(c x + k) dx = 1/c f(-k/c)
+    -- HOWEVER, due to the way we generate the equalities, my hunch is
+    -- that we already take into account this coefficient. To be
+    -- investigated.)
+
+    -- FIXME: if -k/c falls out of the integration domain, the result
+    -- is actually zero here. So we need to add a condition (Cond
+    -- constructor) to reflect this.
+    -- The condition is:  loBound ≤ -k/c  ≤ hiBound
+    substP (\Here -> (-1/coef) *^ expr) e
+    
+    where (coef,expr) = solve c' 
+  Just c'' -> cond (Eqlty c'') (integrate d e)
 integrate d e = Integrate d e
 
 cond :: Cond γ -> P γ -> P γ
@@ -223,10 +251,16 @@ example :: P ()
 example = Integrate full $ Integrate full $ Cond (InEqlty [(3, There Here), (2, Here)]) $ Cond (InEqlty [(1, There Here)]) One
 
 example1 :: P ()
-example1 = Integrate full $ Integrate full $ Cond (Eqlty (There Here) Here) One
+example1 = Integrate full $ Integrate full $ Cond (Eqlty [(1,(There Here)),(-1,Here)] ) One
 
 -- >>> example
 -- ∫∫𝟙((3.0 * x) + (2.0 * y) ≤ 0)*𝟙((1.0 * x) ≤ 0)*1
+
+-- >>> normalise example
+-- ∫{-∞≤x≤0}∫{-∞≤y≤(1.5 * x)}1
+
+-- >>> example1
+-- ∫∫((1.0 * x) + (-1.0 * y) ≐ 0)*1
 
 -- >>> normalise example1
 -- ∫1
