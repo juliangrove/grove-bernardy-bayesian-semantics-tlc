@@ -25,7 +25,7 @@ data Domain γ α = Domain {domainConditions :: [Cond (γ, α)]
 
 
 positive :: Expr γ Re -> Cond γ
-positive e = InEqlty e -- TODO: suggests renaming
+positive e = InEqlty e -- TODO: suggests renaming InEqlty ↦ Positive
 
 negative :: Expr γ Re -> Cond γ
 negative e = positive ((-1) *^ e)
@@ -33,11 +33,10 @@ negative e = positive ((-1) *^ e)
 lessThan :: Expr γ Re -> Expr γ Re -> Cond γ
 t `lessThan` u = negative (t ++ (-1) *^ u)
 
+-- greaterThan :: Expr γ Re -> Expr γ Re -> Cond γ
+-- greaterThan = flip lessThan
 
-greaterThan :: Expr γ Re -> Expr γ Re -> Cond γ
-greaterThan = flip lessThan
-
-
+-- | @domainToConditions x₀ d@ creates the conditions corresponding to x₀ ∈ d.
 domainToConditions :: Expr γ Re -> Domain γ Re -> P γ -> P γ
 domainToConditions i = \case
   Domain [] [] [] -> id
@@ -57,8 +56,6 @@ deriving instance Show (Available α γ)
 type Expr γ α = [(Re, Available α γ)]
   -- linear combination. list of coefficients and variables [x is a ring]
   -- Example u - v is represented by [(1,"u"), (-1,"v")]
-
-
 
 data Cond γ = InEqlty {condExpr :: (Expr γ Re)}
               -- Meaning of this constructor:  expression ≤ 0
