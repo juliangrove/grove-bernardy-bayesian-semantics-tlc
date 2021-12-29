@@ -24,11 +24,11 @@ data Domain γ α = Domain {domainConditions :: [Cond (γ, α)]
                          ,domainLoBounds,domainHiBounds :: [Expr γ α]}
 
 
-positive :: Expr γ Re -> Cond γ
-positive e = InEqlty e -- TODO: suggests renaming InEqlty ↦ Positive
+-- positive :: Expr γ Re -> Cond γ
+-- positive e = negative ((-1) *^ e)
 
 negative :: Expr γ Re -> Cond γ
-negative e = positive ((-1) *^ e)
+negative e = InEqlty e -- TODO: suggests renaming InEqlty ↦ Negative
 
 lessThan :: Expr γ Re -> Expr γ Re -> Cond γ
 t `lessThan` u = negative (t ++ (-1) *^ u)
