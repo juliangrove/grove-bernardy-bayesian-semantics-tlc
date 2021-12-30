@@ -26,11 +26,11 @@ data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
 -- positive :: Expr γ Re -> Cond γ
 -- positive e = negative ((-1) *^ e)
 
-negative :: Expr γ Re -> Cond γ
-negative e = IsNegative e -- TODO: suggests renaming IsNegative ↦ Negative
+isNegative :: Expr γ Re -> Cond γ
+isNegative e = IsNegative e
 
 lessThan :: Expr γ Re -> Expr γ Re -> Cond γ
-t `lessThan` u = negative (t `add` ((-1) *^ u))
+t `lessThan` u = isNegative (t `add` ((-1) *^ u))
 
 -- greaterThan :: Expr γ Re -> Expr γ Re -> Cond γ
 -- greaterThan = flip lessThan
@@ -53,8 +53,7 @@ deriving instance Show (Available α γ)
  
 data Expr γ α = Expr α [(α, Available α γ)]
   -- linear combination. list of coefficients and variables [α is a vector space]
-  -- Example u - v is represented by [(1,"u"), (-1,"v")]
-
+  -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@
 
 -- Induced vector space structure over Expr γ α:
 
@@ -69,11 +68,11 @@ add (Expr a xs) (Expr a' xs') = Expr (a + a') (xs ++ xs')
 zero = Expr 0 []
 
 data Cond γ = IsNegative { condExpr :: (Expr γ Re) }
-              -- Meaning of this constructor:  expression ≤ 0
-              -- Example: u ≤ v is represented by u - v ≤ 0
+              -- Meaning of this constructor: expression ≤ 0
+              -- Example: u ≤ v is represented by @IsNegative [(1, u), (-1, v)]@
             | IsZero { condExpr :: (Expr γ Re) }
-              -- Meaning of this constructor:  expression = 0
-              -- Example: u = v is represented by u - v = 0
+              -- Meaning of this constructor: expression = 0
+              -- Example: u = v is represented by @IsZero [(1, u), (-1, v)]@
 
 restrictDomain :: α ~ Re => Cond (γ, α) -> Domain γ α -> Domain γ α
   -- restrictDomain c (Domain cs' lowBounds highBounds) = Domain (c : cs') lowBounds highBounds
@@ -89,10 +88,10 @@ data P γ where
 
 type Subst γ δ = (forall x. Num x => Available x γ -> Expr δ x)
 
-wkSubst :: Subst γ δ -> Subst (γ, x) (δ, x)
+wkSubst :: Subst γ δ -> Subst (γ, α) (δ, α)
 wkSubst f = \case
-  Here -> Expr 0 [(1,Here)]
-  There x -> Expr k0 [(c, There y) | (c,y) <- xs]
+  Here -> Expr 0 [(1, Here)]
+  There x -> Expr k0 [ (c, There y) | (c, y) <- xs ]
     where Expr k0 xs = f x
 
 substExpr :: Subst γ δ -> forall x. Num x => Expr γ x -> Expr δ x
@@ -126,15 +125,19 @@ evalVar = \case
   Get -> Here
   Weaken (evalVar -> i) -> There i
 
-pattern Eqs i j
+pattern EqVars i j
   = Neu (NeuApp (NeuApp (NeuCon (Rl EqRl)) (Neu (NeuVar i))) (Neu (NeuVar j)))
-
 pattern Mults x y
   = Neu (NeuApp (NeuApp (NeuCon (Rl Mult)) x) y)
+pattern InEqVars i j
+  = Neu (NeuApp (NeuCon (Rl Indi)) (Neu (NeuApp (NeuApp (NeuCon (Special GTE)) (Neu (NeuVar i))) (Neu (NeuVar j)))))
 
 evalP :: NF γ R -> P (Eval γ) -> P (Eval γ)
 evalP = \case
-  Eqs (evalVar -> i) (evalVar -> j) -> Cond (IsZero $ Expr 1 [(1, i), (-1, j)])
+  EqVars (evalVar -> i) (evalVar -> j)
+    -> Cond (IsZero $ Expr 0 [(1, i), (-1, j)])
+  InEqVars (evalVar -> i) (evalVar -> j)
+    -> Cond (IsNegative $ Expr 0 [(1, i), (-1, j)])
   Mults (evalP -> x) (evalP -> y) -> x . y
   
 type Vars γ  = forall v. Available v γ -> String
@@ -266,7 +269,6 @@ normalise = \case
 full :: Domain γ x
 full = Domain [] [] []
 
-
 exampleInEq :: P ()
 exampleInEq = Integrate full $
               Cond (IsNegative (Expr 7 [(-1, Here)])) $
@@ -280,7 +282,7 @@ exampleInEq = Integrate full $
 
 exampleEq :: P ()
 exampleEq = Integrate full $
-            Cond (IsZero (Expr 7 [(-1,Here)])) $
+            Cond (IsZero (Expr 7 [(-1, Here)])) $
             Ret $ Expr 10 [(1, Here)]
 
 -- >>> exampleEq
@@ -328,8 +330,8 @@ example3 :: P ()
 example3 = Integrate full $
            Integrate full $
            Cond (IsNegative (Expr 3 [(-1, Here)])) $
-           Cond (IsZero (Expr 4 [(1, (There Here)), (-1, Here)]) ) $
-           Ret $ Expr 0 [(1,Here)]
+           Cond (IsZero (Expr 4 [(1, (There Here)), (-1, Here)])) $
+           Ret $ Expr 0 [(1, Here)]
 
 -- >>> example3
 -- ∫∫𝟙(3.0 + (-1.0 * y) ≤ 0)*(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + (1.0 * y))
