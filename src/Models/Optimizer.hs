@@ -27,7 +27,7 @@ data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
 -- positive e = negative ((-1) *^ e)
 
 negative :: Expr γ Re -> Cond γ
-negative e = InEqlty e -- TODO: suggests renaming InEqlty ↦ Negative
+negative e = IsNegative e -- TODO: suggests renaming IsNegative ↦ Negative
 
 lessThan :: Expr γ Re -> Expr γ Re -> Cond γ
 t `lessThan` u = negative (t `add` ((-1) *^ u))
@@ -60,7 +60,7 @@ data Expr γ α = Expr α [(α, Available α γ)]
 
 -- multiplication by scalar (expresions are linear)
 (*^) :: Num α => α -> Expr γ α -> Expr γ α
-c *^ Expr k0 xs = Expr (c * k0) [(c * c', v) | (c',v) <- xs]
+c *^ Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c',v) <- xs ]
 
 -- addition
 add :: Num α => Expr γ α -> Expr γ α -> Expr γ α
@@ -68,10 +68,10 @@ add (Expr a xs) (Expr a' xs') = Expr (a + a') (xs ++ xs')
 
 zero = Expr 0 []
 
-data Cond γ = InEqlty {condExpr :: (Expr γ Re)}
+data Cond γ = IsNegative { condExpr :: (Expr γ Re) }
               -- Meaning of this constructor:  expression ≤ 0
               -- Example: u ≤ v is represented by u - v ≤ 0
-            | Eqlty {condExpr :: (Expr γ Re)}
+            | IsZero { condExpr :: (Expr γ Re) }
               -- Meaning of this constructor:  expression = 0
               -- Example: u = v is represented by u - v = 0
 
@@ -99,8 +99,8 @@ substExpr :: Subst γ δ -> forall x. Num x => Expr γ x -> Expr δ x
 substExpr f (Expr k0 e) = foldr add (Expr k0 []) [c *^ f x | (c,x) <- e]
 
 substCond :: Subst γ δ -> Cond γ -> Cond δ
-substCond f (InEqlty e) = InEqlty (substExpr f e)
-substCond f (Eqlty e) = Eqlty (substExpr f e)
+substCond f (IsNegative e) = IsNegative (substExpr f e)
+substCond f (IsZero e) = IsZero (substExpr f e)
 
 substDomain :: Num d => Subst γ δ -> Domain γ d -> Domain δ d
 substDomain f (Domain c lo hi) = Domain (substCond (wkSubst f) <$> c) (substExpr f <$> lo) (substExpr f <$> hi)
@@ -134,18 +134,20 @@ pattern Mults x y
 
 evalP :: NF γ R -> P (Eval γ) -> P (Eval γ)
 evalP = \case
-  Eqs (evalVar -> i) (evalVar -> j) -> Cond (Eqlty $ Expr 1 [(1, i), (-1, j)])
+  Eqs (evalVar -> i) (evalVar -> j) -> Cond (IsZero $ Expr 1 [(1, i), (-1, j)])
   Mults (evalP -> x) (evalP -> y) -> x . y
   
 type Vars γ  = forall v. Available v γ -> String
 
 showExpr :: Show α => Vars γ -> Expr γ α -> String
-showExpr v (Expr k0 xs) = intercalate " + " $ show k0 : [ show k ++ " * " ++ v x | (k, x) <- xs ]
+showExpr v (Expr k0 xs) = intercalate " + " $
+                          show k0 : [ parens $ show k ++ " * " ++ v x |
+                                      (k, x) <- xs ]
 
 showCond :: Vars γ -> Cond γ -> String
 showCond v = \case
-  c@(InEqlty c') -> "𝟙" <> (parens $ showExpr v c' <> " ≤ 0")
-  c@(Eqlty c') -> parens $ showExpr v c' ++ " ≐ 0"
+  c@(IsNegative c') -> "𝟙" <> (parens $ showExpr v c' <> " ≤ 0")
+  c@(IsZero c') -> parens $ showExpr v c' ++ " ≐ 0"
 
 parens :: [Char] -> [Char]
 parens x = "(" ++ x ++ ")"
@@ -185,11 +187,12 @@ type Solution γ d  = (Ordering, Expr γ d)
 
 -- @solve e x@ returns the coefficient of the 1st variable in the expression, and the rest (terms not involving the 1st variable).
 -- ie. c x + e = 0
-solve :: (x ~ Re) => Expr (γ,x) x -> (x, Expr γ x)
+solve :: (α ~ Re) => Expr (γ, α) α -> (α, Expr γ α)
 solve (Expr k0 xs) = (c', Expr k0 e)
   where (c', e) = solveAffine xs
 
-solveAffine :: (x ~ Re) => [(Re,Available Re (γ,x))] -> (x, [(Re,Available Re γ)])
+solveAffine :: (α ~ Re)
+            => [(Re, Available Re (γ, α))] -> (α, [(Re, Available Re γ)])
 solveAffine ([]) = (0, [])
 solveAffine ((c, Here) : xs) = (c + c', e)
   where (c', e) = solveAffine xs
@@ -199,9 +202,9 @@ solveAffine ((c, There x) : xs) = (c', (c, x) : e)
 -- FIXME: detect always true and always false cases.
 solve' :: Cond (γ, Re) -> Solution γ Re
 solve' c0 = case c0 of
-      Eqlty _ -> (EQ, (-1/c) *^ e)
-      InEqlty _ -> if c < 0 then (GT, (1 / (-c)) *^ e) else (LT, (1 / c) *^ e)
-    where (c, e) = solve (condExpr c0)
+  IsZero _ -> (EQ, (-1 / c) *^ e)
+  IsNegative _ -> if c < 0 then (GT, (1 / (-c)) *^ e) else (LT, (1 / c) *^ e)
+  where (c, e) = solve (condExpr c0)
   
 shallower :: SomeVar γ -> SomeVar γ -> Bool
 SomeVar Here `shallower` _ = False
@@ -214,8 +217,9 @@ data SomeVar γ where
 minVar :: SomeVar γ -> SomeVar γ -> SomeVar γ
 minVar (SomeVar Here) _ = SomeVar Here
 minVar _ (SomeVar Here)  = SomeVar Here 
-minVar (SomeVar (There x)) (SomeVar (There y)) = case minVar (SomeVar x) (SomeVar y) of
-  SomeVar z -> SomeVar (There z)
+minVar (SomeVar (There x)) (SomeVar (There y))
+  = case minVar (SomeVar x) (SomeVar y) of
+      SomeVar z -> SomeVar (There z)
 
 deepest :: Cond γ -> SomeVar γ
 deepest c = case condExpr c of
@@ -230,26 +234,26 @@ occurExpr = travExpr $ \case
   There x -> Just x
 
 integrate :: d ~ Re => Domain γ d -> P (γ, d) -> P γ
-integrate d (Cond c@(InEqlty c') e) = case occurExpr c' of
+integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> integrate (restrictDomain c d) e
-  Just c'' -> cond (InEqlty c'') (integrate d e)
-integrate d (Cond (Eqlty c') e) = case occurExpr c' of
+  Just c'' -> cond (IsNegative c'') (integrate d e)
+integrate d (Cond (IsZero c') e) = case occurExpr c' of
   Nothing ->
-    -- We apply the rule: ∫ f(x) δ(c x + k) dx = f(-k/c)
-    
+    -- We apply the rule: ∫ f(x) δ(c x + k) dx = f(-k/c)   
     -- (The correct rule is: ∫ f(x) δ(c x + k) dx = (1/abs c) * f(-k/c)
     -- HOWEVER, due to the way we generate the equalities, my hunch is
     -- that we already take into account this coefficient. To be
     -- investigated.)
-
     domainToConditions x0 d $ substP (\Here -> x0) e   
     where (coef, expr) = solve c'
           x0 = (-1 / coef) *^ expr
-  Just c'' -> cond (Eqlty c'') (integrate d e)
+  Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d e = Integrate d e
 
 cond :: Cond γ -> P γ -> P γ
-cond c (Cond c' e) = if (deepest c) `shallower` (deepest c') then Cond c (Cond c' e) else Cond c' (cond c e)
+cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
+                     then Cond c (Cond c' e)
+                     else Cond c' (cond c e)
 cond c (normalise -> e) = Cond c e
 
 normalise :: P γ -> P γ
@@ -265,8 +269,8 @@ full = Domain [] [] []
 
 exampleInEq :: P ()
 exampleInEq = Integrate full $
-            Cond (InEqlty (Expr 7 [(-1,Here)])) $
-            Ret $ Expr 10 [(1,Here)]
+              Cond (IsNegative (Expr 7 [(-1, Here)])) $
+              Ret $ Expr 10 [(1, Here)]
 
 -- >>> exampleInEq
 -- ∫𝟙(7.0 + -1.0 * x ≤ 0)*(10.0 + 1.0 * x)
@@ -276,8 +280,8 @@ exampleInEq = Integrate full $
 
 exampleEq :: P ()
 exampleEq = Integrate full $
-            Cond (Eqlty (Expr 7 [(-1,Here)])) $
-            Ret $ Expr 10 [(1,Here)]
+            Cond (IsZero (Expr 7 [(-1,Here)])) $
+            Ret $ Expr 10 [(1, Here)]
 
 -- >>> exampleEq
 -- ∫(7.0 + -1.0 * x ≐ 0)*(10.0 + 1.0 * x)
@@ -286,7 +290,10 @@ exampleEq = Integrate full $
 -- (17.0)
 
 example :: P ()
-example = Integrate full $ Integrate full $ Cond (InEqlty (Expr 0 [(3, There Here), (2, Here)])) $ Cond (InEqlty (Expr 2 [(1, There Here)])) $ Ret $ Expr 1 []
+example = Integrate full $ Integrate full $
+          Cond (IsNegative (Expr 0 [(3, There Here), (2, Here)])) $
+          Cond (IsNegative (Expr 2 [(1, There Here)])) $
+          Ret $ Expr 1 []
 
 -- >>> example
 -- ∫∫𝟙(0.0 + 3.0 * x + 2.0 * y ≤ 0)*𝟙(2.0 + 1.0 * x ≤ 0)*(1.0)
@@ -295,35 +302,37 @@ example = Integrate full $ Integrate full $ Cond (InEqlty (Expr 0 [(3, There Her
 -- ∫{-∞≤x≤2.0}∫{-∞≤y≤0.0 + 1.5 * x}(1.0)
 
 example1 :: P ()
-example1 = Integrate full $ Integrate full $ Cond (Eqlty (Expr 4 [(1,(There Here)),(-1,Here)]) )  $ Ret $ Expr 1 []
+example1 = Integrate full $ Integrate full $
+           Cond (IsZero (Expr 4 [(1, (There Here)), (-1, Here)])) $
+           Ret $ Expr 1 []
 
 -- >>> example1
--- ∫∫(4.0 + 1.0 * x + -1.0 * y ≐ 0)*(1.0)
+-- ∫∫(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(1.0)
 
 -- >>> normalise example1
 -- ∫(1.0)
 
 example2 :: P ()
 example2 = Integrate full $
-           Integrate (Domain [] [Expr 1 [(1,Here)]] []) $
-           Cond (Eqlty (Expr 4 [(2,(There Here)),(-1,Here)]) ) $
-           Ret $ Expr 0 [(1,Here)]
+           Integrate (Domain [] [Expr 1 [(1, Here)]] []) $
+           Cond (IsZero (Expr 4 [(2, There Here), (-1, Here)]) ) $
+           Ret $ Expr 0 [(1, Here)]
 
 -- >>> example2
--- ∫∫{1.0 + 1.0 * x≤y≤+∞}(4.0 + 2.0 * x + -1.0 * y ≐ 0)*(0.0 + 1.0 * y)
+-- ∫∫{1.0 + (1.0 * x)≤y≤+∞}(4.0 + (2.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + (1.0 * y))
 
 -- >>> normalise example2
--- ∫{-3.0≤x≤+∞}(4.0 + 2.0 * x)
+-- ∫{-3.0≤x≤+∞}(4.0 + (2.0 * x))
 
 example3 :: P ()
 example3 = Integrate full $
            Integrate full $
-           Cond (InEqlty (Expr 3 [(-1, Here)])) $
-           Cond (Eqlty (Expr 4 [(1,(There Here)),(-1,Here)]) ) $
+           Cond (IsNegative (Expr 3 [(-1, Here)])) $
+           Cond (IsZero (Expr 4 [(1, (There Here)), (-1, Here)]) ) $
            Ret $ Expr 0 [(1,Here)]
 
 -- >>> example3
--- ∫∫𝟙(3.0 + -1.0 * y ≤ 0)*(4.0 + 1.0 * x + -1.0 * y ≐ 0)*(0.0 + 1.0 * y)
+-- ∫∫𝟙(3.0 + (-1.0 * y) ≤ 0)*(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + (1.0 * y))
 
 -- >>> normalise example3
--- ∫{-1.0≤x≤+∞}(4.0 + 1.0 * x)
+-- ∫{-1.0≤x≤+∞}(4.0 + (1.0 * x))
