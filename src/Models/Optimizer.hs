@@ -15,8 +15,9 @@
 
 module Models.Optimizer where
 
+import Control.Monad (ap)
 import Data.List
-import TLC.Terms
+import TLC.Terms hiding ((>>))
 
 type Re = Double
 
@@ -50,6 +51,7 @@ data Available α γ where
   Here :: Available α (γ, α)
   There :: Available α γ -> Available α (γ, β)
 deriving instance Show (Available α γ)
+
 data Expr γ α = Expr α [(α, Available α γ)]
   -- linear combination. list of coefficients and variables [α is a vector space]
   -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@
@@ -209,15 +211,25 @@ pattern Mults x y
 pattern InEqVars i j
   = Neu (NeuApp (NeuCon (Rl Indi)) (Neu (NeuApp (NeuApp (NeuCon (Special GTE)) (Neu (NeuVar i))) (Neu (NeuVar j)))))
 
--- data ContP γ α = ContP { runContP :: forall δ r. (α -> P δ r) -> P γ r }
+data ContP γ α = ContP { runContP :: (α -> P γ) -> P γ }
 
-evalP :: NF γ R -> P (Eval γ) -> P (Eval γ)
+instance Functor (ContP γ) where
+  fmap f (ContP m) = ContP $ \k -> m $ k . f
+instance Applicative (ContP γ) where
+  pure v = ContP $ \k -> k v
+  (<*>) = ap
+instance Monad (ContP γ) where
+  ContP m >>= k = ContP $ \k' -> m $ \x -> runContP (k x) k'
+
+evalP :: NF γ R -> ContP (Eval γ) (Returned δ Re)
 evalP = \case
   EqVars (evalVar -> i) (evalVar -> j)
-    -> Cond (IsZero $ Expr 0 [(1, i), (-1, j)])
+    -> ContP $ \k -> Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $
+                     k $ RetPoly $ Poly 1 [] 
   InEqVars (evalVar -> i) (evalVar -> j)
-    -> Cond (IsNegative $ Expr 0 [(1, i), (-1, j)])
-  Mults (evalP -> x) (evalP -> y) -> x . y
+    -> ContP $ \k -> Cond (IsNegative $ Expr 0 [(1, i), (-1, j)]) $
+                     k $ RetPoly $ Poly 1 []
+  Mults (evalP -> x) (evalP -> y) -> multReturned <$> x <*> y
   
 type Vars γ  = forall v. Available v γ -> String
 
