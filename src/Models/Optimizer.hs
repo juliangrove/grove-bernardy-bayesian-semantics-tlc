@@ -61,12 +61,6 @@ type Component γ α = (α, [(Available α γ, α)])
 type Exponentiated γ α = (α, Returned γ α)
   -- E.g., @(c1, p)@ represents c1 * exp(p).
 
-multComponents :: Component γ Re -> Component γ Re -> Component γ Re
-multComponents (c1, vs1) (c2, vs2) = (c1 * c2, vs1 ++ vs2)
-
-multExponentials :: Exponentiated γ Re -> Exponentiated γ Re -> Exponentiated γ Re
-multExponentials (c1, p1) (c2, p2) = (c1 * c2, multReturned p1 p2)
-
 data Polynomial γ α = Poly α [Component γ α]
 data Exponentials γ α = Exps α [Exponentiated γ α]
 
@@ -77,30 +71,32 @@ data Returned γ α = RetPoly (Polynomial γ α)
                   -- @Exp c cs@ represents c + sum of cs.
                   -- @Times x y@ represents x * y.
 
-multReturned :: Returned γ Re -> Returned γ Re -> Returned γ Re
+-- | This is currently wrong (fix later):
+multReturned :: Num α => Returned γ α -> Returned γ α -> Returned γ α
 multReturned = \case
   RetPoly p@(Poly c1 cs1) -> \case
     RetPoly (Poly c2 cs2) -> RetPoly $ Poly (c1 * c2) (cs1 ++ cs2)
     RetExp e -> Times p e
+    Times (multReturned (RetPoly p) . RetPoly -> RetPoly p') e -> Times p' e
   RetExp e@(Exps c1 es1) -> \case
     RetPoly p -> Times p e
     RetExp (Exps c2 es2) -> RetExp $ Exps (c1 * c2) (es1 ++ es2)
+    Times p (multReturned (RetExp e) . RetExp -> RetExp e') -> Times p e'
+  Times p e -> \case
+    RetPoly p' -> multReturned (RetPoly p') (Times p e)
+    RetExp e' -> multReturned (RetExp e') (Times p e)
+    Times
+      (multReturned (RetPoly p) . RetPoly -> RetPoly p')
+      (multReturned (RetExp e) . RetExp -> RetExp e') -> Times p' e'
   
-                  
--- multReturned :: Returned γ α -> Returned γ α -> Returned γ α
--- multReturned (Returned c
-
 -- Induced vector space structure over Expr γ α:
 
 -- multiplication by scalar (expresions are linear)
 (*^) :: Num α => α -> Expr γ α -> Expr γ α
 c *^ Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c', v) <- xs ]
 
--- (**^) :: Num α => α -> Returned γ α -> Returned γ α
--- c **^ (Returned c1 xs ys)
-  -- = Returned (c * c1)
-    -- (map (\(c2, i, c3) -> ((c + c2), i, c3)) xs)
-    -- (map (\(c2, e) -> ((c + c2), e)) ys)
+(**^) :: Num α => α -> Returned γ α -> Returned γ α
+c **^ e = multReturned (RetPoly $ Poly c []) e
   
 -- addition
 add :: Num α => Expr γ α -> Expr γ α -> Expr γ α
