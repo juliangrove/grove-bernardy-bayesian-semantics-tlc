@@ -50,7 +50,6 @@ data Available α γ where
   Here :: Available α (γ, α)
   There :: Available α γ -> Available α (γ, β)
 deriving instance Show (Available α γ)
- 
 data Expr γ α = Expr α [(α, Available α γ)]
   -- linear combination. list of coefficients and variables [α is a vector space]
   -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@
@@ -91,6 +90,10 @@ multReturned = \case
     Times
       (multReturned (RetPoly p) . RetPoly -> RetPoly p')
       (multReturned (RetExps e) . RetExps -> RetExps e') -> Times p' e'
+
+expReturned :: (Num α, Eq α) => α -> Returned γ α -> Returned γ α
+expReturned 1 e = e
+expReturned n e = multReturned e (expReturned (n - 1) e)
   
 -- Induced vector space structure over Expr γ α:
 
@@ -161,21 +164,15 @@ wkSubst f = \case
 substExpr :: Subst γ δ -> forall α. Num α => Expr γ α -> Expr δ α
 substExpr f (Expr k0 e) = foldr add (Expr k0 []) [ c *^ f x | (c, x) <- e ]
 
--- exprToReturned :: Expr γ α -> Returned γ α
--- exprToReturned = _
+exprToPoly :: Num α => Expr γ α -> Returned γ α
+exprToPoly (Expr c xs) = RetPoly $ Poly c [ (c', [(x, 1)]) | (c', x) <- xs ] 
 
--- substReturned :: Subst γ δ -> forall α. Num α => Returned γ α -> Returned δ α
--- substReturned f (Returned k0 xs ys) = foldr add' (foldr add' (Returned k0 [] [])
---                                       [ c **^ case f x of
---                                                 Expr k1 xs'
---                                                   -> Returned k1
---                                                      (map (\(c'', i) -> (c'', i, 1))
---                                                       xs') []
---                                       | (c, x, c') <- xs ])
---                                       [ c **^ case f x of
---                                                 Expr k1 xs'
---                                                   -> Returned k1 []
---                                                      (map (\(c'', i))) ]
+substReturned :: Subst γ δ ->
+                 forall α. (Num α, Eq α) => Returned γ α -> Returned δ α
+substReturned f = \case
+  RetPoly (Poly k0 cs) -> foldr addReturned (RetPoly $ Poly k0 [])
+                          [ c **^ (expReturned c' $ exprToPoly (f x))
+                          | (c, [(x, c')]) <- cs ]
 
 substCond :: Subst γ δ -> Cond γ -> Cond δ
 substCond f (IsNegative e) = IsNegative (substExpr f e)
@@ -186,7 +183,7 @@ substDomain f (Domain c lo hi) = Domain (substCond (wkSubst f) <$> c) (substExpr
 
 substP :: Subst γ δ -> P γ -> P δ
 substP f p0 = case p0 of
-  -- Ret e -> Ret (substReturned f e)
+  Ret e -> Ret (substReturned f e)
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p)
 
@@ -371,7 +368,7 @@ exampleInEq = Integrate full $
 -- ∫𝟙(7.0 + (-1.0 * x) ≤ 0)*(10.0 + (1.0 * x^1.0))
 
 -- >>> normalise exampleInEq
--- ∫{7.0≤x≤+∞}(10.0 + 1.0 * x)
+-- ∫{7.0≤x≤+∞}(10.0 + (1.0 * x^1.0))
 
 exampleEq :: P ()
 exampleEq = Integrate full $
@@ -394,7 +391,7 @@ example = Integrate full $ Integrate full $
 -- ∫∫𝟙(0.0 + (3.0 * x) + (2.0 * y) ≤ 0)*𝟙(2.0 + (1.0 * x) ≤ 0)*(1.0)
 
 -- >>> normalise example
--- ∫{-∞≤x≤2.0}∫{-∞≤y≤0.0 + 1.5 * x}(1.0)
+-- ∫{-∞≤x≤2.0}∫{-∞≤y≤0.0 + (1.5 * x)}(1.0)
 
 example1 :: P ()
 example1 = Integrate full $ Integrate full $
@@ -405,7 +402,7 @@ example1 = Integrate full $ Integrate full $
 -- ∫∫(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(1.0)
 
 -- >>> normalise example1
--- *** Exception: /tmp/dante6rOLiB.hs:(188,15)-(191,69): Non-exhaustive patterns in case
+-- ∫(1.0)
 
 example2 :: P ()
 example2 = Integrate full $
@@ -417,7 +414,7 @@ example2 = Integrate full $
 -- ∫∫{1.0 + (1.0 * x)≤y≤+∞}(4.0 + (2.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + (1.0 * y^1.0))
 
 -- >>> normalise example2
--- *** Exception: /tmp/dante6rOLiB.hs:(188,15)-(191,69): Non-exhaustive patterns in case
+-- ∫{-3.0≤x≤+∞}(4.0)
 
 example3 :: P ()
 example3 = Integrate full $
@@ -430,4 +427,4 @@ example3 = Integrate full $
 -- ∫∫𝟙(3.0 + (-1.0 * y) ≤ 0)*(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + (1.0 * y^1.0))
 
 -- >>> normalise example3
--- *** Exception: /tmp/dante6rOLiB.hs:(188,15)-(191,69): Non-exhaustive patterns in case
+-- ∫{-1.0≤x≤+∞}(4.0)
