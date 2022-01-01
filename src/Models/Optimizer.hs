@@ -24,8 +24,8 @@ type Re = Double
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
 
--- positive :: Expr γ Re -> Cond γ
--- positive e = negative ((-1) *^ e)
+isPositive :: Expr γ Re -> Cond γ
+isPositive e = isNegative ((-1) *^ e)
 
 isNegative :: Expr γ Re -> Cond γ
 isNegative e = IsNegative e
@@ -255,6 +255,9 @@ showReturned v = \case
                                                      show c)
                                                xcs))
                                     | (k, xcs) <- cs ]
+  RetExps (Exps k0 es) -> intercalate " + " $
+                          show k0 : [ show c ++ " * exp(" ++ showReturned v e
+                                      ++ ")" | (c, e) <- es ]
 
 showCond :: Vars γ -> Cond γ -> String
 showCond v = \case
@@ -448,3 +451,16 @@ example3 = Integrate full $
 
 -- >>> normalise example3
 -- ∫{-1.0≤x≤+∞}(4.0)
+
+example4 :: P ()
+example4 = Integrate full $
+           Integrate full $
+           Cond (IsNegative (Expr 3 [(-1, Here)])) $
+           Cond (IsZero (Expr 4 [(1, (There Here)), (-1, Here)])) $
+           Ret $ RetExps $ Exps 0 [(1, RetPoly $ Poly 0 [(1, [(Here, 1)])])]
+
+-- >>> example4
+-- ∫∫𝟙(3.0 + (-1.0 * y) ≤ 0)*(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + 1.0 * exp(0.0 + (1.0 * y^1.0)))
+
+-- >>> normalise example4
+-- ∫{-1.0≤x≤+∞}(0.0 + 1.0 * exp(4.0))
