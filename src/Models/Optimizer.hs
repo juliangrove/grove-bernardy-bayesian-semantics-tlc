@@ -175,7 +175,15 @@ substReturned f = \case
   RetPoly (Poly k0 cs) -> foldr addReturned (RetPoly $ Poly k0 [])
                           [ c **^ (expReturned c' $ exprToPoly (f x))
                           | (c, [(x, c')]) <- cs ]
-
+  RetExps (Exps k0 es) -> RetExps $ Exps k0 $
+                          [ (c, substReturned f e) | (c, e) <- es ]
+  Plus
+    (substReturned f . RetPoly -> RetPoly p')
+    (substReturned f . RetExps -> RetExps e') -> Plus p' e'
+  Times
+    (substReturned f . RetPoly -> RetPoly p')
+    (substReturned f . RetExps -> RetExps e') -> Times p' e'  
+    
 substCond :: Subst γ δ -> Cond γ -> Cond δ
 substCond f (IsNegative e) = IsNegative (substExpr f e)
 substCond f (IsZero e) = IsZero (substExpr f e)
