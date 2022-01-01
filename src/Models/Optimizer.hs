@@ -197,6 +197,9 @@ substP f p0 = case p0 of
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p)
 
+wkP :: P γ -> P (γ, α)
+wkP = substP $ \i -> Expr 0 [(1, There i)] 
+
 type family Eval γ where
   Eval R = Re
   Eval Unit = ()
@@ -218,6 +221,8 @@ pattern Mults x y
   = Neu (NeuApp (NeuApp (NeuCon (Rl Mult)) x) y)
 pattern InEqVars i j
   = Neu (NeuApp (NeuCon (Rl Indi)) (Neu (NeuApp (NeuApp (NeuCon (Special GTE)) (Neu (NeuVar i))) (Neu (NeuVar j)))))
+pattern Normal x y f
+  = Neu (NeuApp (NeuApp (NeuCon (Rl Nml)) (NFPair (Neu (NeuCon (Rl (Incl x)))) (Neu (NeuCon (Rl (Incl y)))))) f)
 
 data ContP γ α = ContP { runContP :: (α -> P γ) -> P γ }
 
@@ -238,6 +243,13 @@ evalP = \case
     -> ContP $ \k -> Cond (IsNegative $ Expr 0 [(1, i), (-1, j)]) $
                      k $ RetPoly $ Poly 1 []
   Mults (evalP -> x) (evalP -> y) -> multReturned <$> x <*> y
+  Normal x y f -> ContP $ \k -> Integrate (Domain [] [] []) $
+                                (runContP $ evalP $ normalForm $
+                                 App (wkn $ nf_to_λ f) (Var Get))
+                                (\x -> wkP $ k (multReturned
+                                                (RetExps $
+                                                 Exps 0 [(1, expReturned 2 x)])
+                                                x))
   
 type Vars γ  = forall v. Available v γ -> String
 
@@ -258,6 +270,8 @@ showReturned v = \case
   RetExps (Exps k0 es) -> intercalate " + " $
                           show k0 : [ show c ++ " * exp(" ++ showReturned v e
                                       ++ ")" | (c, e) <- es ]
+  Plus p e -> showReturned v (RetPoly p) ++ " + " ++ showReturned v (RetExps e)
+  Times p e -> showReturned v (RetPoly p) ++ " * " ++ showReturned v (RetExps e)
 
 showCond :: Vars γ -> Cond γ -> String
 showCond v = \case
@@ -290,10 +304,6 @@ showP freshes@(f:fs) v = \case
 
 showProg :: P () -> String
 showProg = showP freshes (\case)
-
-freshes :: [String]
-freshes = "" : map show ints >>= \i -> map (:i) ['x', 'y', 'z', 'u', 'v', 'w']
-  where ints = 1 : map succ ints
 
 instance Show (P ()) where
   show = showProg

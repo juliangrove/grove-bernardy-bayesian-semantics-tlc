@@ -13,7 +13,7 @@
 module TLC.Terms where
 
 import Data.Functor.Identity
-import Prelude hiding (Monad(..))
+import Prelude hiding ((>>))
 
 data Type = E | T | R | U | Γ
           | Type :-> Type
@@ -71,27 +71,29 @@ instance Equality (Γ ⟶ E) where
   equals (Con (Special Sel)) (Con (Special Sel)) = Con $ Rl $ Incl 1
 
 subEq :: γ ⊢ α -> γ ⊢ α
-subEq (App (App (Con (Rl EqGen)) m) n) = equals m n
-subEq (Var i) = Var i
-subEq (Con c) = Con c
-subEq (App m n) = App (subEq m) (subEq n)
-subEq (Lam m) = Lam $ subEq m
-subEq (Fst m) = Fst $ subEq m
-subEq (Snd m) = Snd $ subEq m
-subEq TT = TT
-subEq (Pair m n) = Pair (subEq m) (subEq n)
+subEq = \case
+  App (App (Con (Rl EqGen)) m) n -> equals m n
+  Var i -> Var i
+  Con c -> Con c
+  App (subEq -> m) (subEq -> n) -> App m n
+  Lam (subEq -> m) -> Lam m
+  Fst (subEq -> m) -> Fst m
+  Snd (subEq -> m) -> Snd m
+  TT -> TT
+  Pair (subEq -> m) (subEq -> n) -> Pair m n
 
 reduce1step :: γ ⊢ α -> γ ⊢ α
-reduce1step (App (App (Con (Rl Mult)) (Con (Rl (Incl 1)))) n) = reduce1step n
-reduce1step (App (App (Con (Rl Mult)) m) (Con (Rl (Incl 1)))) = reduce1step m
-reduce1step (Var i) = Var i
-reduce1step (Con c) = Con c
-reduce1step (App m n) = App (reduce1step m) (reduce1step n)
-reduce1step (Lam m) = Lam $ reduce1step m
-reduce1step (Fst m) = Fst $ reduce1step m
-reduce1step (Snd m) = Snd $ reduce1step m
-reduce1step TT = TT
-reduce1step (Pair m n) = Pair (reduce1step m) (reduce1step n)
+reduce1step = \case
+  App (App (Con (Rl Mult)) (Con (Rl (Incl 1)))) (reduce1step -> n) -> n
+  App (App (Con (Rl Mult)) (reduce1step -> m)) (Con (Rl (Incl 1))) -> m
+  Var i -> Var i
+  Con c -> Con c
+  App (reduce1step -> m) (reduce1step -> n) -> App m n
+  Lam (reduce1step -> m) -> Lam m
+  Fst (reduce1step -> m) -> Fst m
+  Snd (reduce1step -> m) -> Snd m
+  TT -> TT
+  Pair (reduce1step -> m) (reduce1step -> n) -> Pair m n
 
 canReduce :: γ ⊢ α -> Bool
 canReduce (App (Con (Rl Mult)) (Con (Rl (Incl 1)))) = True
@@ -321,6 +323,52 @@ instance Show (γ ⊢ α) where
     Snd (show -> m) -> "(π₂" ++ m ++ ")"
     TT -> "⋄"
     Pair (show -> m) (show -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
+
+displayDB :: γ ⊢ α -> IO ()
+displayDB t = putStrLn $ show t
+
+displayVs :: γ ⊢ α -> IO ()
+displayVs t = putStrLn $ displayVs' 0 t
+
+freshes :: [String]
+freshes = "" : map show ints >>= \i -> map (:i) ['x', 'y', 'z', 'u', 'v', 'w']
+  where ints = 1 : map succ ints
+
+displayVs' :: Int -> γ ⊢ α -> String
+displayVs' i = \case
+  Var Get -> freshes !! (i - 1)
+  Var (Weaken j) -> displayVs' (i - 1) $ Var j
+  App (App (Con (Logical And)) (displayVs' i -> p)) (displayVs' i -> q)
+    -> "(" ++ p ++ " ∧ " ++ q ++ ")"
+  App (App (Con (Logical Or)) (displayVs' i -> p)) (displayVs' i -> q)
+    -> "(" ++ p ++ " ∨ " ++ q ++ ")"
+  App (App (Con (Logical Imp)) (displayVs' i -> p)) (displayVs' i -> q)
+    -> "(" ++ p ++ " → " ++ q ++ ")"
+  App (App (Con (Logical Equals)) (displayVs' i -> m)) (displayVs' i -> n)
+    -> "(" ++ m ++ " = " ++ n ++ ")"
+  App (App (Con (Rl Mult)) (displayVs' i -> m)) (displayVs' i -> n)
+    -> "(" ++ m ++ " * " ++ n ++ ")"
+  App (App (Con (Rl Divi)) (displayVs' i -> m)) (displayVs' i -> n)
+    -> "(" ++ m ++ " / " ++ n ++ ")"
+  App (App (Con (Rl EqGen)) (displayVs' i -> m)) (displayVs' i -> n)
+    -> "(" ++ m ++ " ≐ " ++ n ++ ")"
+  App (App (Con (Rl EqRl)) (displayVs' i -> m)) (displayVs' i -> n)
+    -> "(" ++ m ++ " ≐ " ++ n ++ ")"
+  App (App (Con (Special GTE)) (displayVs' i -> m)) (displayVs' i -> n)
+    -> "(" ++ m ++ " ≥ " ++ n ++ ")"
+  App (App (Con (Special Upd)) (displayVs' i -> m)) (displayVs' i -> n)
+    -> m ++ "∷" ++ n
+  App (displayVs' i -> m) n@(displayVs' i -> n') -> m ++ case n of
+                                                           Lam _ -> n'
+                                                           Fst _ -> n'
+                                                           Snd _ -> n'
+                                                           _ -> "(" ++ n' ++ ")"
+  Con (show -> c) -> c
+  Lam (displayVs' (i + 1) -> m) -> "(λ" ++ freshes !! i ++ "." ++ m ++ ")"
+  Fst (displayVs' i -> m) -> "(π₁ " ++ m ++ ")"
+  Snd (displayVs' i -> m) -> "(π₂" ++ m ++ ")"
+  TT -> "⋄"
+  Pair (displayVs' i -> m) (displayVs' i -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
 
 lft :: (α ∈ γ -> α ∈ δ) -> α ∈ (γ × β) -> α ∈ (δ × β)
 lft f = \case
