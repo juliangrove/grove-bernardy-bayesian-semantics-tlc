@@ -5,6 +5,7 @@
 module Examples.RSA where
 
 import Prelude hiding (Monad(..))
+import Models.Optimizer
 import TLC.Terms
 
 factor :: γ ⊢ (R ⟶ ((Unit ⟶ R) ⟶ R))
@@ -116,3 +117,10 @@ l0 = Lam (k ⋆ Lam (
 
 -- >>> displayVs $ clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
 -- 1.0
+
+-- >>> clean $ evalβ $ lower $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x''))))))) * x)))))
+
+-- >>> :set -XAllowAmbiguousTypes -XTypeApplications -XTypeOperators -XFlexibleContexts
+-- >>> flip runContP Ret $ evalP @Unit @Unit (normalForm $ clean $ evalβ $ lower $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))) :: P ()
+-- ∫∫∫∫𝟙(0.0 + (1.0 * u) + (-1.0 * z) ≤ 0)*(0.0 + (1.0 * z) + (-1.0 * x) ≐ 0)*(0.0 + (1.0 * u) + (-1.0 * y) ≐ 0)**** Exception: /tmp/danteX7PX75.hs:(246,11)-(265,52): Non-exhaustive patterns in case
