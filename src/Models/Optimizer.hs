@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -222,6 +223,8 @@ pattern EqVars i j
   = Neu (NeuApp (NeuApp (NeuCon (Rl EqRl)) (Neu (NeuVar i))) (Neu (NeuVar j)))
 pattern Mults x y
   = Neu (NeuApp (NeuApp (NeuCon (Rl Mult)) x) y)
+pattern MultsVar x j
+  = Neu (NeuApp (NeuApp (NeuCon (Rl Mult)) x) (Neu (NeuVar j)))
 pattern InEqVars i j
   = Neu (NeuApp (NeuCon (Rl Indi)) (Neu (NeuApp (NeuApp (NeuCon (Special GTE)) (Neu (NeuVar i))) (Neu (NeuVar j)))))
 pattern Normal x y f
@@ -239,53 +242,33 @@ instance Applicative (ContP γ) where
 instance Monad (ContP γ) where
   ContP m >>= k = ContP $ \k' -> m $ \x -> runContP (k x) k'
 
-class EvalλtoP γ δ where
-  evalP :: NF γ R -> ContP (Eval γ) (Returned (Eval δ) Re)
-
-instance EvalλtoP γ δ where
-  evalP = \case
-    EqVars (evalVar -> i) (evalVar -> j)
-      -> ContP $ \k -> Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $
-                       k $ RetPoly $ Poly 1 [] 
-    InEqVars (evalVar -> i) (evalVar -> j)
-      -> ContP $ \k -> Cond (IsNegative $ Expr 0 [(1, i), (-1, j)]) $
-                       k $ RetPoly $ Poly 1 []
-    Mults (evalP @γ @δ -> x) (evalP @γ @δ -> y)
-      -> multReturned <$> x <*> y
-    Normal x y f -> ContP $ \k -> Integrate (Domain [] [] []) $
-                                  (runContP $ evalP @(γ × R) @δ $ normalForm $
+evalP :: Available Re (Eval γ, Re) -> NF γ R -> ContP (Eval γ) (Returned δ Re)
+evalP v = \case
+  EqVars (evalVar -> i) (evalVar -> j)
+    -> ContP $ \k -> Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $
+                     k $ RetPoly $ Poly 1 [] 
+  InEqVars (evalVar -> i) (evalVar -> j)
+    -> ContP $ \k -> Cond (IsNegative $ Expr 0 [(1, i), (-1, j)]) $
+                     k $ RetPoly $ Poly 1 []     
+  Mults (evalP v -> x) (evalP v -> y)
+    -> multReturned <$> x <*> y
+  Normal x y f -> ContP $ \k -> Integrate (Domain [] [] []) $
+                                (runContP $ evalP (There v) $ normalForm $
+                                 App (wkn $ nf_to_λ f) (Var Get))
+                                (\x -> wkP $ k (multReturned
+                                                (RetExps $
+                                                 Exps 0 [(1, expReturned 2 x)])
+                                                x))
+  Uniform x y f -> ContP $ \k -> Integrate (Domain [] [] []) $
+                                 (runContP $ evalP (There v) $ normalForm $
                                    App (wkn $ nf_to_λ f) (Var Get))
-                                  (\x -> wkP $ k (multReturned
-                                                  (RetExps $
-                                                   Exps 0 [(1, expReturned 2 x)])
-                                                  x))
-    Uniform x y f -> ContP $ \k -> Integrate (Domain [] [] []) $
-                                   (runContP $ evalP @(γ × R) @δ $ normalForm $
-                                    App (wkn $ nf_to_λ f) (Var Get))
-                                   (\x -> wkP $ k x)
+                                 (\x -> wkP $ k x)
+  -- Neu (NeuVar (evalVar -> i)) -> case v of
+                                   -- There i :: Available Re (δ, Re) ->
+                                     -- pure $ RetPoly $ Poly 0 [(1, [(i, 1)])]
 
-instance {-# OVERLAPPING #-} EvalλtoP γ γ where
-  evalP = \case
-    EqVars (evalVar -> i) (evalVar -> j)
-      -> ContP $ \k -> Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $
-                       k $ RetPoly $ Poly 1 [] 
-    InEqVars (evalVar -> i) (evalVar -> j)
-      -> ContP $ \k -> Cond (IsNegative $ Expr 0 [(1, i), (-1, j)]) $
-                       k $ RetPoly $ Poly 1 []
-    Mults (evalP @γ @γ -> x) (evalP @γ @γ -> y) -> multReturned <$> x <*> y
-    Normal x y f -> ContP $ \k -> Integrate (Domain [] [] []) $
-                                  (runContP $ evalP @(γ × R) @γ $ normalForm $
-                                   App (wkn $ nf_to_λ f) (Var Get))
-                                  (\x -> wkP $ k (multReturned
-                                                  (RetExps $
-                                                   Exps 0 [(1, expReturned 2 x)])
-                                                  x))
-    Uniform x y f -> ContP $ \k -> Integrate (Domain [] [] []) $
-                                   (runContP $ evalP @(γ × R) @γ $ normalForm $
-                                    App (wkn $ nf_to_λ f) (Var Get))
-                                   (\x -> wkP $ k x)
-
-    Neu (NeuVar (evalVar -> i)) -> pure $ RetPoly $ Poly 0 [(1, [(i, 1)])]   
+lowerContP :: ContP γ (Returned γ Re) -> P γ
+lowerContP (ContP m) = m Ret
     
 type Vars γ  = forall v. Available v γ -> String
 
