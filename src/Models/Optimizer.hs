@@ -78,11 +78,30 @@ data Returned γ α = RetPoly (Polynomial γ α)
                   -- @Plus x y@ represents x + y.
                   -- @Times x y@ represents x * y.
 
+multConst :: Num α => α -> Polynomial γ α -> Polynomial γ α
+multConst c (Poly c1 cs) = case cs of
+                             [] -> Poly (c * c1) []
+                             (c2, xs) : cs' -> case multConst c (Poly c1 cs') of
+                                                 Poly c1' cs'' ->
+                                                   Poly c1' ((c * c2, xs) : cs')
+multComp :: Num α =>
+            Polynomial γ α -> (α, [(Available α γ, α)]) ->
+            [(α, [(Available α γ, α)])]
+multComp (Poly c1 cs) (c, xs) = case cs of
+                                  [] -> [(c * c1, xs)]
+                                  (c', xs') : cs'
+                                    -> (c * c', xs ++ xs') :
+                                       multComp (Poly c1 cs') (c, xs)
+
+multPoly :: Num α => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
+multPoly (Poly c1 cs1) p2@(Poly c2 cs2)
+  = case multConst c1 p2 of
+      Poly c' cs' -> Poly c' $ concat $ map (multComp p2) cs2
+
 multReturned :: Num α => Returned γ α -> Returned γ α -> Returned γ α
 multReturned = \case
   RetPoly p@(Poly c1 cs1) -> \case
-    RetPoly (Poly c2 cs2) -> RetPoly $ Poly (c1 * c2) $
-      (\(x, vs1) (y, vs2) -> (x * y, vs1 ++ vs2)) <$> cs1 <*> cs2
+    RetPoly p2 -> RetPoly $ multPoly p p2  
     RetExps e -> Times p e
     Times (multReturned (RetPoly p) . RetPoly -> RetPoly p') e -> Times p' e
   RetExps e@(Exps c1 es1) -> \case
@@ -162,8 +181,8 @@ data P γ α where
 multP :: P γ Re -> P γ Re -> P γ Re
 multP (Integrate d p1) (wkP -> p2) = Integrate d $ multP p1 p2
 multP (Cond c p1) p2 = Cond c $ multP p1 p2
-multP (wkP -> p1) (Integrate d p2) = Integrate d $ multP p1 p2
-multP p1 (Cond c p2) = Cond c $ multP p1 p2
+multP (wkP -> Ret e) (Integrate d p) = Integrate d $ multP (Ret e) p
+multP (Ret e) (Cond c p) = Cond c $ multP (Ret e) p
 multP (Ret e1) (Ret e2) = Ret $ multReturned e1 e2
 
 type Subst γ δ = forall α. Num α => Available α γ -> Expr δ α
@@ -262,14 +281,14 @@ showExpr v (Expr k0 xs) = intercalate " + " $
 
 showReturned :: Show α => Vars γ -> Returned γ α -> String
 showReturned v = \case
-  RetPoly (Poly k0 cs) -> intercalate " + " $
+  RetPoly (Poly k0 cs) -> parens $ intercalate " + " $
                           show k0 : [ parens (show k ++ " * " ++
                                               intercalate ""
                                               (map (\(x, c) -> v x ++ "^" ++
                                                      show c)
                                                xcs))
                                     | (k, xcs) <- cs ]
-  RetExps (Exps k0 es) -> intercalate " + " $
+  RetExps (Exps k0 es) -> parens $ intercalate " + " $
                           show k0 : [ parens (show c ++ " * exp(" ++
                                               showReturned v e ++ ")")
                                     | (c, e) <- es ]
