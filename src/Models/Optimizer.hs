@@ -258,19 +258,23 @@ pattern Normal x y f
 pattern Uniform x y f
   = Neu (NeuApp (NeuApp (NeuCon (Rl Uni)) (NFPair (Neu (NeuCon (Rl (Incl x)))) (Neu (NeuCon (Rl (Incl y)))))) f)
 
-evalP :: NF γ R -> P (Eval γ) Re
-evalP = \case
-  EqVars (evalVar -> i) (evalVar -> j) ->
-    Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
-  InEqVars (evalVar -> i) (evalVar -> j) ->    
-    Cond (IsNegative $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
-  Mults (evalP -> x) (evalP -> y) -> multP x y
-  Normal x y f -> Integrate (Domain [] [] []) $ multP
-                  (Ret $ RetExps $ Exps 0 [(1, RetPoly $ Poly 0 [(1, [(Here, 2)])])])
-                  (evalP $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-  Uniform x y f -> Integrate (Domain [] [] []) $
-                   evalP $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)
-  Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 0 [(1, [(i, 1)])]
+evalP :: NF Unit R -> P () Re
+evalP = evalP' where
+  evalP' :: NF γ R -> P (Eval γ) Re
+  evalP' = \case
+    EqVars (evalVar -> i) (evalVar -> j) ->
+      Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
+    InEqVars (evalVar -> i) (evalVar -> j) ->    
+      Cond (IsNegative $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
+    Mults (evalP' -> x) (evalP' -> y) -> multP x y
+    Normal x y f -> Integrate (Domain [] [] []) $ multP
+                    (Ret $ RetExps $
+                     Exps 0 [(1, RetPoly $ Poly 0 [(1, [(Here, 2)])])])
+                    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    Uniform x y f -> Integrate (Domain [] [] []) $
+                     evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)
+    Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 1 [(1, [(i, 1)])]
+
     
 type Vars γ  = forall v. Available v γ -> String
 
@@ -283,15 +287,15 @@ showReturned :: Show α => Vars γ -> Returned γ α -> String
 showReturned v = \case
   RetPoly (Poly k0 cs) -> parens $ intercalate " + " $
                           show k0 : [ parens (show k ++ " * " ++
-                                              intercalate ""
+                                              intercalate "*"
                                               (map (\(x, c) -> v x ++ "^" ++
                                                      show c)
-                                               xcs))
-                                    | (k, xcs) <- cs ]
+                                               xcs)) |
+                                      (k, xcs) <- cs ]
   RetExps (Exps k0 es) -> parens $ intercalate " + " $
                           show k0 : [ parens (show c ++ " * exp(" ++
-                                              showReturned v e ++ ")")
-                                    | (c, e) <- es ]
+                                              showReturned v e ++ ")") |
+                                      (c, e) <- es ]
   Plus p e -> showReturned v (RetPoly p) ++ " + " ++ showReturned v (RetExps e)
   Times p e -> showReturned v (RetPoly p) ++ " * " ++ showReturned v (RetExps e)
 
@@ -322,7 +326,7 @@ showP freshes@(f:fs) v = \case
                             ++ "≤" ++ f ++ "≤" ++
                             showBounds v False his)))
                  ++ showP fs (\case Here -> f; There i -> v i) e
-  Cond c e -> showCond v c ++ "*" ++ showP freshes v e
+  Cond c e -> showCond v c ++ " * " ++ showP freshes v e
 
 showProg :: P () Re -> String
 showProg = showP freshes (\case)
