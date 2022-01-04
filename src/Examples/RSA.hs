@@ -123,4 +123,4 @@ l0 = Lam (k ⋆ Lam (
 
 -- >>> :set -XDataKinds
 -- >>> normalise $ evalP (normalForm $ clean $ evalβ $ lower $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get))))
--- ∫∫{-∞≤y≤0.0 + (-1.0 * x)}((1.0) sd* (0.0 + (1.0 * exp((0.0 + (1.0 * y^1.0*y^1.0) + (0.0 * y^1.0) + (1.0 * y^1.0*y^1.0) + (0.0 * y^1.0))))))
+-- ∫∫{-∞≤y≤0.0 + (-1.0 * x)}((0.0 + (1.0 * y^1.0)) * (0.0 + (1.0 * exp((0.0 + (0.0 * y^1.0) + (0.0 * y^1.0) + (-0.0 * y^1.0) + (-0.0 * y^1.0))))))

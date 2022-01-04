@@ -94,9 +94,9 @@ multComp (Poly c1 cs) (c, xs) = case cs of
                                        multComp (Poly c1 cs') (c, xs)
 
 multPoly :: Num α => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
-multPoly (Poly c1 cs1) p2@(Poly c2 cs2)
+multPoly (Poly c1 cs1) p2
   = case multConst c1 p2 of
-      Poly c' cs' -> Poly c' $ concat $ map (multComp p2) cs2
+      Poly c' cs' -> Poly c' $ cs' ++ (concat $ map (multComp p2) cs1)
 
 multReturned :: Num α => Returned γ α -> Returned γ α -> Returned γ α
 multReturned = \case
@@ -240,11 +240,6 @@ type family RepOf γ where
   RepOf () = Unit
   RepOf (γ, α) = (RepOf γ × RepOf α)
 
-evalVar :: α ∈ γ -> Available (Eval α) (Eval γ)
-evalVar = \case
-  Get -> Here
-  Weaken (evalVar -> i) -> There i
-
 pattern EqVars i j
   = Neu (NeuApp (NeuApp (NeuCon (Rl EqRl)) (Neu (NeuVar i))) (Neu (NeuVar j)))
 pattern Mults x y
@@ -273,8 +268,11 @@ evalP = evalP' where
                     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     Uniform x y f -> Integrate (Domain [] [] []) $
                      evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)
-    Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 1 [(1, [(i, 1)])]
-
+    Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 0 [(1, [(i, 1)])]
+  evalVar :: α ∈ γ -> Available (Eval α) (Eval γ)
+  evalVar = \case
+    Get -> Here
+    Weaken (evalVar -> i) -> There i
     
 type Vars γ  = forall v. Available v γ -> String
 
