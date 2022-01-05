@@ -93,12 +93,13 @@ multComp (Poly c1 cs) (c, xs) = case cs of
                                     -> (c * c', xs ++ xs') :
                                        multComp (Poly c1 cs') (c, xs)
 
-multPoly :: Num α => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
+multPoly :: (Num α, Eq α) => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
 multPoly (Poly c1 cs1) p2
   = case multConst c1 p2 of
-      Poly c' cs' -> Poly c' $ cs' ++ (concat $ map (multComp p2) cs1)
+      Poly c' cs' -> Poly c' $ filter (\(c, xs) -> c /= 0) $
+                     cs' ++ (concat $ map (multComp p2) cs1)
 
-multReturned :: Num α => Returned γ α -> Returned γ α -> Returned γ α
+multReturned :: (Num α, Eq α) => Returned γ α -> Returned γ α -> Returned γ α
 multReturned = \case
   RetPoly p@(Poly c1 cs1) -> \case
     RetPoly p2 -> RetPoly $ multPoly p p2  
@@ -126,7 +127,7 @@ expReturned n e = multReturned e (expReturned (n - 1) e)
 (*^) :: Num α => α -> Expr γ α -> Expr γ α
 c *^ Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c', v) <- xs ]
 
-(**^) :: Num α => α -> Returned γ α -> Returned γ α
+(**^) :: (Num α, Eq α) => α -> Returned γ α -> Returned γ α
 c **^ e = multReturned (RetPoly $ Poly c []) e
   
 -- addition
@@ -289,17 +290,20 @@ showExpr v (Expr k0 xs) = intercalate " + " $
                           show k0 : [ parens $ show k ++ " * " ++ v x |
                                       (k, x) <- xs ]
 
-showReturned :: Show α => Vars γ -> Returned γ α -> String
+showReturned :: (Show α, Num α, Eq α) => Vars γ -> Returned γ α -> String
 showReturned v = \case
-  RetPoly (Poly k0 cs) -> parens $ intercalate " + " $
-                          show k0 : [ parens (show k ++ " * " ++
-                                              intercalate "*"
-                                              (map (\(x, c) -> v x ++ "^" ++
-                                                     show c)
+  RetPoly (Poly k0 cs) -> parens $ (if k0 /= 0 then show k0 ++ " + " else "") ++
+                          intercalate " + "
+                          [ parens ((if k /= 1 then show k ++ " * " else "") ++
+                                     intercalate "*"
+                                    (map (\(x, c) -> v x ++ case c of
+                                                              1 -> ""
+                                                              _ -> "^" ++ show c)
                                                xcs)) |
                                       (k, xcs) <- cs ]
-  RetExps (Exps k0 es) -> parens $ intercalate " + " $
-                          show k0 : [ parens (show c ++ " * exp(" ++
+  RetExps (Exps k0 es) -> parens $ (if k0 /= 0 then show k0 ++ " + " else "") ++
+                          intercalate " + "
+                          [ parens (show c ++ " * exp(" ++
                                               showReturned v e ++ ")") |
                                       (c, e) <- es ]
   Plus p e -> showReturned v (RetPoly p) ++ " + " ++ showReturned v (RetExps e)
