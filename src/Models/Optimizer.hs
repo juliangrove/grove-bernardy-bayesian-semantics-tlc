@@ -285,10 +285,10 @@ evalP = evalP' where
 
 type Vars γ  = forall v. Available v γ -> String
 
-showExpr :: Show α => Vars γ -> Expr γ α -> String
-showExpr v (Expr k0 xs) = intercalate " + " $
-                          show k0 : [ parens $ show k ++ " * " ++ v x |
-                                      (k, x) <- xs ]
+showExpr :: (Show α, Num α, Eq α) => Vars γ -> Expr γ α -> String
+showExpr v (Expr k0 xs) = (if k0 /= 0 then show k0 else "") ++ intercalate " + "
+                          [ parens $ (if k /= 1 then show k ++ " * " else "") ++
+                            v x | (k, x) <- xs ]
 
 showReturned :: (Show α, Num α, Eq α) => Vars γ -> Returned γ α -> String
 showReturned v = \case
@@ -299,13 +299,12 @@ showReturned v = \case
                                     (map (\(x, c) -> v x ++ case c of
                                                               1 -> ""
                                                               _ -> "^" ++ show c)
-                                               xcs)) |
-                                      (k, xcs) <- cs ]
+                                               xcs)) | (k, xcs) <- cs ]
   RetExps (Exps k0 es) -> parens $ (if k0 /= 0 then show k0 ++ " + " else "") ++
                           intercalate " + "
-                          [ parens (show c ++ " * exp(" ++
-                                              showReturned v e ++ ")") |
-                                      (c, e) <- es ]
+                          [ parens ((if c /= 1 then show c ++ " * " else "") ++
+                                    "exp(" ++ showReturned v e ++ ")") |
+                            (c, e) <- es ]
   Plus p e -> showReturned v (RetPoly p) ++ " + " ++ showReturned v (RetExps e)
   Times p e -> showReturned v (RetPoly p) ++ " * " ++ showReturned v (RetExps e)
 
@@ -320,9 +319,9 @@ parens x = "(" ++ x ++ ")"
 braces :: [Char] -> [Char]
 braces x = "{" ++ x ++ "}"
 
-showBounds :: Show α => Vars γ -> Bool -> [Expr γ α] -> [Char]
+showBounds :: (Show α, Num α, Eq α) => Vars γ -> Bool -> [Expr γ α] -> [Char]
 showBounds _ lo [] = (if lo then "-" else "+") <> "∞"
-showBounds v lo xs = (intercalate (if lo then "⊔" else "⊓") $ map (showExpr v) xs)
+showBounds v lo xs = intercalate (if lo then "⊔" else "⊓") $ map (showExpr v) xs
 
 when :: [a] -> [Char] -> [Char]
 when [] _ = ""
