@@ -264,8 +264,12 @@ evalP = evalP' where
     Mults (evalP' -> x) (evalP' -> y) -> multP x y
     Normal x y f -> Integrate (Domain [] [] []) $ multP
                     (Ret $ RetExps $
-                     Exps 0 [(1, RetPoly $ Poly 0 [(1, [(Here, 2)])])])
+                     Exps 0 [(1/(y * sqrt (2 * pi)),
+                              RetPoly $ Poly (-(sqr x)/(2 * sqr y))
+                              [(1 / (2 * sqr y), [(Here, 2)]),
+                               (x / sqr y, [(Here, 1)])])])
                     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+      where sqr x = x * x
     Uniform x y f -> Integrate (Domain [] [] []) $
                      evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)
     Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 0 [(1, [(i, 1)])]
@@ -273,7 +277,11 @@ evalP = evalP' where
   evalVar = \case
     Get -> Here
     Weaken (evalVar -> i) -> There i
-    
+
+-- >>> square pi
+-- <interactive>:335:2-7: error:
+--     Variable not in scope: square :: t0 -> t
+
 type Vars γ  = forall v. Available v γ -> String
 
 showExpr :: Show α => Vars γ -> Expr γ α -> String
