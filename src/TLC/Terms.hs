@@ -1,4 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -142,7 +141,6 @@ data Logical α where
   Forall :: Logical ((α ⟶ T) ⟶ T)
   Exists :: Logical ((α ⟶ T) ⟶ T)
   Equals :: Logical (α ⟶ (α ⟶ T))
-deriving instance Eq (Logical α)
 
 instance Show (Logical α) where
   show Tru = "⊤"
@@ -163,7 +161,6 @@ data Rl α where
   Uni :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
   EqGen :: Equality α => Rl (α ⟶ (α ⟶ R))
   EqRl :: Rl (R ⟶ (R ⟶ R))
-deriving instance Eq (Rl α)
 
 instance Show (Rl α) where
   show (Incl x) = show x
@@ -185,7 +182,6 @@ data Special α where
   Empty :: Special Γ
   Upd :: Special (E ⟶ (Γ ⟶ Γ))
   Sel :: Special (Γ ⟶ E)
--- deriving instance Eq (Special α)
 
 instance Show (Special α) where
   show (Utt i) = "U" ++ show i
@@ -202,7 +198,6 @@ data Con α where
   Logical :: Logical α -> Con α
   Rl :: Rl α -> Con α
   Special :: Special α -> Con α
--- deriving instance Eq (Con α)
 
 instance Show (Con α) where
   show (Logical c) = show c

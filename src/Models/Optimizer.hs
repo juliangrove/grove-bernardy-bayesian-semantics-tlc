@@ -55,6 +55,7 @@ data Available α γ where
   Here :: Available α (γ, α)
   There :: Available α γ -> Available α (γ, β)
 deriving instance Show (Available α γ)
+deriving instance Eq (Available α γ)
 
 data Expr γ α = Expr α [(α, Available α γ)]
   -- linear combination. list of coefficients and variables [α is a vector space]
@@ -66,8 +67,8 @@ type Component γ α = (α, [(Available α γ, α)])
 type Exponentiated γ α = (α, Returned γ α)
   -- E.g., @(c1, p)@ represents c1 * exp(p).
 
-data Polynomial γ α = Poly α [Component γ α]
-data Exponentials γ α = Exps α [Exponentiated γ α]
+data Polynomial γ α = Poly α [Component γ α] deriving Eq
+data Exponentials γ α = Exps α [Exponentiated γ α] deriving Eq
 
 data Returned γ α = RetPoly (Polynomial γ α)
                   | RetExps (Exponentials γ α)
@@ -77,6 +78,7 @@ data Returned γ α = RetPoly (Polynomial γ α)
                   -- @Exp c cs@ represents c + sum of cs.
                   -- @Plus x y@ represents x + y.
                   -- @Times x y@ represents x * y.
+deriving instance Eq α => Eq (Returned γ α)
 
 multConst :: Num α => α -> Polynomial γ α -> Polynomial γ α
 multConst c (Poly c1 cs) = case cs of
@@ -177,14 +179,18 @@ restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
 data P γ α where
   Integrate :: (Re ~ d) => Domain γ d -> P (γ, d) α -> P γ α
   Cond :: Cond γ -> P γ α -> P γ α
-  Ret  :: Returned γ α -> P γ α
-
+  Div :: P γ α -> P γ α -> P γ α
+  Ret :: Returned γ α -> P γ α
+  
 multP :: P γ Re -> P γ Re -> P γ Re
 multP (Integrate d p1) (wkP -> p2) = Integrate d $ multP p1 p2
 multP (Cond c p1) p2 = Cond c $ multP p1 p2
 multP (wkP -> Ret e) (Integrate d p) = Integrate d $ multP (Ret e) p
 multP (Ret e) (Cond c p) = Cond c $ multP (Ret e) p
 multP (Ret e1) (Ret e2) = Ret $ multReturned e1 e2
+multP (Div p1 p1') (Div p2 p2') = Div (multP p1 p1') (multP p2 p2')
+multP (Div p1 p1') p2 = Div (multP p1 p2) p1'
+multP p1 (Div p2 p2') = Div (multP p1 p2) p2'
 
 type Subst γ δ = forall α. Num α => Available α γ -> Expr δ α
 
@@ -253,6 +259,8 @@ pattern Normal x y f
   = Neu (NeuApp (NeuApp (NeuCon (Rl Nml)) (NFPair (Neu (NeuCon (Rl (Incl x)))) (Neu (NeuCon (Rl (Incl y)))))) f)
 pattern Uniform x y f
   = Neu (NeuApp (NeuApp (NeuCon (Rl Uni)) (NFPair (Neu (NeuCon (Rl (Incl x)))) (Neu (NeuCon (Rl (Incl y)))))) f)
+pattern Divide x y
+  = Neu (NeuApp (NeuApp (NeuCon (Rl Divi)) x) y)
 
 evalP :: NF Unit R -> P () Re
 evalP = evalP' where
@@ -265,44 +273,50 @@ evalP = evalP' where
     Mults (evalP' -> x) (evalP' -> y) -> multP x y
     Normal x y f -> Integrate (Domain [] [] []) $ multP
                     (Ret $ RetExps $
-                     Exps 0 [(1/(y * sqrt (2 * pi)),
-                              RetPoly $ Poly (-(sqr x)/(2 * sqr y))
+                     Exps 0 [(1 / (y * sqrt (2 * pi)),
+                              RetPoly $ Poly (-(sqr x) / (2 * sqr y))
                               [(1 / (2 * sqr y), [(Here, 2)]),
                                (x / sqr y, [(Here, 1)])])])
                     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
       where sqr x = x * x
-    Uniform x y f -> Integrate (Domain [] [] []) $
-                     evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)
+    Uniform x y f -> Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
+                     (Ret $ RetPoly $
+                      Poly (1 / (y - x)) [])
+                     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 0 [(1, [(i, 1)])]
+    Divide x y -> Div (evalP' x) (evalP' y)
   evalVar :: α ∈ γ -> Available (Eval α) (Eval γ)
   evalVar = \case
     Get -> Here
     Weaken (evalVar -> i) -> There i
 
--- >>> square pi
--- <interactive>:335:2-7: error:
---     Variable not in scope: square :: t0 -> t
-
 type Vars γ  = forall v. Available v γ -> String
 
 showExpr :: (Show α, Num α, Eq α) => Vars γ -> Expr γ α -> String
-showExpr v (Expr k0 xs) = (if k0 /= 0 then show k0 else "") ++ intercalate " + "
-                          [ parens $ (if k /= 1 then show k ++ " * " else "") ++
+showExpr v (Expr k0 xs) = intercalate " + " $
+                          (if k0 /= 0 || xs == [] then [show k0] else []) ++
+                          [ parens $ (if k /= 1 || xs == []
+                                      then show k ++ " * "
+                                      else "") ++
                             v x | (k, x) <- xs ]
 
 showReturned :: (Show α, Num α, Eq α) => Vars γ -> Returned γ α -> String
 showReturned v = \case
-  RetPoly (Poly k0 cs) -> parens $ (if k0 /= 0 then show k0 ++ " + " else "") ++
-                          intercalate " + "
-                          [ parens ((if k /= 1 then show k ++ " * " else "") ++
+  RetPoly (Poly k0 cs) -> parens $ intercalate " + " $
+                          (if k0 /= 0 || cs == [] then [show k0] else []) ++
+                          [ parens ((if k /= 1 || cs == []
+                                     then show k ++ " * "
+                                     else "") ++
                                      intercalate "*"
                                     (map (\(x, c) -> v x ++ case c of
                                                               1 -> ""
                                                               _ -> "^" ++ show c)
                                                xcs)) | (k, xcs) <- cs ]
-  RetExps (Exps k0 es) -> parens $ (if k0 /= 0 then show k0 ++ " + " else "") ++
-                          intercalate " + "
-                          [ parens ((if c /= 1 then show c ++ " * " else "") ++
+  RetExps (Exps k0 es) -> parens $ intercalate " + " $
+                          (if k0 /= 0 || es == [] then [show k0] else []) ++
+                          [ parens ((if c /= 1 || es == []
+                                     then show c ++ " * "
+                                     else "") ++
                                     "exp(" ++ showReturned v e ++ ")") |
                             (c, e) <- es ]
   Plus p e -> showReturned v (RetPoly p) ++ " + " ++ showReturned v (RetExps e)
@@ -320,7 +334,7 @@ braces :: [Char] -> [Char]
 braces x = "{" ++ x ++ "}"
 
 showBounds :: (Show α, Num α, Eq α) => Vars γ -> Bool -> [Expr γ α] -> [Char]
-showBounds _ lo [] = (if lo then "-" else "+") <> "∞"
+showBounds _ lo [] = (if lo then "-" else "") <> "inf"
 showBounds v lo xs = intercalate (if lo then "⊔" else "⊓") $ map (showExpr v) xs
 
 when :: [a] -> [Char] -> [Char]
@@ -329,12 +343,15 @@ when _ x = x
 
 showP :: [String] -> Vars γ -> P γ Re -> String
 showP freshes@(f:fs) v = \case
-  Ret e -> parens (showReturned v e)
-  Integrate (Domain cs los his) e -> "∫"  ++ (when cs $ f ++ "∈" ++ braces (intercalate "∧" $ map (showCond (\case Here -> f; There i -> v i)) cs))
-                 ++ (when (los ++ his) (braces (showBounds v True los
-                            ++ "≤" ++ f ++ "≤" ++
-                            showBounds v False his)))
-                 ++ showP fs (\case Here -> f; There i -> v i) e
+  Ret e -> parens $ showReturned v e
+  Div p1 p2 -> "(" ++ showP freshes v p1 ++ ") / (" ++ showP freshes v p2 ++ ")"
+  Integrate (Domain cs los his) e -> ("integrate" ++) $ parens $
+    showP fs (\case Here -> f; There i -> v i) e ++
+    (when cs $ f ++ "∈" ++
+     braces (intercalate "∧" $ map (showCond (\case Here -> f; There i -> v i))
+             cs)) ++ ", " ++ f ++ (when (los ++ his)
+                                   (", " ++ showBounds v True los ++
+                                    ", " ++ showBounds v False his))
   Cond c e -> showCond v c ++ " * " ++ showP freshes v e
 
 showProg :: P () Re -> String
@@ -343,7 +360,7 @@ showProg = showP freshes (\case)
 instance Show (P () Re) where
   show = showProg
 
-type Solution γ d  = (Ordering, Expr γ d)
+type Solution γ d = (Ordering, Expr γ d)
 
 -- @solve e x@ returns the coefficient of the 1st variable in the expression, and the rest (terms not involving the 1st variable).
 -- ie. c x + e = 0
@@ -422,6 +439,7 @@ normalise :: P γ Re -> P γ Re
 normalise = \case
   Cond c (normalise -> e) -> cond c e
   Integrate d (normalise -> e) -> integrate d e
+  Div (normalise -> p1) (normalise -> p2) -> Div p1 p2
   Ret e -> Ret e
   
 -- Domain without restriction
@@ -435,10 +453,10 @@ exampleInEq = Integrate full $
               
 
 -- >>> exampleInEq
--- ∫𝟙(7.0 + (-1.0 * x) ≤ 0)*(10.0 + (1.0 * x^1.0))
+-- integrate(𝟙(7.0 + (-1.0 * x) ≤ 0) * ((10.0 + (x))), x)
 
 -- >>> normalise exampleInEq
--- ∫{7.0≤x≤+∞}(10.0 + (1.0 * x^1.0))
+-- integrate(((10.0 + (x))), x, 7.0, inf)
 
 exampleEq :: P () Re
 exampleEq = Integrate full $
@@ -446,10 +464,10 @@ exampleEq = Integrate full $
             Ret $ RetPoly $ Poly 10 [(1, [(Here, 1)])]
 
 -- >>> exampleEq
--- ∫(7.0 + (-1.0 * x) ≐ 0)*(10.0 + (1.0 * x^1.0))
+-- integrate((7.0 + (-1.0 * x) ≐ 0) * ((10.0 + (x))), x)
 
 -- >>> normalise exampleEq
--- (17.0)
+-- ((17.0))
 
 example :: P () Re
 example = Integrate full $ Integrate full $
@@ -458,10 +476,10 @@ example = Integrate full $ Integrate full $
           Ret $ RetPoly $ Poly 1 []
 
 -- >>> example
--- ∫∫𝟙(0.0 + (3.0 * x) + (2.0 * y) ≤ 0)*𝟙(2.0 + (1.0 * x) ≤ 0)*(1.0)
+-- integrate(integrate(𝟙((3.0 * x) + (2.0 * y) ≤ 0) * 𝟙(2.0 + (x) ≤ 0) * ((1.0)), y), x)
 
 -- >>> normalise example
--- ∫{-∞≤x≤2.0}∫{-∞≤y≤0.0 + (1.5 * x)}(1.0)
+-- integrate(integrate(((1.0)), y, -inf, (1.5 * x)), x, -inf, 2.0)
 
 example1 :: P () Re
 example1 = Integrate full $ Integrate full $
@@ -469,10 +487,10 @@ example1 = Integrate full $ Integrate full $
            Ret $ RetPoly $ Poly 1 []
 
 -- >>> example1
--- ∫∫(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(1.0)
+-- integrate(integrate((4.0 + (x) + (-1.0 * y) ≐ 0) * ((1.0)), y), x)
 
 -- >>> normalise example1
--- ∫(1.0)
+-- integrate(((1.0)), x)
 
 example2 :: P () Re
 example2 = Integrate full $
@@ -481,10 +499,10 @@ example2 = Integrate full $
            Ret $ RetPoly $ Poly 0 [(1, [(Here, 1)])]
 
 -- >>> example2
--- ∫∫{1.0 + (1.0 * x)≤y≤+∞}(4.0 + (2.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + (1.0 * y^1.0))
+-- integrate(integrate((4.0 + (2.0 * x) + (-1.0 * y) ≐ 0) * (((y))), y, 1.0 + (x), inf), x)
 
 -- >>> normalise example2
--- ∫{-3.0≤x≤+∞}(4.0)
+-- integrate(((4.0 + (2.0 * x))), x, -3.0, inf)
 
 example3 :: P () Re
 example3 = Integrate full $
@@ -494,10 +512,10 @@ example3 = Integrate full $
            Ret $ RetPoly $ Poly 0 [(1, [(Here, 1)])]
 
 -- >>> example3
--- ∫∫𝟙(3.0 + (-1.0 * y) ≤ 0)*(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + (1.0 * y^1.0))
+-- integrate(integrate(𝟙(3.0 + (-1.0 * y) ≤ 0) * (4.0 + (x) + (-1.0 * y) ≐ 0) * (((y))), y), x)
 
 -- >>> normalise example3
--- ∫{-1.0≤x≤+∞}(4.0)
+-- integrate(((4.0 + (x))), x, -1.0, inf)
 
 example4 :: P () Re
 example4 = Integrate full $
@@ -507,7 +525,7 @@ example4 = Integrate full $
            Ret $ RetExps $ Exps 0 [(1, RetPoly $ Poly 0 [(1, [(Here, 1)])])]
 
 -- >>> example4
--- ∫∫𝟙(3.0 + (-1.0 * y) ≤ 0)*(4.0 + (1.0 * x) + (-1.0 * y) ≐ 0)*(0.0 + 1.0 * exp(0.0 + (1.0 * y^1.0)))
+-- integrate(integrate(𝟙(3.0 + (-1.0 * y) ≤ 0) * (4.0 + (x) + (-1.0 * y) ≐ 0) * (((exp(((y)))))), y), x)
 
 -- >>> normalise example4
--- ∫{-1.0≤x≤+∞}(0.0 + 1.0 * exp(4.0))
+-- integrate((((exp((4.0 + (x)))))), x, -1.0, inf)
