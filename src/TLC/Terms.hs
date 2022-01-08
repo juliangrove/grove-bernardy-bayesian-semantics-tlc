@@ -1,9 +1,12 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -24,12 +27,28 @@ data (α :: Type) ∈ (γ :: Type) where
   Get :: α ∈ (γ × α)
   Weaken :: α ∈ γ -> α ∈ (γ × β)
 deriving instance Show (α ∈ γ)
+deriving instance Eq (α ∈ γ)
 
 type α × β = α ':× β
 type α ⟶ β = α ':-> β
 
 (≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ R
 m ≐ n = App (App (Con (Rl EqGen)) m) n
+
+equals' :: Int -> (γ1 ⊢ α) -> (γ2 ⊢ β) -> Bool
+equals' _ (Var Get) (Var Get) = True
+equals' n (Var Get) _ = n <= 0
+equals' n _ (Var Get) = n <= 0
+equals' n (Var (Weaken i)) (Var (Weaken j)) = equals' (n - 1) (Var i) (Var j)
+equals' n (Var (Weaken i)) m2 = equals' (n - 1) (Var i) m2
+equals' n m1 (Var (Weaken j)) = equals' (n - 1) m1 (Var j)
+equals' _ (Con c1) (Con c2) = case c1 of c2 -> True
+equals' n (App m1 n1) (App m2 n2) = equals' n m1 m2 && equals' n n1 n2
+equals' n (Lam m1) (Lam m2) = equals' (n + 1) m1 m2
+equals' n (Fst m1) (Fst m2) = equals' n m1 m2
+equals' n (Snd m1) (Snd m2) = equals' n m1 m2
+equals' n (Pair m1 n1) (Pair m2 n2) = equals' n m1 m2 && equals' n n1 n2
+equals' n TT TT = True
 
 class Equality α where
   equals :: (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ R
@@ -53,7 +72,7 @@ instance (Equality α, Equality β) => Equality (α × β) where
   equals m n = App (App (Con $ Rl $ EqGen) m) n
 instance Equality (E ⟶ R) where
   equals (Con (Special Height)) (Con (Special Height)) = Con $ Rl $ Incl 1
-  equals (Lam m) (Lam n) | isConstant 0 m && isConstant 0 n
+  equals (Lam m) (Lam n) | equals' 0 m n
     = case equals m n of
         Con (Rl (Incl 1)) -> Con $ Rl $ Incl 1
         Con (Rl (Incl 0)) -> Con $ Rl $ Incl 0
@@ -96,33 +115,23 @@ reduce1step = \case
   Pair (reduce1step -> m) (reduce1step -> n) -> Pair m n
 
 canReduce :: γ ⊢ α -> Bool
-canReduce (App (Con (Rl Mult)) (Con (Rl (Incl 1)))) = True
-canReduce (App (App (Con (Rl Mult)) x) (Con (Rl (Incl 1)))) = True
-canReduce (Var i) = False
-canReduce (Con c) = False
-canReduce (App m n) = canReduce m || canReduce n
-canReduce (Lam m) = canReduce m
-canReduce (Fst m) = canReduce m
-canReduce (Snd m) = canReduce m
-canReduce TT = False
-canReduce (Pair m n) = canReduce m || canReduce n
+canReduce = \case
+  App (Con (Rl Mult)) (Con (Rl (Incl 1))) -> True
+  App (App (Con (Rl Mult)) x) (Con (Rl (Incl 1))) -> True
+  Var i -> False
+  Con c -> False
+  App (canReduce -> m) (canReduce -> n) -> m || n
+  Lam m -> canReduce m
+  Fst m -> canReduce m
+  Snd m -> canReduce m
+  TT -> False
+  Pair (canReduce -> m) (canReduce -> n) -> m || n
 
 reduce1s :: γ ⊢ α -> γ ⊢ α
 reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
 
 clean :: γ ⊢ α -> γ ⊢ α
 clean = reduce1s . subEq
-
-isConstant :: Int -> γ ⊢ α -> Bool
-isConstant i (Var Get) = i < 0
-isConstant i (Var (Weaken j)) = isConstant (i - 1) (Var j)
-isConstant i (Con c) = True
-isConstant i (App m n) = isConstant i m && isConstant i n
-isConstant i (Lam m) = isConstant (i + 1) m
-isConstant i (Fst m) = isConstant i m
-isConstant i (Snd m) = isConstant i m
-isConstant i TT = True
-isConstant i (Pair m n) = isConstant i m && isConstant i n
 
 data Logical α where
   Tru :: Logical T
@@ -133,6 +142,7 @@ data Logical α where
   Forall :: Logical ((α ⟶ T) ⟶ T)
   Exists :: Logical ((α ⟶ T) ⟶ T)
   Equals :: Logical (α ⟶ (α ⟶ T))
+deriving instance Eq (Logical α)
 
 instance Show (Logical α) where
   show Tru = "⊤"
@@ -153,6 +163,7 @@ data Rl α where
   Uni :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
   EqGen :: Equality α => Rl (α ⟶ (α ⟶ R))
   EqRl :: Rl (R ⟶ (R ⟶ R))
+deriving instance Eq (Rl α)
 
 instance Show (Rl α) where
   show (Incl x) = show x
@@ -174,6 +185,7 @@ data Special α where
   Empty :: Special Γ
   Upd :: Special (E ⟶ (Γ ⟶ Γ))
   Sel :: Special (Γ ⟶ E)
+-- deriving instance Eq (Special α)
 
 instance Show (Special α) where
   show (Utt i) = "U" ++ show i
@@ -190,6 +202,7 @@ data Con α where
   Logical :: Logical α -> Con α
   Rl :: Rl α -> Con α
   Special :: Special α -> Con α
+-- deriving instance Eq (Con α)
 
 instance Show (Con α) where
   show (Logical c) = show c
