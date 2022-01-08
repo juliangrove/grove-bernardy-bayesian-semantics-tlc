@@ -122,5 +122,5 @@ l0 = Lam (k ⋆ Lam (
 -- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ(Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x'')))))))))))
 
 -- >>> :set -XDataKinds
--- >>>  normalise $ evalP $ normalForm $ clean $ evalβ $ lower $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- integrate(integrate((((1.0e-4 * y)) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, -inf, (-1.0 * x)), x, 0.0⊔0.0, -100.0⊓100.0)
+-- >>>  maxima $ expectedValue $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- (integrate(integrate((((1.0e-4 * y)) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, -inf, max((-1.0 * x), -inf)), x, min(0.0, min(0.0, inf)), max(-100.0, max(100.0, -inf)))) / (integrate(integrate(((1.0e-4) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, -inf, max((-1.0 * x), -inf)), x, min(0.0, min(0.0, inf)), max(-100.0, max(100.0, -inf))))

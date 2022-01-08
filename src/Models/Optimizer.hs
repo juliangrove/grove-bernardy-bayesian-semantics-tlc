@@ -335,7 +335,15 @@ braces x = "{" ++ x ++ "}"
 
 showBounds :: (Show α, Num α, Eq α) => Vars γ -> Bool -> [Expr γ α] -> [Char]
 showBounds _ lo [] = (if lo then "-" else "") <> "inf"
-showBounds v lo xs = intercalate (if lo then "⊔" else "⊓") $ map (showExpr v) xs
+showBounds v lo xs = if lo
+                     then foldr
+                          (\x y -> "min(" ++ x ++ ", " ++ y ++ ")")
+                          "inf" $
+                          map (showExpr v) xs
+                     else foldr
+                          (\x y -> "max(" ++ x ++ ", " ++ y ++ ")")
+                          "-inf" $
+                          map (showExpr v) xs
 
 when :: [a] -> [Char] -> [Char]
 when [] _ = ""
@@ -441,6 +449,10 @@ normalise = \case
   Integrate d (normalise -> e) -> integrate d e
   Div (normalise -> p1) (normalise -> p2) -> Div p1 p2
   Ret e -> Ret e
+
+-- | Take typed descriptions of real numbers onto Maxima programs. 
+maxima :: Unit ⊢ R -> P () Re
+maxima = normalise . evalP . normalForm . clean . evalβ
   
 -- Domain without restriction
 full :: Domain γ x
@@ -456,7 +468,7 @@ exampleInEq = Integrate full $
 -- integrate(𝟙(7.0 + (-1.0 * x) ≤ 0) * ((10.0 + (x))), x)
 
 -- >>> normalise exampleInEq
--- integrate(((10.0 + (x))), x, 7.0, inf)
+-- integrate(((10.0 + (x))), x, min(7.0, inf), inf)
 
 exampleEq :: P () Re
 exampleEq = Integrate full $
@@ -479,7 +491,7 @@ example = Integrate full $ Integrate full $
 -- integrate(integrate(𝟙((3.0 * x) + (2.0 * y) ≤ 0) * 𝟙(2.0 + (x) ≤ 0) * ((1.0)), y), x)
 
 -- >>> normalise example
--- integrate(integrate(((1.0)), y, -inf, (1.5 * x)), x, -inf, 2.0)
+-- integrate(integrate(((1.0)), y, -inf, max((1.5 * x), -inf)), x, -inf, max(2.0, -inf))
 
 example1 :: P () Re
 example1 = Integrate full $ Integrate full $
@@ -499,10 +511,10 @@ example2 = Integrate full $
            Ret $ RetPoly $ Poly 0 [(1, [(Here, 1)])]
 
 -- >>> example2
--- integrate(integrate((4.0 + (2.0 * x) + (-1.0 * y) ≐ 0) * (((y))), y, 1.0 + (x), inf), x)
+-- integrate(integrate((4.0 + (2.0 * x) + (-1.0 * y) ≐ 0) * (((y))), y, min(1.0 + (x), inf), inf), x)
 
 -- >>> normalise example2
--- integrate(((4.0 + (2.0 * x))), x, -3.0, inf)
+-- integrate(((4.0 + (2.0 * x))), x, min(-3.0, inf), inf)
 
 example3 :: P () Re
 example3 = Integrate full $
@@ -528,4 +540,4 @@ example4 = Integrate full $
 -- integrate(integrate(𝟙(3.0 + (-1.0 * y) ≤ 0) * (4.0 + (x) + (-1.0 * y) ≐ 0) * (((exp(((y)))))), y), x)
 
 -- >>> normalise example4
--- integrate((((exp((4.0 + (x)))))), x, -1.0, inf)
+-- integrate((((exp((4.0 + (x)))))), x, min(-1.0, inf), inf)
