@@ -83,15 +83,15 @@ lookUp (Weaken i) (Cons x env) = lookUp i env
 
 evalRN :: Env γ -> γ ⊢ α -> Eval α
 evalRN env (Var i) = lookUp i env
-evalRN env (Con (Rl (Incl x))) = Lit x
-evalRN env (Con (Rl Indi)) = Ind
-evalRN env (Con (Rl Mult)) = BinOp Mul
-evalRN env (Con (Rl Divi)) = BinOp Div
-evalRN env (Con (Rl Nml))
+evalRN env (Con (General (Incl x))) = Lit x
+evalRN env (Con (General Indi)) = Ind
+evalRN env (Con (General Mult)) = BinOp Mul
+evalRN env (Con (General Divi)) = BinOp Div
+evalRN env (Con (General Nml))
   = \(x, y) f -> Normal x y (UnOp Neg Inf) Inf (f . RNV)
-evalRN env (Con (Rl Uni))
+evalRN env (Con (General Uni))
   = \(x, y) f -> Uniform x y (f . RNV)
-evalRN env (Con (Rl EqRl)) = \x y -> UnOp Dirac (BinOp Sub x y)
+evalRN env (Con (General EqRl)) = \x y -> UnOp Dirac (BinOp Sub x y)
 evalRN env (Con (Special GTE)) = Gte
 evalRN env (App m n) = evalRN env m (evalRN env n)
 evalRN env (Lam m) = \x -> evalRN (Cons x env) m

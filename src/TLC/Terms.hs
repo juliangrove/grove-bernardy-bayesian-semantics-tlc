@@ -32,7 +32,7 @@ type α × β = α ':× β
 type α ⟶ β = α ':-> β
 
 (≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ R
-m ≐ n = App (App (Con (Rl EqGen)) m) n
+m ≐ n = App (App (Con (General EqGen)) m) n
 
 equals' :: Int -> (γ1 ⊢ α) -> (γ2 ⊢ β) -> Bool
 equals' _ (Var Get) (Var Get) = True
@@ -52,45 +52,74 @@ equals' _ TT TT = True
 class Equality α where
   equals :: (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ R
 instance Equality E where
-  equals (Con (Special Vlad)) (Con (Special Vlad)) = Con $ Rl $ Incl 1
+  equals (Con (Special Vlad)) (Con (Special Vlad)) = Con $ General $ Incl 1
 instance Equality R where
-  equals (Con (Rl (Incl x))) (Con (Rl (Incl y))) = case x == y of
-                                                     True -> Con $ Rl $ Incl 1
-                                                     False -> Con $ Rl $ Incl 0
-  equals (Con (Special Theta)) (Con (Special Theta)) = Con $ Rl $ Incl 1
-  equals x y = App (App (Con (Rl EqRl)) x) y 
+  equals (Con (General (Incl x))) (Con (General (Incl y))) = case x == y of
+                                                     True -> Con $ General $ Incl 1
+                                                     False -> Con $ General $ Incl 0
+  equals (Con (Special Theta)) (Con (Special Theta)) = Con $ General $ Incl 1
+  equals x y = App (App (Con (General EqRl)) x) y 
 instance Equality U where
-  equals (Con (Special (Utt i))) (Con (Special (Utt j))) = case i == j of
-                             True -> Con $ Rl $ Incl 1
-                             False -> Con $ Rl $ Incl 0
+  equals (Con (General (Utt i))) (Con (General (Utt j))) = case i == j of
+                             True -> Con $ General $ Incl 1
+                             False -> Con $ General $ Incl 0
 instance Equality Unit where
-  equals TT TT = Con $ Rl $ Incl 1
+  equals TT TT = Con $ General $ Incl 1
 instance (Equality α, Equality β) => Equality (α × β) where
   equals (Pair m n) (Pair m' n')
-    = App (App (Con $ Rl $ Mult) (equals m m')) (equals n n')
-  equals m n = App (App (Con $ Rl $ EqGen) m) n
+    = App (App (Con $ General $ Mult) (equals m m')) (equals n n')
+  equals m n = App (App (Con $ General $ EqGen) m) n
 instance Equality (E ⟶ R) where
-  equals (Con (Special Height)) (Con (Special Height)) = Con $ Rl $ Incl 1
+  equals (Con (Special Height)) (Con (Special Height)) = Con $ General $ Incl 1
   equals (Lam m) (Lam n) | equals' 0 (Lam m) (Lam n)
     = case equals m n of
-        Con (Rl (Incl 1)) -> Con $ Rl $ Incl 1
-        Con (Rl (Incl 0)) -> Con $ Rl $ Incl 0
-        App (App (Con (Rl EqRl)) (Var (Weaken i))) (Var (Weaken j))
-          -> App (App (Con (Rl EqRl)) (Var i)) (Var j)
+        Con (General (Incl 1)) -> Con $ General $ Incl 1
+        Con (General (Incl 0)) -> Con $ General $ Incl 0
+        App (App (Con (General EqRl)) (Var (Weaken i))) (Var (Weaken j))
+          -> App (App (Con (General EqRl)) (Var i)) (Var j)
 instance Equality (E ⟶ T) where
-  equals (Con (Special Human)) (Con (Special Human)) = Con $ Rl $ Incl 1
+  equals (Con (Special Human)) (Con (Special Human)) = Con $ General $ Incl 1
 instance Equality (R ⟶ (R ⟶ T)) where
-  equals (Con (Special GTE)) (Con (Special GTE)) = Con $ Rl $ Incl 1 
+  equals (Con (Special GTE)) (Con (Special GTE)) = Con $ General $ Incl 1 
 instance Equality Γ where
-  equals (Con (Special Empty)) (Con (Special Empty)) = Con $ Rl $ Incl 1
+  equals (Con (Special Empty)) (Con (Special Empty)) = Con $ General $ Incl 1
 instance Equality (E ⟶ (Γ ⟶ Γ)) where
-  equals (Con (Special Upd)) (Con (Special Upd)) = Con $ Rl $ Incl 1
+  equals (Con (Special Upd)) (Con (Special Upd)) = Con $ General $ Incl 1
 instance Equality (Γ ⟶ E) where
-  equals (Con (Special Sel)) (Con (Special Sel)) = Con $ Rl $ Incl 1
+  equals (Con (Special Sel)) (Con (Special Sel)) = Con $ General $ Incl 1
+
+u i = Con $ General $ Utt i
+
+vlad = Con $ Special Vlad
+height = Con $ Special Height
+human = Con $ Special Human
+θ = Con $ Special Theta
+(≥) = Con $ Special GTE
+emp = Con $ Special Empty
+upd = Con $ Special Upd
+sel = Con $ Special Sel
+
+(/\) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
+p /\ q = App (App (Con (Logical And)) p) q
+
+(\/) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
+p \/ q = App (App (Con (Logical Or)) p) q
+
+(-->) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
+p --> q = App (App (Con (Logical Imp)) p) q
+
+exists :: γ ⊢ (α ⟶ T) -> γ ⊢ T
+exists φ = App (Con (Logical Exists)) φ
+
+interp :: γ ⊢ U -> γ ⊢ T
+interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ
+interp (Con (General (Utt 2)))
+  = exists (Lam (App (App (≥) (App height (Var Get))) θ))
 
 subEq :: γ ⊢ α -> γ ⊢ α
 subEq = \case
-  App (App (Con (Rl EqGen)) m) n -> equals m n
+  App (App (Con (General EqGen)) m) n -> equals m n
+  App (Con (General Interp)) u -> hmorph (interp u)
   Var i -> Var i
   Con c -> Con c
   App (subEq -> m) (subEq -> n) -> App m n
@@ -102,8 +131,8 @@ subEq = \case
 
 reduce1step :: γ ⊢ α -> γ ⊢ α
 reduce1step = \case
-  App (App (Con (Rl Mult)) (Con (Rl (Incl 1)))) (reduce1step -> n) -> n
-  App (App (Con (Rl Mult)) (reduce1step -> m)) (Con (Rl (Incl 1))) -> m
+  App (App (Con (General Mult)) (Con (General (Incl 1)))) (reduce1step -> n) -> n
+  App (App (Con (General Mult)) (reduce1step -> m)) (Con (General (Incl 1))) -> m
   Var i -> Var i
   Con c -> Con c
   App (reduce1step -> m) (reduce1step -> n) -> App m n
@@ -115,8 +144,8 @@ reduce1step = \case
 
 canReduce :: γ ⊢ α -> Bool
 canReduce = \case
-  App (Con (Rl Mult)) (Con (Rl (Incl 1))) -> True
-  App (App (Con (Rl Mult)) x) (Con (Rl (Incl 1))) -> True
+  App (Con (General Mult)) (Con (General (Incl 1))) -> True
+  App (App (Con (General Mult)) x) (Con (General (Incl 1))) -> True
   Var i -> False
   Con c -> False
   App (canReduce -> m) (canReduce -> n) -> m || n
@@ -152,17 +181,19 @@ instance Show (Logical α) where
   show Exists = "∃"
   show Equals = "(=)"
   
-data Rl α where
-  Incl :: Double -> Rl R
-  Indi :: Rl (T ⟶ R)
-  Mult :: Rl (R ⟶ (R ⟶ R))
-  Divi :: Rl (R ⟶ (R ⟶ R))
-  Nml :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
-  Uni :: Rl ((R × R) ⟶ ((R ⟶ R) ⟶ R))
-  EqGen :: Equality α => Rl (α ⟶ (α ⟶ R))
-  EqRl :: Rl (R ⟶ (R ⟶ R))
+data General α where
+  Incl :: Double -> General R
+  Indi :: General (T ⟶ R)
+  Mult :: General (R ⟶ (R ⟶ R))
+  Divi :: General (R ⟶ (R ⟶ R))
+  Nml :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
+  Uni :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
+  EqGen :: Equality α => General (α ⟶ (α ⟶ R))
+  EqRl :: General (R ⟶ (R ⟶ R))
+  Utt :: Int -> General U
+  Interp :: General (U ⟶ (Context ⟶ T))
 
-instance Show (Rl α) where
+instance Show (General α) where
   show (Incl x) = show x
   show Indi = "𝟙"
   show Mult = "(*)"
@@ -171,9 +202,10 @@ instance Show (Rl α) where
   show Uni = "Uniform"
   show EqGen = "(≐)"
   show EqRl = "(≐)"
+  show (Utt i) = "U" ++ show i
+  show Interp = "⟦⟧"
 
 data Special α where
-  Utt :: Int -> Special U
   Vlad :: Special E
   Height :: Special (E ⟶ R)
   Human :: Special (E ⟶ T)
@@ -184,7 +216,6 @@ data Special α where
   Sel :: Special (Γ ⟶ E)
 
 instance Show (Special α) where
-  show (Utt i) = "U" ++ show i
   show Vlad = "v"
   show Height = "height"
   show Human = "human"
@@ -196,12 +227,12 @@ instance Show (Special α) where
 
 data Con α where
   Logical :: Logical α -> Con α
-  Rl :: Rl α -> Con α
+  General :: General α -> Con α
   Special :: Special α -> Con α
 
 instance Show (Con α) where
   show (Logical c) = show c
-  show (Rl c) = show c
+  show (General c) = show c
   show (Special c) = show c
 
 -- Well-typed terms.
@@ -312,13 +343,13 @@ instance Show (γ ⊢ α) where
       -> "(" ++ p ++ " → " ++ q ++ ")"
     App (App (Con (Logical Equals)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " = " ++ n ++ ")"
-    App (App (Con (Rl Mult)) (show -> m)) (show -> n)
+    App (App (Con (General Mult)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " * " ++ n ++ ")"
-    App (App (Con (Rl Divi)) (show -> m)) (show -> n)
+    App (App (Con (General Divi)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " / " ++ n ++ ")"
-    App (App (Con (Rl EqGen)) (show -> m)) (show -> n)
+    App (App (Con (General EqGen)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-    App (App (Con (Rl EqRl)) (show -> m)) (show -> n)
+    App (App (Con (General EqRl)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
     App (App (Con (Special GTE)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≥ " ++ n ++ ")"
@@ -328,7 +359,7 @@ instance Show (γ ⊢ α) where
     Con (show -> c) -> c
     Lam (show -> m) -> "λ(" ++ m ++ ")"
     Fst (show -> m) -> "(π₁ " ++ m ++ ")"
-    Snd (show -> m) -> "(π₂" ++ m ++ ")"
+    Snd (show -> m) -> "(π₂ " ++ m ++ ")"
     TT -> "⋄"
     Pair (show -> m) (show -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
 
@@ -354,13 +385,13 @@ displayVs' i = \case
     -> "(" ++ p ++ " → " ++ q ++ ")"
   App (App (Con (Logical Equals)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " = " ++ n ++ ")"
-  App (App (Con (Rl Mult)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General Mult)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " * " ++ n ++ ")"
-  App (App (Con (Rl Divi)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General Divi)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " / " ++ n ++ ")"
-  App (App (Con (Rl EqGen)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General EqGen)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-  App (App (Con (Rl EqRl)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General EqRl)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
   App (App (Con (Special GTE)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " ≥ " ++ n ++ ")"
@@ -374,7 +405,7 @@ displayVs' i = \case
   Con (show -> c) -> c
   Lam (displayVs' (i + 1) -> m) -> "(λ" ++ freshes !! i ++ "." ++ m ++ ")"
   Fst (displayVs' i -> m) -> "(π₁ " ++ m ++ ")"
-  Snd (displayVs' i -> m) -> "(π₂" ++ m ++ ")"
+  Snd (displayVs' i -> m) -> "(π₂ " ++ m ++ ")"
   TT -> "⋄"
   Pair (displayVs' i -> m) (displayVs' i -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
 

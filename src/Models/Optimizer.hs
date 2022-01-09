@@ -247,23 +247,23 @@ type family RepOf γ where
   RepOf (γ, α) = (RepOf γ × RepOf α)
 
 pattern EqVars i j
-  = Neu (NeuApp (NeuApp (NeuCon (Rl EqRl)) (Neu (NeuVar i))) (Neu (NeuVar j)))
+  = Neu (NeuApp (NeuApp (NeuCon (General EqRl)) (Neu (NeuVar i))) (Neu (NeuVar j)))
 pattern Mults x y
-  = Neu (NeuApp (NeuApp (NeuCon (Rl Mult)) x) y)
+  = Neu (NeuApp (NeuApp (NeuCon (General Mult)) x) y)
 pattern MultsVar x j
-  = Neu (NeuApp (NeuApp (NeuCon (Rl Mult)) x) (Neu (NeuVar j)))
+  = Neu (NeuApp (NeuApp (NeuCon (General Mult)) x) (Neu (NeuVar j)))
 pattern InEqVars i j
-  = Neu (NeuApp (NeuCon (Rl Indi)) (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
+  = Neu (NeuApp (NeuCon (General Indi)) (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
                                                  (Neu (NeuVar i)))
                                          (Neu (NeuVar j)))))
 pattern Normal x y f
-  = Neu (NeuApp (NeuApp (NeuCon (Rl Nml)) (NFPair (Neu (NeuCon (Rl (Incl x))))
-                                           (Neu (NeuCon (Rl (Incl y)))))) f)
+  = Neu (NeuApp (NeuApp (NeuCon (General Nml)) (NFPair (Neu (NeuCon (General (Incl x))))
+                                           (Neu (NeuCon (General (Incl y)))))) f)
 pattern Uniform x y f
-  = Neu (NeuApp (NeuApp (NeuCon (Rl Uni)) (NFPair (Neu (NeuCon (Rl (Incl x))))
-                                           (Neu (NeuCon (Rl (Incl y)))))) f)
+  = Neu (NeuApp (NeuApp (NeuCon (General Uni)) (NFPair (Neu (NeuCon (General (Incl x))))
+                                           (Neu (NeuCon (General (Incl y)))))) f)
 pattern Divide x y
-  = Neu (NeuApp (NeuApp (NeuCon (Rl Divi)) x) y)
+  = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
 
 evalP :: NF Unit R -> P () Re
 evalP = evalP' where
