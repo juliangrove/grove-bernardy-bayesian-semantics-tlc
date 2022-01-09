@@ -123,4 +123,4 @@ l0 = Lam (k ⋆ Lam (
 
 -- >>> :set -XDataKinds
 -- >>>  maxima $ expectedValue $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- (integrate(integrate((((1.0e-4 * y)) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, -inf, max((-1.0 * x), -inf)), x, min(0.0, min(0.0, inf)), max(-100.0, max(100.0, -inf)))) / (integrate(integrate(((1.0e-4) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, -inf, max((-1.0 * x), -inf)), x, min(0.0, min(0.0, inf)), max(-100.0, max(100.0, -inf))))
+-- (integrate(integrate((((1.0e-4 * y)) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, max((x), -inf), inf), x, max(0.0, max(0.0, -inf)), min(100.0, min(100.0, inf)))) / (integrate(integrate(((1.0e-4) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, max((x), -inf), inf), x, max(0.0, max(0.0, -inf)), min(100.0, min(100.0, inf))))

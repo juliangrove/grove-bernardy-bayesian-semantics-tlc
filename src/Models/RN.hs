@@ -100,8 +100,8 @@ evalRN env (Snd m) = snd (evalRN env m)
 evalRN env TT = ()
 evalRN env (Pair m n) = (evalRN env m, evalRN env n)
 
--- >>> evalRN Emp $ clean $ evalβ $ expectedValue $ App l1 (u 1) >>= Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- \frac{\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * (\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((u - y)) * \delta((z - x))))\right)du\right)dz * y)\right)dy\right)dx}{\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * \int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((u - y)) * \delta((z - x))))\right)du\right)dz\right)dy\right)dx}
+-- >>> evalRN Emp $ clean $ evalβ $ expectedValue $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- \frac{\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * (\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((z - x)) * \delta((u - y))))\right)du\right)dz * y)\right)dy\right)dx}{\int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(y - 68.0)^2}{2 * (3.0)^2}} * \int_{0.0}^{100.0}\left(\frac{1}{100.0 - 0.0}\int_{-\infty}^{\infty}\left(\frac{1}{3.0\sqrt{2\pi}}e^{-\frac{(u - 68.0)^2}{2 * (3.0)^2}} * (\mathds{1}(u \geq z) * (\delta((z - x)) * \delta((u - y))))\right)du\right)dz\right)dy\right)dx}
 
 helpShow :: RN -> V -> String
 helpShow (RNV i) j = show i

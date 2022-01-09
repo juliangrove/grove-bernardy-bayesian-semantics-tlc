@@ -1,21 +1,15 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ViewPatterns #-}
-
 
 module Models.Optimizer where
 
@@ -42,24 +36,24 @@ greaterThan = flip lessThan
 
 -- | @domainToConditions x₀ d@ creates the conditions corresponding to x₀ ∈ d.
 domainToConditions :: Expr γ Re -> Domain γ Re -> P γ Re -> P γ Re
-domainToConditions i = \case
+domainToConditions e0 = \case
   Domain [] [] [] -> id
-  Domain (c:cs) los his
-    -> Cond (substCond (\Here -> i) c) . domainToConditions i (Domain cs los his)
-  Domain cs (e:los) his
-    -> Cond (e `lessThan` i) . domainToConditions i (Domain cs los his)
-  Domain cs los (e:his)
-    -> Cond (i `lessThan` e) . domainToConditions i (Domain cs los his)
+  Domain (c:cs) los his ->
+    Cond (substCond (\Here -> e0) c) . domainToConditions e0 (Domain cs los his)
+  Domain cs (e:los) his ->
+    Cond (e `lessThan` e0) . domainToConditions e0 (Domain cs los his)
+  Domain cs los (e:his) ->
+    Cond (e0 `lessThan` e) . domainToConditions e0 (Domain cs los his)
 
 data Available α γ where
   Here :: Available α (γ, α)
   There :: Available α γ -> Available α (γ, β)
-deriving instance Show (Available α γ)
 deriving instance Eq (Available α γ)
 
 data Expr γ α = Expr α [(α, Available α γ)]
-  -- linear combination. list of coefficients and variables [α is a vector space]
-  -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@
+  -- Linear combination. List of coefficients and variables (α is a vector
+  -- space).
+  -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@.
 
 type Component γ α = (α, [(Available α γ, α)])
   -- E.g., @(c1, [(x, c2), (y, c3)])@ represents c1 * x^c2 * y^c3.
@@ -123,16 +117,16 @@ expReturned :: (Num α, Eq α) => α -> Returned γ α -> Returned γ α
 expReturned 1 e = e
 expReturned n e = multReturned e (expReturned (n - 1) e)
   
--- Induced vector space structure over Expr γ α:
+-- | Induced vector space structure over Expr γ α:
 
--- multiplication by scalar (expresions are linear)
+-- | Multiplication by a scalar (expresions are linear)
 (*^) :: Num α => α -> Expr γ α -> Expr γ α
 c *^ Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c', v) <- xs ]
 
 (**^) :: (Num α, Eq α) => α -> Returned γ α -> Returned γ α
 c **^ e = multReturned (RetPoly $ Poly c []) e
   
--- addition
+-- | Addition
 add :: Num α => Expr γ α -> Expr γ α -> Expr γ α
 add (Expr a xs) (Expr a' xs') = Expr (a + a') (xs ++ xs')
 
@@ -170,7 +164,8 @@ data Cond γ = IsNegative { condExpr :: (Expr γ Re) }
               -- Example: u = v is represented by @IsZero [(1, u), (-1, v)]@
 
 restrictDomain :: α ~ Re => Cond (γ, α) -> Domain γ α -> Domain γ α
-  -- restrictDomain c (Domain cs' lowBounds highBounds) = Domain (c : cs') lowBounds highBounds
+  -- @restrictDomain c (Domain cs' lowBounds highBounds) = Domain (c : cs')
+  -- lowBounds highBounds@                                  
   -- basic version
 restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
   (LT, e) -> Domain cs los (e:his) 
@@ -222,15 +217,19 @@ substReturned f = \case
     (substReturned f . RetExps -> RetExps e') -> Times p' e'  
     
 substCond :: Subst γ δ -> Cond γ -> Cond δ
-substCond f (IsNegative e) = IsNegative (substExpr f e)
-substCond f (IsZero e) = IsZero (substExpr f e)
+substCond f (IsNegative e) = IsNegative $ substExpr f e
+substCond f (IsZero e) = IsZero $ substExpr f e
 
 substDomain :: Num d => Subst γ δ -> Domain γ d -> Domain δ d
-substDomain f (Domain c lo hi) = Domain (substCond (wkSubst f) <$> c) (substExpr f <$> lo) (substExpr f <$> hi)
+substDomain f (Domain c lo hi) = Domain
+                                 (substCond (wkSubst f) <$> c)
+                                 (substExpr f <$> lo)
+                                 (substExpr f <$> hi)
 
 substP :: Subst γ δ -> P γ Re -> P δ Re
 substP f p0 = case p0 of
   Ret e -> Ret (substReturned f e)
+  Div (substP f -> p1) (substP f -> p2) -> Div p1 p2
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p)
 
@@ -254,11 +253,15 @@ pattern Mults x y
 pattern MultsVar x j
   = Neu (NeuApp (NeuApp (NeuCon (Rl Mult)) x) (Neu (NeuVar j)))
 pattern InEqVars i j
-  = Neu (NeuApp (NeuCon (Rl Indi)) (Neu (NeuApp (NeuApp (NeuCon (Special GTE)) (Neu (NeuVar i))) (Neu (NeuVar j)))))
+  = Neu (NeuApp (NeuCon (Rl Indi)) (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
+                                                 (Neu (NeuVar i)))
+                                         (Neu (NeuVar j)))))
 pattern Normal x y f
-  = Neu (NeuApp (NeuApp (NeuCon (Rl Nml)) (NFPair (Neu (NeuCon (Rl (Incl x)))) (Neu (NeuCon (Rl (Incl y)))))) f)
+  = Neu (NeuApp (NeuApp (NeuCon (Rl Nml)) (NFPair (Neu (NeuCon (Rl (Incl x))))
+                                           (Neu (NeuCon (Rl (Incl y)))))) f)
 pattern Uniform x y f
-  = Neu (NeuApp (NeuApp (NeuCon (Rl Uni)) (NFPair (Neu (NeuCon (Rl (Incl x)))) (Neu (NeuCon (Rl (Incl y)))))) f)
+  = Neu (NeuApp (NeuApp (NeuCon (Rl Uni)) (NFPair (Neu (NeuCon (Rl (Incl x))))
+                                           (Neu (NeuCon (Rl (Incl y)))))) f)
 pattern Divide x y
   = Neu (NeuApp (NeuApp (NeuCon (Rl Divi)) x) y)
 
@@ -269,7 +272,7 @@ evalP = evalP' where
     EqVars (evalVar -> i) (evalVar -> j) ->
       Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
     InEqVars (evalVar -> i) (evalVar -> j) ->    
-      Cond (IsNegative $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
+      Cond (IsNegative $ Expr 0 [(-1, i), (1, j)]) $ Ret $ RetPoly $ Poly 1 []
     Mults (evalP' -> x) (evalP' -> y) -> multP x y
     Normal x y f -> Integrate (Domain [] [] []) $ multP
                     (Ret $ RetExps $
@@ -308,9 +311,10 @@ showReturned v = \case
                                      then show k ++ " * "
                                      else "") ++
                                      intercalate "*"
-                                    (map (\(x, c) -> v x ++ case c of
-                                                              1 -> ""
-                                                              _ -> "^" ++ show c)
+                                    (map (\(x, c) -> v x ++
+                                                     case c of
+                                                       1 -> ""
+                                                       _ -> "^" ++ show c)
                                                xcs)) | (k, xcs) <- cs ]
   RetExps (Exps k0 es) -> parens $ intercalate " + " $
                           (if k0 /= 0 || es == [] then [show k0] else []) ++
@@ -337,12 +341,12 @@ showBounds :: (Show α, Num α, Eq α) => Vars γ -> Bool -> [Expr γ α] -> [Ch
 showBounds _ lo [] = (if lo then "-" else "") <> "inf"
 showBounds v lo xs = if lo
                      then foldr
-                          (\x y -> "min(" ++ x ++ ", " ++ y ++ ")")
-                          "inf" $
-                          map (showExpr v) xs
-                     else foldr
                           (\x y -> "max(" ++ x ++ ", " ++ y ++ ")")
                           "-inf" $
+                          map (showExpr v) xs
+                     else foldr
+                          (\x y -> "min(" ++ x ++ ", " ++ y ++ ")")
+                          "inf" $
                           map (showExpr v) xs
 
 when :: [a] -> [Char] -> [Char]
@@ -370,14 +374,13 @@ instance Show (P () Re) where
 
 type Solution γ d = (Ordering, Expr γ d)
 
--- @solve e x@ returns the coefficient of the 1st variable in the expression, and the rest (terms not involving the 1st variable).
--- ie. c x + e = 0
-solve :: (α ~ Re) => Expr (γ, α) α -> (α, Expr γ α)
+-- | @solve e x@ returns the coefficient of the 1st variable in the expression,
+-- and the rest (terms not involving the 1st variable). I.e., c x + e = 0.
+solve :: Expr (γ, Re) Re -> (Re, Expr γ Re)
 solve (Expr k0 xs) = (c', Expr k0 e)
   where (c', e) = solveAffine xs
 
-solveAffine :: (α ~ Re)
-            => [(Re, Available Re (γ, α))] -> (α, [(Re, Available Re γ)])
+solveAffine :: [(Re, Available Re (γ, Re))] -> (Re, [(Re, Available Re γ)])
 solveAffine ([]) = (0, [])
 solveAffine ((c, Here) : xs) = (c + c', e)
   where (c', e) = solveAffine xs
@@ -388,7 +391,7 @@ solveAffine ((c, There x) : xs) = (c', (c, x) : e)
 solve' :: Cond (γ, Re) -> Solution γ Re
 solve' c0 = case c0 of
   IsZero _ -> (EQ, (-1 / c) *^ e)
-  IsNegative _ -> if c < 0 then (GT, (1 / (-c)) *^ e) else (LT, (1 / c) *^ e)
+  IsNegative _ -> if c < 0 then (GT, (1 / (-c)) *^ e) else (LT, ((-1) / c) *^ e)
   where (c, e) = solve (condExpr c0)
   
 shallower :: SomeVar γ -> SomeVar γ -> Bool
@@ -540,4 +543,4 @@ example4 = Integrate full $
 -- integrate(integrate(𝟙(3.0 + (-1.0 * y) ≤ 0) * (4.0 + (x) + (-1.0 * y) ≐ 0) * (((exp(((y)))))), y), x)
 
 -- >>> normalise example4
--- integrate((((exp((4.0 + (x)))))), x, min(-1.0, inf), inf)
+-- integrate((((exp((4.0 + (x)))))), x, max(-1.0, -inf), inf)
