@@ -47,7 +47,7 @@ equals' n (Lam m1) (Lam m2) = equals' (n + 1) m1 m2
 equals' n (Fst m1) (Fst m2) = equals' n m1 m2
 equals' n (Snd m1) (Snd m2) = equals' n m1 m2
 equals' n (Pair m1 n1) (Pair m2 n2) = equals' n m1 m2 && equals' n n1 n2
-equals' n TT TT = True
+equals' _ TT TT = True
 
 class Equality α where
   equals :: (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ R
@@ -71,7 +71,7 @@ instance (Equality α, Equality β) => Equality (α × β) where
   equals m n = App (App (Con $ Rl $ EqGen) m) n
 instance Equality (E ⟶ R) where
   equals (Con (Special Height)) (Con (Special Height)) = Con $ Rl $ Incl 1
-  equals (Lam m) (Lam n) | equals' 0 m n
+  equals (Lam m) (Lam n) | equals' 0 (Lam m) (Lam n)
     = case equals m n of
         Con (Rl (Incl 1)) -> Con $ Rl $ Incl 1
         Con (Rl (Incl 0)) -> Con $ Rl $ Incl 0

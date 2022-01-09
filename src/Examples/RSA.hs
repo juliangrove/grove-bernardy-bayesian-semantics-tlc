@@ -118,8 +118,8 @@ l0 = Lam (k ⋆ Lam (
 -- >>> displayVs $ clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
 -- 1.0
 
--- >>> clean $ evalβ $ measure $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ(Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x'')))))))))))
+-- >>> displayVs $ evalβ $ measure $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- Uniform(⟨0.0, 100.0⟩)(λx.Normal(⟨68.0, 3.0⟩)(λy.((Uniform(⟨0.0, 100.0⟩)(λz.Normal(⟨68.0, 3.0⟩)(λu.(𝟙((u ≥ z)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩ ≐ ⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, x⟩, human⟩, (λv.y)⟩, v⟩)))) * (U1 ≐ U1)) * 1.0)))
 
 -- >>> :set -XDataKinds
 -- >>>  maxima $ expectedValue $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
