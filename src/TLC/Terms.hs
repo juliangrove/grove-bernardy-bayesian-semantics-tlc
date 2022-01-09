@@ -351,6 +351,7 @@ instance Show (γ ⊢ α) where
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
     App (App (Con (General EqRl)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
+    App (Con (General Interp)) (show -> u) -> "⟦" ++ u ++ "⟧"
     App (App (Con (Special GTE)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≥ " ++ n ++ ")"
     App (App (Con (Special Upd)) (show -> m)) (show -> n)
@@ -393,6 +394,7 @@ displayVs' i = \case
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
   App (App (Con (General EqRl)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
+  App (Con (General Interp)) (displayVs' i -> u) -> "⟦" ++ u ++ "⟧"
   App (App (Con (Special GTE)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " ≥ " ++ n ++ ")"
   App (App (Con (Special Upd)) (displayVs' i -> m)) (displayVs' i -> n)
