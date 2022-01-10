@@ -89,15 +89,15 @@ l0 = Lam (k ⋆ Lam (
 -- >>> displayVs $ evalβ $ s1
 -- (λx.(λy.(Uniform(⟨0.0, 100.0⟩)(λz.Normal(⟨68.0, 3.0⟩)(λu.(𝟙(⟦U1⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩ ≐ x)))) * y(U1))))
 
--- >>> displayVs $ evalβ $ clean $ evalβ $ expectedValue $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- (Uniform(⟨0.0, 100.0⟩)(λx.Normal(⟨68.0, 3.0⟩)(λy.(Uniform(⟨0.0, 100.0⟩)(λz.Normal(⟨68.0, 3.0⟩)(λu.(𝟙((u ≥ z)) * ((z ≐ x) * (u ≐ y))))) * y))) / Uniform(⟨0.0, 100.0⟩)(λx.Normal(⟨68.0, 3.0⟩)(λy.Uniform(⟨0.0, 100.0⟩)(λz.Normal(⟨68.0, 3.0⟩)(λu.(𝟙((u ≥ z)) * ((z ≐ x) * (u ≐ y))))))))
+-- >>> displayVs $ evalβ $ clean $ evalβ $ measure $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- Uniform(⟨0.0, 100.0⟩)(λx.Normal(⟨68.0, 3.0⟩)(λy.Uniform(⟨0.0, 100.0⟩)(λz.Normal(⟨68.0, 3.0⟩)(λu.(𝟙((u ≥ z)) * ((z ≐ x) * (u ≐ y)))))))
 
 -- >>> displayVs $ clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
 -- 1.0
 
--- >>> evalβ $ clean $ evalβ $ measure $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ(Uniform(⟨0.0, 100.0⟩)(λ(Normal(⟨68.0, 3.0⟩)(λ((𝟙((x ≥ x')) * ((x' ≐ x''') * (x ≐ x'')))))))))))
+-- >>> evalP $ normalForm $ evalβ $ clean $ evalβ $ measure $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- integrate(integrate(integrate(integrate(𝟙((-1.0 * u) + z ≤ 0) * (z + (-1.0 * x) ≐ 0) * (u + (-1.0 * y) ≐ 0) * (1.0e-4) * ((1.7683882565766154e-2 * exp(-513.7777777777778 + (-5.555555555555555e-2 * y*y) + (7.555555555555555 * y) + (-5.555555555555555e-2 * u^2.0) + (7.555555555555555 * u)))), u), z, max(0.0, -inf), min(100.0, inf)), y), x, max(0.0, -inf), min(100.0, inf))
 
 -- >>> :set -XDataKinds
 -- >>>  maxima $ expectedValue $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- (integrate(integrate((((1.0e-4 * y)) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, max((x), -inf), inf), x, max(0.0, max(0.0, -inf)), min(100.0, min(100.0, inf)))) / (integrate(integrate(((1.0e-4) * ((1.7683882565766154e-2 * exp((-513.7777777777778 + (7.555555555555555 * y) + (7.555555555555555 * y)))))), y, max((x), -inf), inf), x, max(0.0, max(0.0, -inf)), min(100.0, min(100.0, inf))))
+-- (integrate(integrate(((1.0e-4 * y)) * ((1.7683882565766154e-2 * exp(-513.7777777777778 + (-5.555555555555555e-2 * y*y) + (7.555555555555555 * y) + (-5.555555555555555e-2 * y*y) + (7.555555555555555 * y)))), y, max(x, -inf), inf), x, max(0.0, max(0.0, -inf)), min(100.0, min(100.0, inf)))) / (integrate(integrate((1.0e-4) * ((1.7683882565766154e-2 * exp(-513.7777777777778 + (-5.555555555555555e-2 * y*y) + (7.555555555555555 * y) + (-5.555555555555555e-2 * y*y) + (7.555555555555555 * y)))), y, max(x, -inf), inf), x, max(0.0, max(0.0, -inf)), min(100.0, min(100.0, inf))))
