@@ -17,4 +17,5 @@ library
                  , TLC.Terms
   hs-source-dirs: src
   build-depends: base
+               , MissingH
   default-language: Haskell2010

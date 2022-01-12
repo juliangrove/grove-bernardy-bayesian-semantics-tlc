@@ -15,7 +15,9 @@
 module TLC.Terms where
 
 import Data.Functor.Identity
+import Data.Ratio
 import Prelude hiding ((>>))
+
 
 data Type = E | T | R | U | Γ
           | Type :-> Type
@@ -113,8 +115,7 @@ exists φ = App (Con (Logical Exists)) φ
 
 interp :: γ ⊢ U -> γ ⊢ T
 interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ
-interp (Con (General (Utt 2)))
-  = exists (Lam (App (App (≥) (App height (Var Get))) θ))
+interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad)
 
 subEq :: γ ⊢ α -> γ ⊢ α
 subEq = \case
@@ -182,8 +183,9 @@ instance Show (Logical α) where
   show Equals = "(=)"
   
 data General α where
-  Incl :: Double -> General R
+  Incl :: Rational -> General R
   Indi :: General (T ⟶ R)
+  Addi :: General (R ⟶ (R ⟶ R))
   Mult :: General (R ⟶ (R ⟶ R))
   Divi :: General (R ⟶ (R ⟶ R))
   Nml :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
@@ -196,6 +198,7 @@ data General α where
 instance Show (General α) where
   show (Incl x) = show x
   show Indi = "𝟙"
+  show Addi = "(+)"
   show Mult = "(*)"
   show Divi = "(/)"
   show Nml = "Normal"
@@ -343,6 +346,8 @@ instance Show (γ ⊢ α) where
       -> "(" ++ p ++ " → " ++ q ++ ")"
     App (App (Con (Logical Equals)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " = " ++ n ++ ")"
+    App (App (Con (General Addi)) (show -> m)) (show -> n)
+      -> "(" ++ m ++ " + " ++ n ++ ")"
     App (App (Con (General Mult)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " * " ++ n ++ ")"
     App (App (Con (General Divi)) (show -> m)) (show -> n)
@@ -386,6 +391,8 @@ displayVs' i = \case
     -> "(" ++ p ++ " → " ++ q ++ ")"
   App (App (Con (Logical Equals)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " = " ++ n ++ ")"
+  App (App (Con (General Addi)) (displayVs' i -> m)) (displayVs' i -> n)
+    -> "(" ++ m ++ " + " ++ n ++ ")"
   App (App (Con (General Mult)) (displayVs' i -> m)) (displayVs' i -> n)
     -> "(" ++ m ++ " * " ++ n ++ ")"
   App (App (Con (General Divi)) (displayVs' i -> m)) (displayVs' i -> n)

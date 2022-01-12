@@ -15,9 +15,15 @@ module Models.Optimizer where
 
 import Control.Monad (ap)
 import Data.List
+import Data.Ratio
+import Data.String.Utils
 import TLC.Terms hiding ((>>))
 
-type Re = Double
+
+-- >>> replace "%" "/" "2 % 2"
+-- "2 / 2"
+
+type Re = Rational
 
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
@@ -67,7 +73,9 @@ data Exponentials γ α = Exps α [Exponentiated γ α] deriving Eq
 data Returned γ α = RetPoly (Polynomial γ α)
                   | RetExps (Exponentials γ α)
                   | Plus (Polynomial γ α) (Exponentials γ α)
+                  | Plus' (Returned γ α) (Returned γ α)
                   | Times (Polynomial γ α) (Exponentials γ α)
+                  | Times' (Returned γ α) (Returned γ α)
                   -- @Poly c cs@ represents c + sum of cs.
                   -- @Exp c cs@ represents c + sum of cs.
                   -- @Plus x y@ represents x + y.
@@ -100,20 +108,31 @@ multReturned = \case
   RetPoly p@(Poly c1 cs1) -> \case
     RetPoly p2 -> RetPoly $ multPoly p p2  
     RetExps e -> Times p e
+    e@(Plus _ _) -> Times' (RetPoly p) e
     Times (multReturned (RetPoly p) . RetPoly -> RetPoly p') e -> Times p' e
+    e@(Plus' _ _) -> Times' (RetPoly p) e
+    e@(Times' _ _) -> Times' (RetPoly p) e
   RetExps e@(Exps c1 es1) -> \case
     RetPoly p -> Times p e
     RetExps (Exps c2 es2) -> RetExps $ Exps (c1 * c2) $
       ((\(x, e1) -> (c2 * x, e1)) <$> es1) ++
       ((\(y, e2) -> (c1 * y, e2)) <$> es2) ++
       ((\(x, e1) (y, e2) -> (x * y, e1 `addReturned` e2)) <$> es1 <*> es2)
+    e'@(Plus _ _) -> Times' (RetExps e) e'
     Times p (multReturned (RetExps e) . RetExps -> RetExps e') -> Times p e'
+    e'@(Plus' _ _) -> Times' (RetExps e) e'
+    e'@(Times' _ _) -> Times' (RetExps e) e'
   Times p e -> \case
     RetPoly p' -> multReturned (RetPoly p') (Times p e)
     RetExps e' -> multReturned (RetExps e') (Times p e)
+    e'@(Plus _ _) -> Times' (Times p e) e'
     Times
       (multReturned (RetPoly p) . RetPoly -> RetPoly p')
       (multReturned (RetExps e) . RetExps -> RetExps e') -> Times p' e'
+    e'@(Plus' _ _) -> Times' (Times p e) e'
+    e'@(Times' _ _) -> Times' (Times p e) e'
+  e@(Plus' _ _) -> \e' -> Times' e e'
+  e@(Times' _ _) -> \e' -> Times' e e'
 
 expReturned :: (Num α, Eq α) => α -> Returned γ α -> Returned γ α
 expReturned 1 e = e
@@ -138,23 +157,28 @@ addReturned = \case
     RetPoly (Poly c2 cs2) -> RetPoly $ Poly (c1 + c2) $ cs1 ++ cs2
     RetExps e -> Plus p e
     Plus (addReturned (RetPoly p) . RetPoly -> RetPoly p') e -> Plus p' e
-    Times p' e ->
-      error "Unsupported operation addReturned (RetPoly _) (Times _ _)"
+    e@(Times _ _) -> Plus' (RetPoly p) e
+    e@(Plus' _ _) -> Plus' (RetPoly p) e
+    e@(Times' _ _) -> Plus' (RetPoly p) e
   RetExps e@(Exps c1 es1) -> \case
     RetPoly p -> Plus p e
     RetExps (Exps c2 es2) -> RetExps $ Exps (c1 + c2) $ es1 ++ es2
     Plus p (addReturned (RetExps e) . RetExps -> RetExps e') -> Plus p e'
-    Times _ _ ->
-      error "Unsupported operation addReturned (RetPoly _) (Times _ _)"
+    e'@(Times _ _) -> Plus' (RetExps e) e'
+    e'@(Plus' _ _) -> Plus' (RetExps e) e'
+    e'@(Times' _ _) -> Plus' (RetExps e) e'
   p1@(Plus p e) -> \case
     p2@(RetPoly _) -> addReturned p2 p1
     e@(RetExps _) -> addReturned e p1
     Plus
       (addReturned (RetPoly p) . RetPoly -> RetPoly p')
       (addReturned (RetExps e) . RetExps -> RetExps e') -> Plus p' e'
-    Times _ _ ->
-      error "Unsupported operation addReturned (Plus _ _) (Times _ _ )"
-  Times _ _ -> error "Unsupported operation addReturned (Times _ _) _"
+    e@(Times _ _) -> Plus' p1 e
+    e@(Plus' _ _) -> Plus' p1 e
+    e@(Times' _ _) -> Plus' p1 e
+  e@(Times _ _) -> \e' -> Plus' e e'
+  e@(Times' _ _) -> \e' -> Plus' e e'
+  e@(Plus' _ _) -> \e' -> Plus' e e'
 
 zero = Expr 0 []
 
@@ -176,19 +200,22 @@ restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
 data P γ α where
   Integrate :: (Re ~ d) => Domain γ d -> P (γ, d) α -> P γ α
   Cond :: Cond γ -> P γ α -> P γ α
+  Add :: P γ α -> P γ α -> P γ α
   Div :: P γ α -> P γ α -> P γ α
   Ret :: Returned γ α -> P γ α
-  
+
 multP :: P γ Re -> P γ Re -> P γ Re
 multP (Integrate d p1) (wkP -> p2) = Integrate d $ multP p1 p2
 multP (Cond c p1) p2 = Cond c $ multP p1 p2
 multP (Ret e) (Integrate d p) = Integrate d $ multP (wkP $ Ret e) p
 multP (Ret e) (Cond c p) = Cond c $ multP (Ret e) p
 multP (Ret e1) (Ret e2) = Ret $ multReturned e1 e2
+multP (Add p1 p1') p2 = Add (multP p1 p2) (multP p1' p2)
+multP p1 (Add p2 p2') = Add (multP p1 p2) (multP p1 p2')
 multP (Div p1 p1') (Div p2 p2') = Div (multP p1 p1') (multP p2 p2')
 multP (Div p1 p1') p2 = Div (multP p1 p2) p1'
 multP p1 (Div p2 p2') = Div (multP p1 p2) p2'
-
+  
 type Subst γ δ = forall α. Num α => Available α γ -> Expr δ α
 
 wkSubst :: Subst γ δ -> Subst (γ, α) (δ, α)
@@ -216,9 +243,11 @@ substReturned f = \case
   Plus
     (substReturned f . RetPoly -> RetPoly p)
     (substReturned f . RetExps -> RetExps e) -> Plus p e
+  Plus' (substReturned f -> p) (substReturned f -> e) -> Plus' p e
   Times
     (substReturned f . RetPoly -> RetPoly p)
-    (substReturned f . RetExps -> RetExps e) -> Times p e  
+    (substReturned f . RetExps -> RetExps e) -> Times p e
+  Times' (substReturned f -> p) (substReturned f -> e) -> Times' p e
     
 substCond :: Subst γ δ -> Cond γ -> Cond δ
 substCond f (IsNegative e) = IsNegative $ substExpr f e
@@ -233,6 +262,7 @@ substDomain f (Domain c lo hi) = Domain
 substP :: Subst γ δ -> P γ Re -> P δ Re
 substP f p0 = case p0 of
   Ret e -> Ret (substReturned f e)
+  Add (substP f -> p1) (substP f -> p2) -> Add p1 p2
   Div (substP f -> p1) (substP f -> p2) -> Div p1 p2
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p)
@@ -255,6 +285,8 @@ pattern EqVars i j
                  (Neu (NeuVar i))) (Neu (NeuVar j)))
 pattern Mults x y
   = Neu (NeuApp (NeuApp (NeuCon (General Mult)) x) y)
+pattern Adds x y
+  = Neu (NeuApp (NeuApp (NeuCon (General Addi)) x) y)
 pattern MultsVar x j
   = Neu (NeuApp (NeuApp (NeuCon (General Mult)) x) (Neu (NeuVar j)))
 pattern InEqVars i j
@@ -277,19 +309,22 @@ evalP :: NF Unit R -> P () Re
 evalP = evalP' where
   evalP' :: NF γ R -> P (Eval γ) Re
   evalP' = \case
+    Neu (NeuCon (General (Incl x))) -> Ret $ RetPoly $ Poly x []
     EqVars (evalVar -> i) (evalVar -> j) ->
       Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
     InEqVars (evalVar -> i) (evalVar -> j) ->    
       Cond (IsNegative $ Expr 0 [(-1, i), (1, j)]) $ Ret $ RetPoly $ Poly 1 []
+    Adds (evalP' -> x) (evalP' -> y) -> Add x y
     Mults (evalP' -> x) (evalP' -> y) -> multP x y
     Normal x y f -> Integrate full $ multP
                     (Ret $ RetExps $
-                     Exps 0 [(1 / (y * sqrt (2 * pi)),
+                     Exps 0 [(1 / (y * sqrt2pi),
                               RetPoly $ Poly (-(sqr x) / (2 * sqr y))
                               [(-1 / (2 * sqr y), [(Here, 2)]),
                                (x / sqr y, [(Here, 1)])])])
                     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
       where sqr x = x * x
+            sqrt2pi = 1
     Uniform x y f -> Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
                      (Ret $ RetPoly $
                       Poly (1 / (y - x)) [])
@@ -348,26 +383,79 @@ showReturned v = \case
                        _ -> showReturned v (RetPoly p) ++ " + " ++
                             showReturned v (RetExps e)
   Times p e -> case p of
-                 Poly 0 [] -> ""
+                 Poly 0 [] -> "0"
                  Poly 1 [] -> showReturned v (RetExps e)
                  _ -> case e of
-                        Exps 0 [] -> ""
+                        Exps 0 [] -> "0"
                         Exps 1 [] -> showReturned v (RetPoly p)
                         _ -> showReturned v (RetPoly p) ++ " * " ++
                              showReturned v (RetExps e)
+  Plus' p e -> "(" ++ showReturned v p ++ ") + (" ++ showReturned v e ++ ")"
+  Times' p e -> "(" ++ showReturned v p ++ ") * (" ++ showReturned v e ++ ")"
+
+mathematicaReturned :: (Show α, Num α, Eq α) => Vars γ -> Returned γ α -> String
+mathematicaReturned v = \case
+  RetPoly (Poly k0 cs) -> parens $ intercalate " + " $
+                          (if k0 /= 0 || cs == [] then [show k0] else []) ++
+                          filter (/= "")
+                          [ case c of
+                              0 -> ""
+                              1 -> (if length xs > 1 then parens else id)
+                                   (intercalate "*" $
+                                           map (\(x, c') -> v x ++
+                                                 case c' of
+                                                   1 -> ""
+                                                   _ -> "^" ++ show c')
+                                          xs)
+                              _ -> parens (show c ++ " * " ++ (intercalate "*" $
+                                           map (\(x, c') -> v x ++
+                                                 case c' of
+                                                   1 -> ""
+                                                   _ -> "^" ++ show c')
+                                          xs)) | (c, xs) <- cs ]
+  RetExps (Exps k0 es) -> parens $ intercalate " + " $
+                          (if k0 /= 0 || es == [] then [show k0] else []) ++
+                          filter (/= "")
+                          [ case c of
+                              0 -> ""
+                              1 -> "exp" ++ mathematicaReturned v e
+                              _ -> parens $
+                                   show c ++ " * Exp" ++ (brackets $
+                                   mathematicaReturned v e) | (c, e) <- es ]
+  Plus p e -> case p of
+                Poly 0 [] -> mathematicaReturned v (RetExps e)
+                _ -> case e of
+                       Exps 0 [] -> mathematicaReturned v (RetPoly p)
+                       _ -> mathematicaReturned v (RetPoly p) ++ " + " ++
+                            mathematicaReturned v (RetExps e)
+  Times p e -> case p of
+                 Poly 0 [] -> "0"
+                 Poly 1 [] -> mathematicaReturned v (RetExps e)
+                 _ -> case e of
+                        Exps 0 [] -> "0"
+                        Exps 1 [] -> mathematicaReturned v (RetPoly p)
+                        _ -> mathematicaReturned v (RetPoly p) ++ " * " ++
+                             mathematicaReturned v (RetExps e)
+  Plus' p e -> "(" ++ mathematicaReturned v p ++ ") + (" ++
+               mathematicaReturned v e ++ ")"
+  Times' p e -> "(" ++ mathematicaReturned v p ++ ") * (" ++
+                mathematicaReturned v e ++ ")"
 
 showCond :: Vars γ -> Cond γ -> String
 showCond v = \case
   c@(IsNegative c') -> "𝟙" <> (parens $ showExpr v c' <> " ≤ 0")
   c@(IsZero c') -> parens $ showExpr v c' ++ " ≐ 0"
 
-parens :: [Char] -> [Char]
+parens :: String -> String
 parens x = "(" ++ x ++ ")"
 
-braces :: [Char] -> [Char]
+brackets :: String -> String
+brackets x = "[" ++ x ++ "]"
+
+braces :: String -> String
 braces x = "{" ++ x ++ "}"
 
-showBounds :: (Show α, Num α, Eq α) => Vars γ -> Bool -> [Expr γ α] -> [Char]
+showBounds :: (Show α, Num α, Eq α) => Vars γ -> Bool -> [Expr γ α] -> String
 showBounds _ lo [] = (if lo then "-" else "") <> "inf"
 showBounds v lo xs = if lo
                      then foldr
@@ -379,6 +467,19 @@ showBounds v lo xs = if lo
                           "inf" $
                           map (showExpr v) xs
 
+mathematicaBounds :: (Show α, Num α, Eq α)
+                  => Vars γ -> Bool -> [Expr γ α] -> String
+mathematicaBounds _ lo [] = (if lo then "-" else "") <> "Infinity"
+mathematicaBounds v lo xs = if lo
+                            then foldr
+                                 (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
+                                 "-Infinity" $
+                                 map (showExpr v) xs
+                            else foldr
+                                 (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
+                                 "Infinity" $
+                                 map (showExpr v) xs
+
 when :: [a] -> [Char] -> [Char]
 when [] _ = ""
 when _ x = x
@@ -386,6 +487,7 @@ when _ x = x
 showP :: [String] -> Vars γ -> P γ Re -> String
 showP freshes@(f:fs) v = \case
   Ret e -> showReturned v e
+  Add p1 p2 -> "(" ++ showP freshes v p1 ++ ") + (" ++ showP freshes v p2 ++ ")"
   Div p1 p2 -> "(" ++ showP freshes v p1 ++ ") / (" ++ showP freshes v p2 ++ ")"
   Integrate (Domain cs los his) e -> ("integrate" ++) $ parens $
     showP fs (\case Here -> f; There i -> v i) e ++
@@ -396,11 +498,30 @@ showP freshes@(f:fs) v = \case
                                     ", " ++ showBounds v False his))
   Cond c e -> showCond v c ++ " * " ++ showP freshes v e
 
+mathematicaP :: [String] -> Vars γ -> P γ Re -> String
+mathematicaP freshes@(f:fs) v = \case
+  Ret e -> showReturned v e
+  Add p1 p2 -> "(" ++ mathematicaP freshes v p1 ++ ") + (" ++
+               mathematicaP freshes v p2 ++ ")"
+  Div p1 p2 -> "(" ++ mathematicaP freshes v p1 ++ ") / (" ++
+               mathematicaP freshes v p2 ++ ")"
+  Integrate (Domain cs los his) e -> ("Integrate" ++) $ brackets $
+    mathematicaP fs (\case Here -> f; There i -> v i) e ++
+    (when cs $ f ++ "∈" ++
+     braces (intercalate "∧" $ map (showCond (\case Here -> f; There i -> v i))
+             cs)) ++ ", " ++ (braces $ f ++ (when (los ++ his)
+                                   (", " ++ mathematicaBounds v True los ++
+                                    ", " ++ mathematicaBounds v False his)))
+  Cond c e -> showCond v c ++ " * " ++ mathematicaP freshes v e
+
 showProg :: P () Re -> String
 showProg = showP freshes (\case)
 
 instance Show (P () Re) where
-  show = showProg
+  show = replace "%" "/" . showProg
+
+mathematica' :: P () Re -> IO ()
+mathematica' = putStrLn . replace "%" "/" . mathematicaP freshes (\case)
 
 type Solution γ d = (Ordering, Expr γ d)
 
@@ -471,6 +592,8 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     where (coef, expr) = solve c'
           x0 = (-1 / coef) *^ expr
   Just c'' -> cond (IsZero c'') (integrate d e)
+integrate d (Add e e') = Add (integrate d e) (integrate d e')
+integrate d (Div e e') = Div (integrate d e) (integrate d e')
 integrate d e = Integrate d e
 
 cond :: Cond γ -> P γ Re -> P γ Re
@@ -483,13 +606,18 @@ normalise :: P γ Re -> P γ Re
 normalise = \case
   Cond c (normalise -> e) -> cond c e
   Integrate d (normalise -> e) -> integrate d e
+  Add (normalise -> p1) (normalise -> p2) -> Add p1 p2
   Div (normalise -> p1) (normalise -> p2) -> Div p1 p2
   Ret e -> Ret e
 
 -- | Take typed descriptions of real numbers onto Maxima programs. 
 maxima :: Unit ⊢ R -> P () Re
 maxima = normalise . evalP . normalForm . clean . evalβ
-  
+
+-- | Take typed descriptions of real numbers onto Mathematica programs.
+mathematica :: Unit ⊢ R -> IO ()
+mathematica = mathematica' . maxima
+
 -- Domain without restriction
 full :: Domain γ x
 full = Domain [] [] []
