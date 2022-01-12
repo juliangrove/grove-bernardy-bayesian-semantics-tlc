@@ -16,6 +16,7 @@ module TLC.Terms where
 
 import Data.Functor.Identity
 import Data.Ratio
+import Data.String.Utils
 import Prelude hiding ((>>))
 
 
@@ -335,7 +336,7 @@ evalβ :: γ ⊢ α -> γ ⊢ α
 evalβ = nf_to_λ . normalForm
 
 instance Show (γ ⊢ α) where
-  show = \case
+  show = replace "%" "/" . \case
     Var Get -> "x"
     Var (Weaken i) -> show (Var i) ++ "'"
     App (App (Con (Logical And)) (show -> p)) (show -> q)
@@ -373,7 +374,7 @@ displayDB :: γ ⊢ α -> IO ()
 displayDB t = putStrLn $ show t
 
 displayVs :: γ ⊢ α -> IO ()
-displayVs t = putStrLn $ displayVs' 0 t
+displayVs t = putStrLn $ replace "%" "/" $ displayVs' 0 t
 
 freshes :: [String]
 freshes = "" : map show ints >>= \i -> map (:i) ['x', 'y', 'z', 'u', 'v', 'w']
