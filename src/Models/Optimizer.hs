@@ -500,7 +500,7 @@ showP freshes@(f:fs) v = \case
 
 mathematicaP :: [String] -> Vars γ -> P γ Re -> String
 mathematicaP freshes@(f:fs) v = \case
-  Ret e -> showReturned v e
+  Ret e -> mathematicaReturned v e
   Add p1 p2 -> "(" ++ mathematicaP freshes v p1 ++ ") + (" ++
                mathematicaP freshes v p2 ++ ")"
   Div p1 p2 -> "(" ++ mathematicaP freshes v p1 ++ ") / (" ++
