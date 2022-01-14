@@ -55,14 +55,14 @@ utts = η (Con (General (Utt 2)))
 utts' :: γ ⊢ ((U ⟶ R) ⟶ R)
 utts' = Lam
   (App
-  (App (Con (General Addi)) (App (App (Con (General Mult)) (Con (General (Incl (3 % 4))))) (App (Var Get) (Con (General (Utt 1))))))
-  (App (App (Con (General Mult)) (Con (General (Incl (1 % 4))))) (App (Var Get) (Con (General (Utt 2))))))
+  (App (Con (General Addi)) (App (App (Con (General Mult)) (Con (General (Incl (1 % 2))))) (App (Var Get) (Con (General (Utt 1))))))
+  (App (App (Con (General Mult)) (Con (General (Incl (1 % 2))))) (App (Var Get) (Con (General (Utt 2))))))
 
 -- >>> displayVs utts'
 -- (λx.((3 / 4 * x(U1)) + (1 / 4 * x(U2))))
 
--- >>> interp (Con $ General $ Utt 2)
--- (θ ≥ height(v))
+-- >>> interp (Con $ General $ Utt 1)
+-- (height(v) ≥ θ)
 
 lower :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
 lower m = App m (Lam (Var Get))
@@ -113,8 +113,8 @@ l0 = Lam (k ⋆ Lam (
 -- >>> displayVs $ clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
 -- 1 / 1
 
--- >>> mathematica' $ normalise $ evalP $ normalForm $ clean $ evalβ $ expectedValue $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- ((Integrate[Integrate[((3 / 40000 * y)) * ((1 / 9 * Exp[((-4624) / 9 + ((-1) / 18 * y*y) + (68 / 9 * y) + ((-1) / 18 * y*y) + (68 / 9 * y))])), {y, Max[x, -Infinity], Infinity}], {x, Max[0 / 1, Max[0 / 1, -Infinity]], Min[100 / 1, Min[100 / 1, Infinity]]}]) + (Integrate[Integrate[0, {y, -Infinity, Min[x, Infinity]}], {x, Max[0 / 1, Max[0 / 1, -Infinity]], Min[100 / 1, Min[100 / 1, Infinity]]}])) / ((Integrate[Integrate[(3 / 40000) * ((1 / 9 * Exp[((-4624) / 9 + ((-1) / 18 * y*y) + (68 / 9 * y) + ((-1) / 18 * y*y) + (68 / 9 * y))])), {y, Max[x, -Infinity], Infinity}], {x, Max[0 / 1, Max[0 / 1, -Infinity]], Min[100 / 1, Min[100 / 1, Infinity]]}]) + (Integrate[Integrate[0, {y, -Infinity, Min[x, Infinity]}], {x, Max[0 / 1, Max[0 / 1, -Infinity]], Min[100 / 1, Min[100 / 1, Infinity]]}]))
+-- >>> mathematica' $ evalP $ normalForm $ clean $ evalβ $ lower $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- Integrate[Integrate[(Integrate[Integrate[𝟙(((-1) / 1 * u) + z ≤ 0) * (z + ((-1) / 1 * x) ≐ 0) * (u + ((-1) / 1 * y) ≐ 0) * ((1 / 20000 * y)) * ((1 / 9 * Exp[((-4624) / 9 + ((-1) / 18 * y*y) + (68 / 9 * y) + ((-1) / 18 * u^2 / 1) + (68 / 9 * u))])), {u}], {z, Max[0 / 1, -Infinity], Min[100 / 1, Infinity]}]) + (Integrate[Integrate[𝟙(((-1) / 1 * z) + u ≤ 0) * (z + ((-1) / 1 * x) ≐ 0) * (u + ((-1) / 1 * y) ≐ 0) * 0, {u}], {z, Max[0 / 1, -Infinity], Min[100 / 1, Infinity]}]), {y}], {x, Max[0 / 1, -Infinity], Min[100 / 1, Infinity]}]
 
--- >>> mathematica $ expectedValue $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- ((Integrate[Integrate[((3 / 40000 * y)) * ((1 / 9 * Exp[((-4624) / 9 + ((-1) / 18 * y*y) + (68 / 9 * y) + ((-1) / 18 * y*y) + (68 / 9 * y))])), {y, Max[x, -Infinity], Infinity}], {x, Max[0 / 1, Max[0 / 1, -Infinity]], Min[100 / 1, Min[100 / 1, Infinity]]}]) + (Integrate[Integrate[0, {y, -Infinity, Min[x, Infinity]}], {x, Max[0 / 1, Max[0 / 1, -Infinity]], Min[100 / 1, Min[100 / 1, Infinity]]}])) / ((Integrate[Integrate[(3 / 40000) * ((1 / 9 * Exp[((-4624) / 9 + ((-1) / 18 * y*y) + (68 / 9 * y) + ((-1) / 18 * y*y) + (68 / 9 * y))])), {y, Max[x, -Infinity], Infinity}], {x, Max[0 / 1, Max[0 / 1, -Infinity]], Min[100 / 1, Min[100 / 1, Infinity]]}]) + (Integrate[Integrate[0, {y, -Infinity, Min[x, Infinity]}], {x, Max[0 / 1, Max[0 / 1, -Infinity]], Min[100 / 1, Min[100 / 1, Infinity]]}]))
+-- >>> mathematica $ lower $ App l0 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- Integrate[Integrate[((1 / 100 * y)) * ((1 / 3 * Exp[((-2312) / 9 + ((-1) / 18 * y^2 / 1) + (68 / 9 * y))])), {y, Max[x, -Infinity], Infinity}], {x, Max[0 / 1, -Infinity], Min[100 / 1, Infinity]}]
