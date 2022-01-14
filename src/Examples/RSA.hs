@@ -108,14 +108,17 @@ l0Distr = distr $ App l0 (u 1) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Va
 -- >>> interp (u 1)
 -- (height(v) ≥ θ)
 
-testTriangle :: γ ⊢ ('R ⟶ 'R)
-testTriangle = distr $ uniform 0 10 ⋆ Lam (uniform 0 10 ⋆ Lam (η ((Con (General Addi)) `App` (Var Get) `App` (Var (Weaken Get)))))
+test :: γ ⊢ ('R ⟶ 'R)
+test = distr $ uniform 0 10 ⋆ Lam (uniform 0 10 ⋆ Lam (η ((Con (General Addi)) `App` (Var Get) `App` (Var (Weaken Get)))))
 
--- >>>  displayVs $ evalβ $ clean $ evalβ testTriangle
+-- >>>  displayVs $ evalβ $ clean $ evalβ test
 -- (λx.Uniform(⟨0 / 1, 10 / 1⟩)(λy.Uniform(⟨0 / 1, 10 / 1⟩)(λz.((z + y) ≐ x))))
 
--- >>> mathematicaFun testTriangle
--- Integrate[(1 / 100), {y, Max[(-10) / 1 + x, Max[0 / 1, -Infinity]], Min[x, Min[10 / 1, Infinity]]}]
+-- >>> mathematicaFun test
+-- 𝟙((-20) / 1 + x ≤ 0) * 𝟙((-10) / 1 + x + ((-1) / 1 * x) ≤ 0) * 𝟙(((-1) / 1 * x) ≤ 0) * Integrate[(1 / 100), {y, Max[(-10) / 1 + x, Max[0 / 1, -Infinity]], Min[x, Min[10 / 1, Infinity]]}]
+
+-- Integrate[(1 / 100), {y, Max[30 - 10, 0], Min[30, 10]}]
+
 
 
 -- >>> displayVs $ evalβ $ l1

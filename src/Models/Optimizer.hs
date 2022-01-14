@@ -189,13 +189,13 @@ data Cond γ = IsNegative { condExpr :: (Expr γ Re) }
               -- Meaning of this constructor: expression = 0
               -- Example: u = v is represented by @IsZero [(1, u), (-1, v)]@
 
-restrictDomain :: α ~ Re => Cond (γ, α) -> Domain γ α -> Domain γ α
-  -- @restrictDomain c (Domain cs' lowBounds highBounds) = Domain (c : cs')
-  -- lowBounds highBounds@                                  
-  -- basic version
+
+-- | restrict the bounds by moving the bounds. Also return conditions
+-- that ensure that the bounds are in the right order.
+restrictDomain :: α ~ Re => Cond (γ, α) -> Domain γ α -> (Domain γ α, [Cond γ])
 restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
-  (LT, e) -> Domain cs los (e:his) 
-  (GT, e) -> Domain cs (e:los) (his)
+  (LT, e) -> (Domain cs los (e:his), [lo `lessThan` e | lo <- los]) 
+  (GT, e) -> (Domain cs (e:los) his, [e `lessThan` hi | hi <- his])
 
 data P γ α where
   Integrate :: (Re ~ d) => Domain γ d -> P (γ, d) α -> P γ α
@@ -584,7 +584,8 @@ occurExpr = travExpr $ \case
 
 integrate :: d ~ Re => Domain γ d -> P (γ, d) Re -> P γ Re
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
-  Nothing -> integrate (restrictDomain c d) e
+  Nothing -> foldr cond (integrate d'  e) cs
+    where (d',cs) = (restrictDomain c d)
   Just c'' -> cond (IsNegative c'') (integrate d e)
 integrate d (Cond (IsZero c') e) = case occurExpr c' of
   Nothing ->
@@ -600,7 +601,7 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
           x0 = (-1 / coef) *^ expr
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
-integrate d (Div e e') = Div (integrate d e) (integrate d e')
+-- integrate d (Div e e') = Div (integrate d e) (integrate d e')
 integrate d e = Integrate d e
 
 cond :: Cond γ -> P γ Re -> P γ Re
