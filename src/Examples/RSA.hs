@@ -26,11 +26,11 @@ uniform :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
 uniform x y
   = App (Con $ General Uni) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
 
-distr :: Equality α => γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ R)
+distr :: Equality α => γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ (α ⟶ 'R)
 distr p = Lam (App (wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))))
 
 k :: γ ⊢ ((Context ⟶ R) ⟶ R)
-k = uniform 0 100
+k = uniform 80 90
     ⋆ Lam (normal 68 3
            ⋆ Lam (
               η (Pair
@@ -79,6 +79,8 @@ normalize m = m ⋆ Lam (factor' (recipr $ measure $ wkn m) >> η (Var Get))
 expectedValue :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
 expectedValue m = App (App (Con $ General $ Divi) (lower m)) (measure m)
 
+
+
 -- | RSA
 
 -- | Pragmatic listener
@@ -99,6 +101,16 @@ l0 = Lam (k ⋆ Lam (
              observe'
              (App (App (Con (General Interp)) (Var (Weaken Get))) (Var Get)) >>
              η (Var Get)))
+
+l0Distr :: γ ⊢ ('R ⟶ 'R)
+l0Distr = distr $ App l0 (u 1) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Var Get)))
+
+
+-- >>>  displayVs $ evalβ l0Distr
+-- (λx.Uniform(⟨80 / 1, 90 / 1⟩)(λy.Normal(⟨68 / 1, 3 / 1⟩)(λz.(𝟙(⟦U1⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, y⟩, human⟩, (λu.z)⟩, v⟩)) * (z ≐ x)))))
+
+-- >>> mathematicaFun l0Distr
+-- Integrate[(1 / 10) * ((1 / 3 * Exp[((-2312) / 9 + ((-1) / 18 * x*x) + (68 / 9 * x))])), {y, (80), Min[x, 90]}]
 
 
 -- >>> displayVs $ evalβ $ l1
