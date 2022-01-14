@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
-{-# LANGUAGE FlexibleInstances #-}
+ {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -305,36 +305,40 @@ pattern Uniform x y f
 pattern Divide x y
   = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
 
+
+
 evalP :: NF Unit R -> P () Re
-evalP = evalP' where
-  evalP' :: NF γ R -> P (Eval γ) Re
-  evalP' = \case
-    Neu (NeuCon (General (Incl x))) -> Ret $ RetPoly $ Poly x []
-    EqVars (evalVar -> i) (evalVar -> j) ->
-      Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
-    InEqVars (evalVar -> i) (evalVar -> j) ->    
-      Cond (IsNegative $ Expr 0 [(-1, i), (1, j)]) $ Ret $ RetPoly $ Poly 1 []
-    Adds (evalP' -> x) (evalP' -> y) -> Add x y
-    Mults (evalP' -> x) (evalP' -> y) -> multP x y
-    Normal x y f -> Integrate full $ multP
-                    (Ret $ RetExps $
-                     Exps 0 [(1 / (y * sqrt2pi),
-                              RetPoly $ Poly (-(sqr x) / (2 * sqr y))
-                              [(-1 / (2 * sqr y), [(Here, 2)]),
-                               (x / sqr y, [(Here, 1)])])])
-                    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-      where sqr x = x * x
-            sqrt2pi = 1
-    Uniform x y f -> Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
-                     (Ret $ RetPoly $
-                      Poly (1 / (y - x)) [])
-                     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-    Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 0 [(1, [(i, 1)])]
-    Divide x y -> Div (evalP' x) (evalP' y)
-  evalVar :: α ∈ γ -> Available (Eval α) (Eval γ)
-  evalVar = \case
-    Get -> Here
-    Weaken (evalVar -> i) -> There i
+evalP = evalP'
+
+evalP' :: NF γ R -> P (Eval γ) Re
+evalP' = \case
+  Neu (NeuCon (General (Incl x))) -> Ret $ RetPoly $ Poly x []
+  EqVars (evalVar -> i) (evalVar -> j) ->
+    Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
+  InEqVars (evalVar -> i) (evalVar -> j) ->    
+    Cond (IsNegative $ Expr 0 [(-1, i), (1, j)]) $ Ret $ RetPoly $ Poly 1 []
+  Adds (evalP' -> x) (evalP' -> y) -> Add x y
+  Mults (evalP' -> x) (evalP' -> y) -> multP x y
+  Normal x y f -> Integrate full $ multP
+                  (Ret $ RetExps $
+                   Exps 0 [(1 / (y * sqrt2pi),
+                            RetPoly $ Poly (-(sqr x) / (2 * sqr y))
+                            [(-1 / (2 * sqr y), [(Here, 2)]),
+                             (x / sqr y, [(Here, 1)])])])
+                  (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    where sqr x = x * x
+          sqrt2pi = 1
+  Uniform x y f -> Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
+                   (Ret $ RetPoly $
+                    Poly (1 / (y - x)) [])
+                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+  Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 0 [(1, [(i, 1)])]
+  Divide x y -> Div (evalP' x) (evalP' y)
+
+evalVar :: α ∈ γ -> Available (Eval α) (Eval γ)
+evalVar = \case
+  Get -> Here
+  Weaken (evalVar -> i) -> There i
 
 type Vars γ  = forall v. Available v γ -> String
 
@@ -520,8 +524,8 @@ showProg = showP freshes (\case)
 instance Show (P () Re) where
   show = replace "%" "/" . showProg
 
-mathematica' :: P () Re -> IO ()
-mathematica' = putStrLn . replace "%" "/" . mathematicaP freshes (\case)
+mathematica' :: [String] -> Vars γ -> P γ Re -> IO ()
+mathematica' fs vars = putStrLn . replace "%" "/" . mathematicaP fs vars
 
 type Solution γ d = (Ordering, Expr γ d)
 
@@ -611,12 +615,17 @@ normalise = \case
   Ret e -> Ret e
 
 -- | Take typed descriptions of real numbers onto Maxima programs. 
-maxima :: Unit ⊢ R -> P () Re
-maxima = normalise . evalP . normalForm . clean . evalβ
+maxima :: (γ ⊢ 'R) -> P (Eval γ) Re
+maxima = normalise . evalP' . normalForm . clean . evalβ
 
 -- | Take typed descriptions of real numbers onto Mathematica programs.
-mathematica :: Unit ⊢ R -> IO ()
-mathematica = mathematica' . maxima
+mathematica :: 'Unit ⊢ 'R -> IO ()
+mathematica = mathematica' freshes (\case) . maxima
+
+-- | Take typed descriptions of real numbers onto Mathematica programs.
+mathematicaFun :: 'Unit ⊢ ('R ⟶ 'R) -> IO ()
+mathematicaFun = mathematica' fs (\case Here -> f; There _ -> error "mathematicaFun: are you trying to access the end of context? (Unit)"). maxima . absInversion
+  where (f:fs) = freshes
 
 -- Domain without restriction
 full :: Domain γ x
@@ -626,7 +635,6 @@ exampleInEq :: P () Re
 exampleInEq = Integrate full $
               Cond (IsNegative (Expr 7 [(-1, Here)])) $
               Ret $ RetPoly $ Poly 10 [(1, [(Here, 1)])]
-              
 
 -- >>> exampleInEq
 -- integrate(𝟙(7.0 + (-1.0 * x) ≤ 0) * (10.0 + x), x)
@@ -719,3 +727,8 @@ example6 = RetExps $ Exps 1 [(1, RetPoly $ Poly 2 [(1, [(Here, 2)]), (1, [(Here,
 
 -- >>> Integrate full $ Ret $ expReturned 3 $ RetPoly $ Poly 1 [(3,[(Here, 2)])] :: P () Re
 -- integrate((1.0 + (3.0 * x^2.0) + (9.0 * x^2.0*x^2.0) + (3.0 * x^2.0) + (9.0 * x^2.0*x^2.0) + (27.0 * x^2.0*x^2.0*x^2.0) + (9.0 * x^2.0*x^2.0) + (3.0 * x^2.0)), x)
+
+
+-- Local Variables:
+-- dante-methods: (new-nix)
+-- End:
