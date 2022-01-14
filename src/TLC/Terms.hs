@@ -251,6 +251,8 @@ data γ ⊢ α where
   TT :: γ ⊢ 'Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 
+infixl `App`
+
 absInversion :: γ ⊢ ('R ⟶ 'R) -> (γ × 'R) ⊢ 'R
 absInversion (Lam f) = f
 absInversion t = App (wkn t) (Var Get)

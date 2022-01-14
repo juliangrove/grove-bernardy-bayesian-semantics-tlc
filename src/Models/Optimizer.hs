@@ -280,6 +280,7 @@ type family RepOf γ where
   RepOf () = Unit
   RepOf (γ, α) = (RepOf γ × RepOf α)
 
+pattern NNVar i <- Neu (NeuVar (evalVar -> i))
 pattern EqVars i j
   = Neu (NeuApp (NeuApp (NeuCon (General EqRl))
                  (Neu (NeuVar i))) (Neu (NeuVar j)))
@@ -313,6 +314,8 @@ evalP = evalP'
 evalP' :: NF γ R -> P (Eval γ) Re
 evalP' = \case
   Neu (NeuCon (General (Incl x))) -> Ret $ RetPoly $ Poly x []
+  Neu (NeuApp (NeuApp (NeuCon (General EqRl))
+                 (Adds (NNVar i) (NNVar j))) (NNVar k)) -> Cond (IsZero $ Expr 0 [(1, i), (1, j), (-1, k)]) $ Ret $ RetPoly $ Poly 1 []
   EqVars (evalVar -> i) (evalVar -> j) ->
     Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ RetPoly $ Poly 1 []
   InEqVars (evalVar -> i) (evalVar -> j) ->    

@@ -105,12 +105,17 @@ l0 = Lam (k ⋆ Lam (
 l0Distr :: γ ⊢ ('R ⟶ 'R)
 l0Distr = distr $ App l0 (u 1) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Var Get)))
 
+-- >>> interp (u 1)
+-- (height(v) ≥ θ)
 
--- >>>  displayVs $ evalβ l0Distr
--- (λx.Uniform(⟨80 / 1, 90 / 1⟩)(λy.Normal(⟨68 / 1, 3 / 1⟩)(λz.(𝟙(⟦U1⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, y⟩, human⟩, (λu.z)⟩, v⟩)) * (z ≐ x)))))
+testTriangle :: γ ⊢ ('R ⟶ 'R)
+testTriangle = distr $ uniform 0 10 ⋆ Lam (uniform 0 10 ⋆ Lam (η ((Con (General Addi)) `App` (Var Get) `App` (Var (Weaken Get)))))
 
--- >>> mathematicaFun l0Distr
--- Integrate[(1 / 10) * ((1 / 3 * Exp[((-2312) / 9 + ((-1) / 18 * x*x) + (68 / 9 * x))])), {y, (80), Min[x, 90]}]
+-- >>>  displayVs $ evalβ $ clean $ evalβ testTriangle
+-- (λx.Uniform(⟨0 / 1, 10 / 1⟩)(λy.Uniform(⟨0 / 1, 10 / 1⟩)(λz.((z + y) ≐ x))))
+
+-- >>> mathematicaFun testTriangle
+-- Integrate[(1 / 100), {y, Max[(-10) / 1 + x, Max[0 / 1, -Infinity]], Min[x, Min[10 / 1, Infinity]]}]
 
 
 -- >>> displayVs $ evalβ $ l1
