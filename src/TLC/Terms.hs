@@ -1,3 +1,4 @@
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -247,8 +248,13 @@ data γ ⊢ α where
   Lam :: (γ × α) ⊢ β -> γ ⊢ (α ⟶ β)
   Fst :: γ ⊢ (α × β) -> γ ⊢ α
   Snd :: γ ⊢ (α × β) -> γ ⊢ β
-  TT :: γ ⊢ Unit
+  TT :: γ ⊢ 'Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
+
+absInversion :: γ ⊢ ('R ⟶ 'R) -> (γ × 'R) ⊢ 'R
+absInversion (Lam f) = f
+absInversion t = App (wkn t) (Var Get)
+
 
 -- Neutral terms (no constructors, except in arguments).
 data Neutral γ α where
@@ -257,13 +263,17 @@ data Neutral γ α where
   NeuApp :: Neutral γ (α ⟶ β) -> NF γ α -> Neutral γ β
   NeuFst :: Neutral γ (α × β) -> Neutral γ α
   NeuSnd :: Neutral γ (α × β) -> Neutral γ β
-  NeuTT :: Neutral γ Unit
+  NeuTT :: Neutral γ 'Unit
 
 -- Terms in normal form.
 data NF γ α where
   NFLam :: NF (γ × α) β -> NF γ (α ⟶ β)
   NFPair :: NF γ α -> NF γ β -> NF γ (α × β)
   Neu :: Neutral γ α -> NF γ α
+
+absInversionNF :: NF 'Unit ('R ⟶ 'R) -> NF ('Unit × 'R) 'R
+absInversionNF (NFLam f) = f
+absInversionNF (Neu t) = Neu (NeuApp (renameNeu Weaken t) (Neu (NeuVar Get)))
 
 wknNF :: NF γ α -> NF (γ × β) α
 wknNF = renameNF Weaken
@@ -373,51 +383,60 @@ instance Show (γ ⊢ α) where
 displayDB :: γ ⊢ α -> IO ()
 displayDB t = putStrLn $ show t
 
-displayVs :: γ ⊢ α -> IO ()
-displayVs t = putStrLn $ replace "%" "/" $ displayVs' 0 t
+displayVs :: 'Unit ⊢ α -> IO ()
+displayVs t = putStrLn $ replace "%" "/" $ displayVs' freshes (\case) t
 
 freshes :: [String]
 freshes = "" : map show ints >>= \i -> map (:i) ['x', 'y', 'z', 'u', 'v', 'w']
   where ints = 1 : map succ ints
 
-displayVs' :: Int -> γ ⊢ α -> String
-displayVs' i = \case
-  Var Get -> freshes !! (i - 1)
-  Var (Weaken j) -> displayVs' (i - 1) $ Var j
-  App (App (Con (Logical And)) (displayVs' i -> p)) (displayVs' i -> q)
+displayVs1 :: ('Unit × β)  ⊢ α -> String
+displayVs1 t = case freshes of
+  [] -> error "displayVs1: panic"
+  f:fs -> displayVs' fs (\case Get -> f; Weaken _ -> "γ") t
+
+displayVs' :: forall γ α. [String] -> (forall x. x ∈ γ -> String) -> γ ⊢ α -> String
+displayVs' fs ρ t =
+ let dd :: forall β. γ ⊢ β -> String
+     dd = displayVs' fs ρ
+ in case t of
+  Var v -> ρ v
+  App (App (Con (Logical And)) (dd -> p)) (dd -> q)
     -> "(" ++ p ++ " ∧ " ++ q ++ ")"
-  App (App (Con (Logical Or)) (displayVs' i -> p)) (displayVs' i -> q)
+  App (App (Con (Logical Or)) (dd -> p)) (dd -> q)
     -> "(" ++ p ++ " ∨ " ++ q ++ ")"
-  App (App (Con (Logical Imp)) (displayVs' i -> p)) (displayVs' i -> q)
+  App (App (Con (Logical Imp)) (dd -> p)) (dd -> q)
     -> "(" ++ p ++ " → " ++ q ++ ")"
-  App (App (Con (Logical Equals)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (Logical Equals)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " = " ++ n ++ ")"
-  App (App (Con (General Addi)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General Addi)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " + " ++ n ++ ")"
-  App (App (Con (General Mult)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General Mult)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " * " ++ n ++ ")"
-  App (App (Con (General Divi)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General Divi)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " / " ++ n ++ ")"
-  App (App (Con (General EqGen)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General EqGen)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-  App (App (Con (General EqRl)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (General EqRl)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-  App (Con (General Interp)) (displayVs' i -> u) -> "⟦" ++ u ++ "⟧"
-  App (App (Con (Special GTE)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (Con (General Interp)) (dd -> u) -> "⟦" ++ u ++ "⟧"
+  App (App (Con (Special GTE)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≥ " ++ n ++ ")"
-  App (App (Con (Special Upd)) (displayVs' i -> m)) (displayVs' i -> n)
+  App (App (Con (Special Upd)) (dd -> m)) (dd -> n)
     -> m ++ "∷" ++ n
-  App (displayVs' i -> m) n@(displayVs' i -> n') -> m ++ case n of
+  App (dd -> m) n@(dd -> n') -> m ++ case n of
                                                            Lam _ -> n'
                                                            Fst _ -> n'
                                                            Snd _ -> n'
                                                            _ -> "(" ++ n' ++ ")"
   Con (show -> c) -> c
-  Lam (displayVs' (i + 1) -> m) -> "(λ" ++ freshes !! i ++ "." ++ m ++ ")"
-  Fst (displayVs' i -> m) -> "(π₁ " ++ m ++ ")"
-  Snd (displayVs' i -> m) -> "(π₂ " ++ m ++ ")"
+  Lam t1 -> case fs of
+    fresh:rest -> "(λ" ++ fresh ++ "." ++ displayVs' rest (\case Get -> fresh; Weaken x -> ρ x) t1 ++ ")"
+    _ -> error "displayVs: ran out of fresh variables."
+  Fst (dd -> m) -> "(π₁ " ++ m ++ ")"
+  Snd (dd -> m) -> "(π₂ " ++ m ++ ")"
   TT -> "⋄"
-  Pair (displayVs' i -> m) (displayVs' i -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
+  Pair (dd -> m) (dd -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
 
 lft :: (α ∈ γ -> α ∈ δ) -> α ∈ (γ × β) -> α ∈ (δ × β)
 lft f = \case
