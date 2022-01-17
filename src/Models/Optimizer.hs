@@ -621,8 +621,12 @@ normalise = \case
   Cond c (normalise -> e) -> cond c e
   Integrate d (normalise -> e) -> integrate d e
   Add (normalise -> p1) (normalise -> p2) -> Add p1 p2
-  Div (normalise -> p1) (normalise -> p2) -> Div p1 p2
+  Div (normalise -> p1) (normalise -> p2) -> divide p1 p2
   Ret e -> Ret e
+
+divide :: P γ Rat -> P γ Rat -> P γ Rat
+divide (Cond c n) d = Cond c (divide n d) -- this exposes conditions to the integrate function.
+divide p1 p2 = Div p1 p2
 
 -- | Take typed descriptions of real numbers onto Maxima programs. 
 maxima :: (γ ⊢ 'R) -> P (Eval γ) Rat
