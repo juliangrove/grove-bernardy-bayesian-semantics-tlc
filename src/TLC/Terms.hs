@@ -164,6 +164,13 @@ reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
 clean :: γ ⊢ α -> γ ⊢ α
 clean = reduce1s . subEq
 
+showR :: Rational -> String
+showR (\x -> (numerator x, denominator x) -> (num, den))
+  = case (num, den) of
+      (0, _) -> "0"
+      (_, 1) -> show num
+      (_, _) -> "(" ++ show num ++ " / " ++ show den ++ ")"
+
 data Logical α where
   Tru :: Logical T
   Fal :: Logical T
@@ -198,7 +205,7 @@ data General α where
   Interp :: General (U ⟶ (Context ⟶ T))
 
 instance Show (General α) where
-  show (Incl x) = show x
+  show (Incl x) = showR x
   show Indi = "𝟙"
   show Addi = "(+)"
   show Mult = "(*)"

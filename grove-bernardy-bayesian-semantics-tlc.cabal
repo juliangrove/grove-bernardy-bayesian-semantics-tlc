@@ -13,7 +13,7 @@ build-type:          Simple
 library 
   exposed-modules: Examples.RSA
                  , Models.Optimizer
-                 , Models.RN
+                 -- , Models.RN
                  , TLC.Terms
   hs-source-dirs: src
   build-depends: base
