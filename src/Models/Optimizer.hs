@@ -448,7 +448,7 @@ mathematicaReturned v = \case
 
 showCond :: Vars γ -> Cond γ -> String
 showCond v = \case
-  c@(IsNegative c') -> "𝟙" <> (parens $ showExpr v c' <> " ≤ 0")
+  c@(IsNegative c') -> "Boole" <> (brackets $ showExpr v c' <> " ≤ 0")
   c@(IsZero c') -> "DiracDelta" ++ (brackets $ showExpr v c')
 
 parens :: String -> String
@@ -497,9 +497,8 @@ showP freshes@(f:fs) v = \case
     showP fs (\case Here -> f; There i -> v i) e ++
     (when cs $ f ++ "∈" ++
      braces (intercalate "∧" $ map (showCond (\case Here -> f; There i -> v i))
-             cs)) ++ ", " ++ f ++ (when (los ++ his)
-                                   (", " ++ showBounds v True los ++
-                                    ", " ++ showBounds v False his))
+              cs)) ++ ", " ++ f ++ ", " ++ showBounds v True los ++ ", " ++
+    showBounds v False his
   Cond c e -> showCond v c ++ " * " ++ showP freshes v e
 
 mathematicaP :: [String] -> Vars γ -> P γ Rat -> String
@@ -513,9 +512,8 @@ mathematicaP freshes@(f:fs) v = \case
     mathematicaP fs (\case Here -> f; There i -> v i) e ++
     (when cs $ f ++ "∈" ++
      braces (intercalate "∧" $ map (showCond (\case Here -> f; There i -> v i))
-             cs)) ++ ", " ++ (braces $ f ++ (when (los ++ his)
-                                   (", " ++ mathematicaBounds v True los ++
-                                    ", " ++ mathematicaBounds v False his)))
+             cs)) ++ ", " ++ (braces $ f ++ ", " ++ mathematicaBounds v True los
+                              ++ ", " ++ mathematicaBounds v False his)
   Cond c e -> showCond v c ++ " * " ++ mathematicaP freshes v e
 
 showProg :: P () Rat -> String
