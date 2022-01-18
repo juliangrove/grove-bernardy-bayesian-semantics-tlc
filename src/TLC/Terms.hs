@@ -199,6 +199,7 @@ data General α where
   Divi :: General (R ⟶ (R ⟶ R))
   Nml :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
   Uni :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
+  Leb :: General ((R ⟶ R) ⟶ R)
   EqGen :: Equality α => General (α ⟶ (α ⟶ R))
   EqRl :: General (R ⟶ (R ⟶ R))
   Utt :: Int -> General U

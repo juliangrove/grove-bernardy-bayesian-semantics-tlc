@@ -35,10 +35,8 @@ lessThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
 t `lessThan` u = isNegative (t `add` ((-1) *^ u))
 
 greaterThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
-greaterThan = flip lessThan
+t `greaterThan` u = u `lessThan` t
 
--- | @domainToConditions x₀ d@ creates the conditions corresponding to x₀ ∈ d.
-domainToConditions :: Expr γ Rat -> Domain γ Rat -> P γ Rat -> P γ Rat
 domainToConditions e0 = \case
   Domain [] [] [] -> id
   Domain (c:cs) los his ->
@@ -300,6 +298,8 @@ pattern Uniform x y f
   = Neu (NeuApp (NeuApp (NeuCon (General Uni))
                  (NFPair (Neu (NeuCon (General (Incl x))))
                   (Neu (NeuCon (General (Incl y)))))) f)
+pattern Lesbegue f
+  = Neu (NeuApp (NeuCon (General Leb)) f)
 pattern Divide x y
   = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
 
@@ -331,6 +331,10 @@ evalP' = \case
   Uniform x y f -> Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
                    (Ret $ RetPoly $
                     Poly (1 / (y - x)) [])
+                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+  Lesbegue f -> Integrate (Domain [] [] []) $ multP
+                   (Ret $ RetPoly $
+                    Poly 1 [])
                    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Neu (NeuVar (evalVar -> i)) -> Ret $ RetPoly $ Poly 0 [(1, [(i, 1)])]
   Divide x y -> Div (evalP' x) (evalP' y)
@@ -586,7 +590,10 @@ occurExpr = travExpr $ \case
   Here -> Nothing
   There x -> Just x
 
+pattern Zero = Ret (RetPoly (Poly 0 []))
+
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
+integrate d Zero = Zero
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   -- Nothing -> integrate d' e
   Nothing -> foldr cond (integrate d' e) cs
@@ -608,7 +615,13 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
 integrate d e = Integrate d e
 
+adding :: P γ Rat -> P γ Rat -> P γ Rat
+adding Zero x = x
+adding x Zero = x
+adding x y = Add x y
+
 cond :: Cond γ -> P γ Rat -> P γ Rat
+cond _ Zero = Zero
 cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
                      then Cond c (Cond c' e)
                      else Cond c' (cond c e)
@@ -618,11 +631,12 @@ normalise :: P γ Rat -> P γ Rat
 normalise = \case
   Cond c (normalise -> e) -> cond c e
   Integrate d (normalise -> e) -> integrate d e
-  Add (normalise -> p1) (normalise -> p2) -> Add p1 p2
+  Add (normalise -> p1) (normalise -> p2) -> adding p1 p2
   Div (normalise -> p1) (normalise -> p2) -> divide p1 p2
   Ret e -> Ret e
 
 divide :: P γ Rat -> P γ Rat -> P γ Rat
+divide Zero _ = Zero
 divide (Cond c n) d = Cond c (divide n d) -- this exposes conditions to the integrate function.
 divide p1 p2 = Div p1 p2
 
