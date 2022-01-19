@@ -346,7 +346,7 @@ showBounds :: Vars γ -> Bool -> [Expr γ Rat] -> ShowType -> String
 showBounds _ lo [] = \case
   Maxima -> (if lo then "-" else "") <> "inf"
   Mathematica -> (if lo then "-" else "") <> "Infinity"
-showBounds v lo xs = \case
+showBounds v lo (nub -> xs) = \case
   Maxima -> if lo
             then foldrAlt
                  (\x y -> "max(" ++ x ++ ", " ++ y ++ ")")
