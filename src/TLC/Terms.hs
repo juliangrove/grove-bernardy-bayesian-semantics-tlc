@@ -62,13 +62,14 @@ instance Equality R where
                                                      True -> Con $ General $ Incl 1
                                                      False -> Con $ General $ Incl 0
   equals (Con (Special Theta)) (Con (Special Theta)) = Con $ General $ Incl 1
-  equals x y = App (App (Con (General EqRl)) x) y 
+  equals x y = App (App (Con (General EqRl)) x) y
 instance Equality U where
   equals (Con (General (Utt i))) (Con (General (Utt j))) = case i == j of
                              True -> Con $ General $ Incl 1
                              False -> Con $ General $ Incl 0
-  equals (App (Con (General Cookies)) x) (App (Con (General Cookies)) y)
+  equals (App (Con (General Utt')) x) (App (Con (General Utt')) y)
     = App (App (Con (General EqRl)) x) y
+  equals _ _ = Con $ General $ Incl 0
 instance Equality Unit where
   equals TT TT = Con $ General $ Incl 1
 instance (Equality α, Equality β) => Equality (α × β) where
@@ -94,7 +95,11 @@ instance Equality (E ⟶ (Γ ⟶ Γ)) where
 instance Equality (Γ ⟶ E) where
   equals (Con (Special Sel)) (Con (Special Sel)) = Con $ General $ Incl 1
 
+u :: Int -> γ ⊢ 'U
 u i = Con $ General $ Utt i
+
+u' :: γ ⊢ 'R -> γ ⊢ 'U
+u' = App $ Con $ General Utt'
 
 vlad = Con $ Special Vlad
 height = Con $ Special Height
@@ -121,7 +126,7 @@ interp :: γ ⊢ U -> γ ⊢ T
 interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ
 interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad)
 
-interp (App (Con (General Cookies)) x) = App (App (≥) (App height vlad)) x
+interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
 
 subEq :: γ ⊢ α -> γ ⊢ α
 subEq = \case
@@ -207,7 +212,7 @@ data General α where
   EqGen :: Equality α => General (α ⟶ (α ⟶ R))
   EqRl :: General (R ⟶ (R ⟶ R))
   Utt :: Int -> General U
-  Cookies :: General (R ⟶ U)
+  Utt' :: General (R ⟶ U)
   Interp :: General (U ⟶ (Context ⟶ T))
 
 instance Show (General α) where
@@ -222,7 +227,7 @@ instance Show (General α) where
   show EqGen = "(≐)"
   show EqRl = "(≐)"
   show (Utt i) = "U" ++ show i
-  show Cookies = "Cookies"
+  show Utt' = "U"
   show Interp = "⟦⟧"
 
 data Special α where
