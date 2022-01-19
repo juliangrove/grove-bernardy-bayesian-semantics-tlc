@@ -97,35 +97,35 @@ l1 = Lam (k ⋆ Lam (
              factor' (App (distr (App s1 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
 
-l2 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
+l2 :: γ ⊢ (U ⟶ ((Context ⟶ 'R) ⟶ 'R))
 l2 = Lam (k ⋆ Lam (
              factor' (App (distr (App s2 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
 
-l3 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
+l3 :: γ ⊢ (U ⟶ ((Context ⟶ 'R) ⟶ 'R))
 l3 = Lam (k ⋆ Lam (
              factor' (App (distr (App s3 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
  
      
 -- | Pragmatic speaker
-s1 :: γ ⊢ (Context ⟶ ((U ⟶ R) ⟶ R))
+s1 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
 s1 = Lam (utts' ⋆ Lam (
              factor' (App (distr (App l0 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
 
-s2 :: γ ⊢ (Context ⟶ ((U ⟶ R) ⟶ R))
+s2 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
 s2 = Lam (utts' ⋆ Lam (
              factor' (App (distr (App l1 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
 
-s3 :: γ ⊢ (Context ⟶ ((U ⟶ R) ⟶ R))
+s3 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
 s3 = Lam (utts' ⋆ Lam (
              factor' (App (distr (App l2 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
 
 -- | Literal listener
-l0 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
+l0 :: γ ⊢ ('U ⟶ ((Context ⟶ 'R) ⟶ 'R))
 l0 = Lam (k ⋆ Lam (
              observe'
              (App (App (Con (General Interp)) (Var (Weaken Get))) (Var Get)) >>
@@ -146,10 +146,10 @@ test = distr $ uniform 0 10 ⋆ Lam (uniform 0 10 ⋆ Lam (η ((Con (General Add
 -- >>>  displayVs $ evalβ $ clean $ evalβ test
 -- (λx.Uniform(⟨0, 10⟩)(λy.Uniform(⟨0, 10⟩)(λz.((z + y) ≐ x))))
 
-utility' :: γ ⊢ (Context ⟶ (U ⟶ R))
+utility' :: γ ⊢ (Context ⟶ ('U ⟶ 'R))
 utility' = Lam (distr $ normalize $ App s1 (Var Get))
 
-utility :: Int -> γ ⊢ (Context ⟶ R)
+utility :: Int -> γ ⊢ (Context ⟶ 'R)
 utility n = Lam (App (App utility' (Var Get)) (u n))
 
 exp1 = Lam (App k $ Lam (App (utility 1) (App (updctx (Var Get)) (Var (Weaken Get)))))
