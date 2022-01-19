@@ -33,7 +33,7 @@ distr :: Equality α => γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ (α ⟶ 'R)
 distr p = Lam (App (wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))))
 
 k :: γ ⊢ ((Context ⟶ R) ⟶ R)
-k = normal 68 3
+k = uniform 0 100
   ⋆ Lam (normal 68 3
          ⋆ Lam
           (η (Pair
@@ -61,8 +61,8 @@ utts' = Lam
   (App (Con (General Addi)) (App (App (Con (General Mult)) (Con (General (Incl (1 % 2))))) (App (Var Get) (Con (General (Utt 1))))))
   (App (App (Con (General Mult)) (Con (General (Incl (1 % 2))))) (App (Var Get) (Con (General (Utt 2))))))
 
--- utts'' :: γ ⊢ ((U ⟶ R) ⟶ R)
--- utts'' = uniform 0 100 ⋆ Lam (η (u (Var Get)))
+utts'' :: γ ⊢ ((U ⟶ R) ⟶ R)
+utts'' = uniform 0 100 ⋆ Lam (η (App (Con (General (Cookies))) (Var Get)))
 
 updctx :: γ ⊢ Context -> γ ⊢ (R ⟶ Context)
 updctx k = Lam (Pair
@@ -113,9 +113,9 @@ l3 = Lam (k ⋆ Lam (
      
 -- | Pragmatic speaker
 s1 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
-s1 = Lam (utts' ⋆ Lam (
+s1 = Lam (utts'' ⋆ Lam (
              factor'
-             (App (App (Con (General Mult)) (App (distr (App l0 (Var Get))) (Var (Weaken Get)))) (App (distr (App l0 (Var Get))) (Var (Weaken Get)))) >>
+             (App (distr (App l0 (Var Get))) (Var (Weaken Get))) >>
              η (Var Get)))
 
 s2 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
@@ -153,15 +153,25 @@ test = distr $ uniform 0 10 ⋆ Lam (uniform 0 10 ⋆ Lam (η ((Con (General Add
 utility' :: γ ⊢ (Context ⟶ ('U ⟶ 'R))
 utility' = Lam (distr $ normalize $ App s1 (Var Get))
 
-utility :: Int -> γ ⊢ (Context ⟶ 'R)
-utility n = Lam (App (App utility' (Var Get)) (u n))
+utility :: γ ⊢ ('R ⟶ ('R ⟶ 'R))
+utility = Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ App s1 (App (updctx (Var Get)) (Var (Weaken (Weaken Get))))) (App (Con (General Cookies)) (Var (Weaken Get))))))
 
-exp1 = Lam (App k $ Lam (App (utility 1) (App (updctx (Var Get)) (Var (Weaken Get)))))
+-- exp1 = Lam (App k $ Lam (App (utility 1) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
-exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
+-- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
--- >>> mathematicaFun exp2
--- Boole[-1000 ≤ 0] * Boole[-1000 ≤ 0] * Boole[-1000 ≤ 0] * Boole[-1000 + x ≤ 0] * Boole[-1000 + x ≤ 0] * Boole[-1000 + x ≤ 0] * Integrate[Integrate[((((5000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * z^2) + ((68 / 9) * z) + ((-1 / 18) * x^2) + ((68 / 9) * x))]))) / ((Boole[(-1 * x) ≤ 0] * Boole[-1000 + y ≤ 0] * Boole[y + (-1 * x) ≤ 0] * Boole[(-1 * y) ≤ 0] * (((50000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * x^2) + ((68 / 9) * x))]))) + (Boole[-1000 + x ≤ 0] * Boole[-1000 + y ≤ 0] * Boole[(-1 * y) ≤ 0] * Boole[x + (-1 * y) ≤ 0] * (((50000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * x^2) + ((68 / 9) * x))])))), {z, -Infinity, Infinity}], {y, Max[x, Max[0, Max[0, -Infinity]]], Min[1000, Min[1000, Infinity]]}]
+
+-- >>> mathematicaFun $ utility
+-- <interactive>:1966:19-25: error:
+--     • Couldn't match type ‘'R ':-> 'R’ with ‘'R’
+--       Expected type: 'Unit ⊢ ('R ⟶ 'R)
+--         Actual type: 'Unit ⊢ ('R ⟶ ('R ⟶ 'R))
+--     • In the second argument of ‘($)’, namely ‘utility’
+--       In the expression: mathematicaFun $ utility
+--       In an equation for ‘it’: it = mathematicaFun $ utility
+
+-- >>> mathematicaFun' utility
+-- Boole[-100 ≤ 0] * Boole[(-1 * x) ≤ 0] * Boole[-100 + x ≤ 0] * Boole[(-1 * y) + x ≤ 0] * (Integrate[Integrate[(((10000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u) + ((-1 / 18) * y^2) + ((68 / 9) * y))])), {u, -Infinity, Infinity}], {z, 0, 100}]) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), {u, -Infinity, Infinity}], {z, 0, 100}])
 
 -- >>> displayVs $ evalβ $ l1
 -- (λx.(λy.Normal(⟨50, 4⟩)(λz.Normal(⟨68, 3⟩)(λu.((((1 / 2) * (Normal(⟨50, 4⟩)(λv.Normal(⟨68, 3⟩)(λw.(𝟙(⟦U1⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, v⟩, human⟩, (λx1.w)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, v⟩, human⟩, (λx1.w)⟩, v⟩ ≐ ⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λx1.u)⟩, v⟩)))) * (U1 ≐ x))) + ((1 / 2) * (Normal(⟨50, 4⟩)(λv.Normal(⟨68, 3⟩)(λw.(𝟙(⟦U2⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, v⟩, human⟩, (λx1.w)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, v⟩, human⟩, (λx1.w)⟩, v⟩ ≐ ⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λx1.u)⟩, v⟩)))) * (U2 ≐ x)))) * y(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩))))))
@@ -174,9 +184,33 @@ someExample = distr $ normalize $ App l1 (u 1) ⋆ Lam (η (App (hmorph (θ)) (V
 
 -- >>> :t someExample
 -- someExample :: γ ⊢ ('R ⟶ 'R)
-                                                    
--- >>> mathematicaFun $ distr $ normalize $ App l1 (u 1) ⋆ Lam (η (App (hmorph (θ)) (Var Get)))
--- Boole[-1000 ≤ 0] * Boole[(-1 * x) ≤ 0] * Boole[-1000 + x ≤ 0] * Boole[-1000 + x ≤ 0] * Boole[(-1 * x) ≤ 0] * Integrate[((((5000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * y^2) + ((68 / 9) * y) + ((-1 / 18) * y^2) + ((68 / 9) * y))]))) / (Boole[-1000 ≤ 0] * Boole[-1000 ≤ 0] * Boole[-1000 ≤ 0] * Integrate[Integrate[(((5000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), {u, Max[0, Max[z, -Infinity]], Infinity}], {z, Max[0, Max[0, -Infinity]], Min[1000, Min[1000, Infinity]]}]), {y, Max[0, Max[x, -Infinity]], Infinity}]
+
+test1 = mathematicaFun $ distr $ App l0 (App (Con (General Cookies)) (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+
+-- >>> test1
+-- Boole[65 + (-1 * x) ≤ 0] * Integrate[(((10000000000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * y^2) + ((68 / 9) * y) + ((-1 / 18) * x^2) + ((68 / 9) * x))])), {y, -Infinity, Infinity}]
+        
+-- >>> mathematicaFun $ distr $ App l0 (App (Con (General (Cookies)) (Con (General (Incl 65))))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- <interactive>:1159:35-89: error:
+--     • Couldn't match expected type ‘'Unit ⊢ 'U’
+--                   with actual type ‘(γ2 ⊢ α10) -> γ2 ⊢ α0’
+--     • Probable cause: ‘App’ is applied to too few arguments
+--       In the second argument of ‘App’, namely
+--         ‘(App (Con (General (Cookies)) (Con (General (Incl 65)))))’
+--       In the first argument of ‘(⋆)’, namely
+--         ‘App l0 (App (Con (General (Cookies)) (Con (General (Incl 65)))))’
+--       In the second argument of ‘($)’, namely
+--         ‘App l0 (App (Con (General (Cookies)) (Con (General (Incl 65)))))
+--            ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))’
+-- <interactive>:1159:40-88: error:
+--     • Couldn't match expected type ‘(γ1 ⊢ 'R) -> γ2 ⊢ (α10 ⟶ α0)’
+--                   with actual type ‘γ0 ⊢ ('R ':-> 'U)’
+--     • The function ‘Con’ is applied to two arguments,
+--       but its type ‘Con ('R ':-> 'U) -> γ0 ⊢ ('R ':-> 'U)’ has only one
+--       In the first argument of ‘App’, namely
+--         ‘(Con (General (Cookies)) (Con (General (Incl 65))))’
+--       In the second argument of ‘App’, namely
+--         ‘(App (Con (General (Cookies)) (Con (General (Incl 65)))))’
 
 -- >>> displayVs $ clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
 -- 1 / 1

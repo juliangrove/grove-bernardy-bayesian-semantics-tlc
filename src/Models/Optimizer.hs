@@ -224,6 +224,11 @@ pattern InEqVars i j = Neu (NeuApp (NeuCon (General Indi))
                             (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
                                           (Neu (NeuVar i)))
                                   (Neu (NeuVar j)))))
+pattern InEq :: NF γ 'R -> NF γ 'R -> NF γ 'R
+pattern InEq x y = Neu (NeuApp (NeuCon (General Indi))
+                            (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
+                                          x)
+                                  y)))
 pattern Normal :: Rat -> Rat -> NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Normal x y f = Neu (NeuApp (NeuApp (NeuCon (General Nml))
                                     (NFPair (Neu (NeuCon (General (Incl x))))
@@ -236,6 +241,7 @@ pattern Lesbegue :: NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Lesbegue f = Neu (NeuApp (NeuCon (General Les)) f)
 pattern Divide :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
+pattern NNCon x = Neu (NeuCon (General (Incl x)))
 
 evalP :: NF 'Unit 'R -> P () Rat
 evalP = evalP'
@@ -248,7 +254,7 @@ onePoly = Poly 1 []
 
 evalP' :: NF γ 'R -> P (Eval γ) Rat
 evalP' = \case
-  Neu (NeuCon (General (Incl x))) -> Ret $ Poly x []
+  NNCon x -> Ret $ Poly x []
   Neu (NeuApp (NeuApp (NeuCon (General EqRl))
                  (Adds (NNVar i) (NNVar j))) (NNVar k))
     -> Cond (IsZero $ Expr 0 [(1, i), (1, j), (-1, k)]) $
@@ -257,6 +263,7 @@ evalP' = \case
     Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ Poly 1 []
   InEqVars (evalVar -> i) (evalVar -> j) ->    
     Cond (IsNegative $ Expr 0 [(-1, i), (1, j)]) $ Ret $ Poly 1 []
+  InEq (NNVar i) (NNCon x) ->  Cond (IsNegative $ Expr x [(-1, i)]) $ Ret $ Poly 1 []
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> multP x y
   Normal x y f -> Integrate full $ multP
@@ -534,7 +541,7 @@ divide p1 p2 = Div p1 p2
 maxima :: (γ ⊢ 'R) -> P (Eval γ) Rat
 maxima = normalise . evalP' . normalForm . clean . evalβ
 
-maximaPrint :: 'Unit
+-- maximaPrint :: 'Unit?m
 
 -- | Take typed descriptions of real numbers onto Mathematica programs.
 mathematica :: 'Unit ⊢ 'R -> IO ()
@@ -544,6 +551,13 @@ mathematica = mathematica' freshes (\case) . maxima
 mathematicaFun :: 'Unit ⊢ ('R ⟶ 'R) -> IO ()
 mathematicaFun = mathematica' fs (\case Here -> f; There _ -> error "mathematicaFun: are you trying to access the end of context? (Unit)") . maxima . absInversion
   where (f:fs) = freshes
+
+mathematicaFun' :: 'Unit ⊢ ('R ⟶ ('R ⟶ R)) -> IO ()
+mathematicaFun' = mathematica' fs (\case Here -> f; There Here -> f'; There (There _) -> error "mathematicaFun: are you trying to access the end of context? (Unit)") . maxima . absInversion . absInversion
+  where (f:f':fs) = freshes
+
+-- >>> :t absInversion
+-- absInversion :: (γ ⊢ ('R ⟶ 'R)) -> (γ × 'R) ⊢ 'R
 
 -- Domain without restriction
 full :: Domain γ x

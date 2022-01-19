@@ -67,6 +67,8 @@ instance Equality U where
   equals (Con (General (Utt i))) (Con (General (Utt j))) = case i == j of
                              True -> Con $ General $ Incl 1
                              False -> Con $ General $ Incl 0
+  equals (App (Con (General Cookies)) x) (App (Con (General Cookies)) y)
+    = App (App (Con (General EqRl)) x) y
 instance Equality Unit where
   equals TT TT = Con $ General $ Incl 1
 instance (Equality α, Equality β) => Equality (α × β) where
@@ -118,6 +120,8 @@ exists φ = App (Con (Logical Exists)) φ
 interp :: γ ⊢ U -> γ ⊢ T
 interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ
 interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad)
+
+interp (App (Con (General Cookies)) x) = App (App (≥) (App height vlad)) x
 
 subEq :: γ ⊢ α -> γ ⊢ α
 subEq = \case
@@ -190,7 +194,7 @@ instance Show (Logical α) where
   show Forall = "∀"
   show Exists = "∃"
   show Equals = "(=)"
-  
+ 
 data General α where
   Incl :: Rational -> General R
   Indi :: General (T ⟶ R)
@@ -203,6 +207,7 @@ data General α where
   EqGen :: Equality α => General (α ⟶ (α ⟶ R))
   EqRl :: General (R ⟶ (R ⟶ R))
   Utt :: Int -> General U
+  Cookies :: General (R ⟶ U)
   Interp :: General (U ⟶ (Context ⟶ T))
 
 instance Show (General α) where
@@ -217,6 +222,7 @@ instance Show (General α) where
   show EqGen = "(≐)"
   show EqRl = "(≐)"
   show (Utt i) = "U" ++ show i
+  show Cookies = "Cookies"
   show Interp = "⟦⟧"
 
 data Special α where
@@ -262,7 +268,7 @@ data γ ⊢ α where
 
 infixl `App`
 
-absInversion :: γ ⊢ ('R ⟶ 'R) -> (γ × 'R) ⊢ 'R
+absInversion :: γ ⊢ ('R ⟶ α) -> (γ × 'R) ⊢ α
 absInversion (Lam f) = f
 absInversion t = App (wkn t) (Var Get)
 
@@ -282,7 +288,7 @@ data NF γ α where
   NFPair :: NF γ α -> NF γ β -> NF γ (α × β)
   Neu :: Neutral γ α -> NF γ α
 
-absInversionNF :: NF 'Unit ('R ⟶ 'R) -> NF ('Unit × 'R) 'R
+absInversionNF :: NF γ ('R ⟶ α) -> NF (γ × 'R) α
 absInversionNF (NFLam f) = f
 absInversionNF (Neu t) = Neu (NeuApp (renameNeu Weaken t) (Neu (NeuVar Get)))
 
