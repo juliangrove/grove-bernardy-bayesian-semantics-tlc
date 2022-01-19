@@ -199,7 +199,7 @@ data General α where
   Divi :: General (R ⟶ (R ⟶ R))
   Nml :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
   Uni :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
-  Leb :: General ((R ⟶ R) ⟶ R)
+  Les :: General ((R ⟶ R) ⟶ R)
   EqGen :: Equality α => General (α ⟶ (α ⟶ R))
   EqRl :: General (R ⟶ (R ⟶ R))
   Utt :: Int -> General U
@@ -213,6 +213,7 @@ instance Show (General α) where
   show Divi = "(/)"
   show Nml = "Normal"
   show Uni = "Uniform"
+  show Les = "Lesbegue"
   show EqGen = "(≐)"
   show EqRl = "(≐)"
   show (Utt i) = "U" ++ show i
