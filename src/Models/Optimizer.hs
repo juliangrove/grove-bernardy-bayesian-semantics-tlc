@@ -51,7 +51,7 @@ data Available α γ where
 deriving instance Eq (Available α γ)
 deriving instance Show (Available α γ)
 
-data Expr γ α = Expr α [(α, Available α γ)]
+data Expr γ α = Expr α [(α, Available α γ)] deriving (Eq)
   -- Linear combination. List of coefficients and variables (α is a vector
   -- space).
   -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@.
@@ -120,6 +120,7 @@ data Cond γ = IsNegative { condExpr :: (Expr γ Rat) }
             | IsZero { condExpr :: (Expr γ Rat) }
               -- Meaning of this constructor: expression = 0
               -- Example: u = v is represented by @IsZero [(1, u), (-1, v)]@
+   deriving (Eq)
 
 -- | Restrict the bounds by moving the bounds. Also return conditions that
 -- ensure that the bounds are in the right order.
@@ -506,6 +507,7 @@ adding x y = Add x y
 
 cond :: Cond γ -> P γ Rat -> P γ Rat
 cond _ (Ret z) | isZero z = Ret $ zeroPoly
+cond c (Cond c' e) | c == c' = cond c e
 cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
                      then Cond c (Cond c' e)
                      else Cond c' (cond c e)
