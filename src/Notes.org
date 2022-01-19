@@ -1,0 +1,25 @@
+
+** Case 1
+- prior for θ uniform [0,1000]
+- prior height distribution normal(68,34)
+- possible utterances (vlad tall, vlad not tall)
+
+- l0 distributions vlad's height not noticably different from prior
+- l0 posterior for θ is "s curves" (this is because the listener expects the
+  individual to be about average, so if the utterance is true, the
+  prior must be either below (respectively above) average).
+
+- l1 posterior for vlad's height has nearly the same average, but a
+  smaller variance than the prior. This is because the posterior is
+  still very much unknown--- but precisely in a way that makes it
+  likely.
+
+- l0 posterior for θ is "s curve", but this time with sharper fall off.
+  
+** Case 2
+- prior for θ distribution normal(68,34)
+- prior height distribution normal(68,34)
+- possible utterances (vlad tall, vlad not tall)
+
+(Not normalized) pdf of l0 posterior for θ:
+
