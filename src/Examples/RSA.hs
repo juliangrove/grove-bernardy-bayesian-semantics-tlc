@@ -140,10 +140,7 @@ utility = Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ App s1 (App (up
 -- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
 -- >>> mathematicaFun' utility
--- Boole[-100 ≤ 0] * Boole[(-1 * x) ≤ 0] * Boole[-100 + x ≤ 0] * Boole[(-1 * y) + x ≤ 0] * (Integrate[Integrate[(((10000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u) + ((-1 / 18) * y^2) + ((68 / 9) * y))])), {u, -Infinity, Infinity}], {z, 0, 100}]) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), {u, -Infinity, Infinity}], {z, 0, 100}])
-
--- >>> displayVs $ evalβ $ l1
--- (λx.(λy.Uniform(⟨0, 100⟩)(λz.Normal(⟨68, 3⟩)(λu.(Uniform(⟨0, 100⟩)(λv.(Uniform(⟨0, 100⟩)(λw.Normal(⟨68, 3⟩)(λx1.(𝟙(⟦U(v)⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, w⟩, human⟩, (λy1.x1)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, w⟩, human⟩, (λy1.x1)⟩, v⟩ ≐ ⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λy1.u)⟩, v⟩)))) * (U(v) ≐ x))) * y(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩))))))
+-- Boole[-100 ≤ 0] * Boole[(-1 * x) ≤ 0] * Boole[-100 + x ≤ 0] * Boole[(-1 * y) + x ≤ 0] * (Integrate[Integrate[(((10000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u) + ((-1 / 18) * y^2) + ((68 / 9) * y))])), u, -Infinity, Infinity], z, 0, 100]) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), u, -Infinity, Infinity], z, 0, 100])
 
 -- >>> displayVs $ evalβ $ s1
 -- (λx.(λy.Uniform(⟨0, 100⟩)(λz.(Uniform(⟨0, 100⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩ ≐ x)))) * y(U(z))))))
@@ -160,11 +157,11 @@ test1 = mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (
 -- 1
 
 -- >>> :set -XLambdaCase -XEmptyCase -XTypeApplications -XDataKinds
--- >>> mathematicaFun $ distr $ normalize $ App l0 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- Boole[(-1 * x) ≤ 0] * Integrate[((((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * x^2) + ((68 / 9) * x))]))) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), {u, z, Infinity}], {z, 0, 100}]), {y, 0, Min[x, 100]}]
+-- >>> latexFun $ distr $ normalize $ App l0 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- Boole[(-1 * x) ≤ 0] * \int_{0}^{Min[x, 100]}\frac{(((1000000000 / 751988482389) * e^{((-2312 / 9) + ((-1 / 18) * x^2) + ((68 / 9) * x))}))}{\int_{0}^{100}\int_{z}^{\infty}(((1000000000 / 751988482389) * e^{((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))}))\,du\,dz}\,dy
 
 -- >>> mathematicaFun $ distr $ App l1 (u 1) ⋆ Lam (η (App (hmorph θ) (Var Get)))
 -- (0)
 
 -- >>> mathematicaFun $ evalβ $ distr $ normal 0 10 ⋆ Lam (normal 0 10 ⋆ Lam (η (App (App (Con (General Addi)) (Var Get)) (Var (Weaken Get)))))
--- Integrate[(((100000000000000000000 / 62831853071745707016369) * Exp[(((-1 / 200) * y^2) + ((-1 / 200) * y^2) + ((1 / 200) * y * x) + ((1 / 200) * x * y) + ((-1 / 200) * x^2))])), {y, -Infinity, Infinity}]
+-- Integrate[(((100000000000000000000 / 62831853071745707016369) * Exp[(((-1 / 100) * y^2) + ((1 / 200) * y * x) + ((1 / 200) * x * y) + ((-1 / 200) * x^2))])), {y, -Infinity, Infinity}]

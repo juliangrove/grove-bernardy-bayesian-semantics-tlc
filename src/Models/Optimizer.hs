@@ -51,17 +51,26 @@ data Available α γ where
 deriving instance Eq (Available α γ)
 deriving instance Show (Available α γ)
 
-data Expr γ α = Expr α [(α, Available α γ)] deriving (Eq)
+data Expr γ α = Expr α [(α, Available α γ)] deriving Eq
   -- Linear combination. List of coefficients and variables (α is a vector
   -- space).
   -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@.
 
 data Monomial γ α = Mono { monoCoef :: α,
                            monoVars :: [(Available α γ, α)],
-                           monoExponential :: Polynomial γ α } deriving Eq
+                           monoExponential :: Polynomial γ α }
   -- E.g., @Mono c [(x, c1), (y, c2)] p@ represents c * x^c1 * y^c2 * exp(p).
 
-data Polynomial γ α = Poly α [Monomial γ α] deriving Eq
+same :: Eq α => [α] -> [α] -> Bool
+same xs ys = and $ xs >>= \x -> ys >>= \y -> [x `elem` ys && y `elem` xs]
+
+instance Eq α => Eq (Monomial γ α) where
+  Mono c vs e == Mono c' vs' e' = c == c' && vs `same` vs' && e == e'
+
+data Polynomial γ α = Poly α [Monomial γ α]
+
+instance Eq α => Eq (Polynomial γ α) where
+  Poly c ms == Poly c' ms' = c == c' && ms `same` ms'
 
 type Returned γ α = Polynomial γ α
 
@@ -72,6 +81,16 @@ multConst c (Poly c1 cs)
       Mono c' xs e : cs' -> case multConst c (Poly c1 cs') of
                               Poly c1' cs'' ->
                                 Poly c1' ((Mono (c * c') xs e) : cs'')
+
+compactMons :: (Num α, Eq α) => [Monomial γ α] -> [Monomial γ α]
+compactMons = \case
+  [] -> []
+  m@(Mono c xs e) : (compactMons -> ms) ->
+    if (xs, e) `elem` (map (\(Mono _ xs' e') -> (xs', e')) ms)
+    then [ Mono (c + c') xs' e'
+         | Mono c' xs' e' <- ms, xs' `same` xs, e' == e' ] ++
+         filter (\(Mono _ xs' e') -> not (xs' `same` xs) || e' /= e) ms
+    else Mono c xs e : ms
 
 compactVars :: (Num α, Eq α) => [(Available α γ, α)] -> [(Available α γ, α)]
 compactVars = \case
@@ -109,8 +128,8 @@ c *^ Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c', v) <- xs ]
 add :: Num α => Expr γ α -> Expr γ α -> Expr γ α
 add (Expr c1 xs1) (Expr c2 xs2) = Expr (c1 + c2) (xs1 ++ xs2)
 
-addPoly :: Num α => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
-addPoly (Poly c1 cs1) (Poly c2 cs2) = Poly (c1 + c2) $ cs1 ++ cs2
+addPoly :: (Num α, Eq α) => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
+addPoly (Poly c1 cs1) (Poly c2 cs2) = Poly (c1 + c2) $ compactMons $ cs1 ++ cs2
 
 zero = Expr 0 []
 
@@ -330,6 +349,18 @@ showPoly v (Poly k0 cs) = \case
                           ++ [ "Exp[" ++ showPoly v e Maxima ++"]"
                              | not (isZero e) ]
                  | Mono c xs e <- cs ]
+  LaTeX -> parens $ intercalate " + " $
+           (if k0 /= 0 || cs == [] then (showR k0 :) else id) $
+           filter (/= "")
+           [ case c of
+               0 -> ""
+               _ -> parens $ intercalate " * " $ 
+                    (if c /= 1 then (showR c :) else id) 
+                    [ v x ++ (case c' of
+                                1 -> ""
+                                _ -> "^" ++ showR c') | (x, c') <- xs ]
+                    ++ [ "e^{" ++ showPoly v e LaTeX ++"}" | not (isZero e) ]
+           | Mono c xs e <- cs ]
 
 showCond :: Vars γ -> Cond γ -> String
 showCond v = \case
@@ -353,6 +384,7 @@ showBounds :: Vars γ -> Bool -> [Expr γ Rat] -> ShowType -> String
 showBounds _ lo [] = \case
   Maxima -> (if lo then "-" else "") <> "inf"
   Mathematica -> (if lo then "-" else "") <> "Infinity"
+  LaTeX -> (if lo then "-" else "") <> "\\infty"
 showBounds v lo (nub -> xs) = \case
   Maxima -> if lo
             then foldrAlt
@@ -372,6 +404,15 @@ showBounds v lo (nub -> xs) = \case
                       (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
                       "Infinity" $
                       map (showExpr v) xs
+  LaTeX -> if lo
+           then foldrAlt
+                (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
+                "-\\infty" $
+                map (showExpr v) xs
+           else foldrAlt
+                (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
+                "\\infty" $
+                map (showExpr v) xs
 
 when :: [a] -> [Char] -> [Char]
 when [] _ = ""
@@ -382,34 +423,29 @@ showP freshes@(f:fs) v = \case
   Ret e -> showPoly v e
   Add p1 p2 -> \st -> "(" ++ showP freshes v p1 st ++ ") + (" ++
                       showP freshes v p2 st ++ ")"
-  Div p1 p2 -> \st -> "(" ++ showP freshes v p1 st ++ ") / (" ++
-                      showP freshes v p2 st ++ ")"
+  Div p1 p2 -> \st -> case st of
+                        LaTeX -> "\\frac{" ++ showP freshes v p1 LaTeX ++
+                                 "}{" ++ showP freshes v p2 LaTeX ++ "}"
+                        _ -> "(" ++ showP freshes v p1 st ++ ") / (" ++
+                             showP freshes v p2 st ++ ")"
   Integrate (Domain cs los his) e ->
-    \st -> (\rest -> case st of
-                       Maxima -> "integrate" ++ parens rest
-                       Mathematica -> "Integrate" ++ brackets rest) $
-           showP fs (\case Here -> f; There i -> v i) e st ++
-           (when cs $ f ++ "∈" ++
-            braces (intercalate "∧" $ map (showCond (\case Here -> f; There i -> v i))
-                    cs)) ++ ", " ++ f ++ ", " ++ showBounds v True los Maxima ++ ", " ++
-           showBounds v False his Maxima
+    \st -> case st of
+             LaTeX -> "\\int_{" ++ showBounds v True los LaTeX ++ "}^{" ++
+                      showBounds v False his LaTeX ++ "}" ++
+                      showP fs (\case Here -> f; There i -> v i) e LaTeX ++
+                      "\\,d" ++ f 
+             _ -> (\rest -> case st of
+                              Maxima -> "integrate" ++ parens rest
+                              Mathematica -> "Integrate" ++ brackets rest) $
+                  showP fs (\case Here -> f; There i -> v i) e st ++
+                  (when cs $ f ++ "∈" ++
+                   braces (intercalate "∧" $ map (showCond (\case
+                                                               Here -> f
+                                                               There i -> v i))
+                           cs)) ++ ", " ++ f ++ ", " ++
+                  showBounds v True los st ++ ", " ++
+                  showBounds v False his st
   Cond c e -> \st -> showCond v c ++ " * " ++ showP freshes v e st
-
-mathematicaP :: [String] -> Vars γ -> P γ Rat -> String
-mathematicaP freshes@(f:fs) v = \case
-  Ret e -> showPoly v e Mathematica
-  Add p1 p2 -> "(" ++ mathematicaP freshes v p1 ++ ") + (" ++
-               mathematicaP freshes v p2 ++ ")"
-  Div p1 p2 -> "(" ++ mathematicaP freshes v p1 ++ ") / (" ++
-               mathematicaP freshes v p2 ++ ")"
-  Integrate (Domain cs los his) e -> ("Integrate" ++) $ brackets $
-    mathematicaP fs (\case Here -> f; There i -> v i) e ++
-    (when cs $ f ++ "∈" ++
-     braces (intercalate "∧" $ map (showCond (\case Here -> f; There i -> v i))
-             cs)) ++ ", " ++ (braces $ f ++ ", " ++
-                              showBounds v True los Mathematica ++ ", " ++
-                              showBounds v False his Mathematica)
-  Cond c e -> showCond v c ++ " * " ++ mathematicaP freshes v e
 
 showProg :: P () Rat -> ShowType -> String
 showProg = showP freshes (\case)
@@ -421,7 +457,10 @@ instance Show (P () Rat) where
   show = flip showProg Maxima
 
 mathematica' :: [String] -> Vars γ -> P γ Rat -> IO ()
-mathematica' fs vars = putStrLn . mathematicaP fs vars
+mathematica' fs vars = putStrLn . flip (showP fs vars) Mathematica
+
+latex' :: [String] -> Vars γ -> P γ Rat -> IO ()
+latex' fs vars = putStrLn . flip (showP fs vars) LaTeX
 
 type Solution γ d = (Ordering, Expr γ d)
 
@@ -552,6 +591,10 @@ mathematicaFun :: 'Unit ⊢ ('R ⟶ 'R) -> IO ()
 mathematicaFun = mathematica' fs (\case Here -> f; There _ -> error "mathematicaFun: are you trying to access the end of context? (Unit)") . maxima . absInversion
   where (f:fs) = freshes
 
+latexFun :: 'Unit ⊢ ('R ⟶ 'R) -> IO ()
+latexFun = latex' fs (\case Here -> f; There _ -> error "latexFun: are you trying to access the end of context? (Unit)") . maxima . absInversion
+  where (f:fs) = freshes
+
 mathematicaFun' :: 'Unit ⊢ ('R ⟶ ('R ⟶ R)) -> IO ()
 mathematicaFun' = mathematica' fs (\case Here -> f; There Here -> f'; There (There _) -> error "mathematicaFun: are you trying to access the end of context? (Unit)") . maxima . absInversion . absInversion
   where (f:f':fs) = freshes
@@ -618,23 +661,23 @@ example2 = Integrate full $
            Ret $ Poly 0 [var Here]
 
 -- >>> example2
--- integrate(integrate(DiracDelta[4 + (2 * x) + (-1 * y)] * ((y)), y, max(1 + x, -inf), inf), x, -inf, inf)
+-- integrate(integrate(DiracDelta[4 + (2 * x) + (-1 * y)] * ((y)), y, 1 + x, inf), x, -inf, inf)
 
 -- >>> normalise example2
--- integrate((4.0 + (2.0 * x)), x, max(-3.0, -inf), inf)
+-- integrate(((4) + (2 * x)), x, -3, inf)
 
 example3 :: P () Rat
 example3 = Integrate full $
            Integrate full $
            Cond (IsNegative (Expr 3 [(-1, Here)])) $
            Cond (IsZero (Expr 4 [(1, (There Here)), (-1, Here)])) $
-           Ret $ expPoly 2 $ Poly 2 [Mono 1 [(Here, 2), (There Here, 1)] zeroPoly]
+           Ret $ Poly 2 $ compactMons [Mono 1 [(Here, 2), (There Here, 1)] zeroPoly, Mono 1 [(Here, 2), (There Here, 1)] zeroPoly]
 
 -- >>> example3
--- integrate(integrate(Boole[3 + (-1 * y) ≤ 0] * DiracDelta[4 + x + (-1 * y)] * (4 + (2 * y^2 * x) + (y^2 * x * y^2 * x) + (2 * y^2 * x)), y, -inf, inf), x, -inf, inf)
+-- integrate(integrate(Boole[3 + (-1 * y) ≤ 0] * DiracDelta[4 + x + (-1 * y)] * (2 + (2 * y^2 * x)), y, -inf, inf), x, -inf, inf)
 
--- >>> normalise example3
--- integrate(((16) + (4 * x) + (x * x) + (4 * x)), x, max(-1, -inf), inf)
+-- >>> example3
+-- <interactive>:1154:2-9: error: Variable not in scope: example3
 
 example4 :: P () Rat
 example4 = Integrate full $
@@ -644,29 +687,3 @@ example4 = Integrate full $
            Ret $ Poly 0 [Mono 1 [] (Poly 0 [Mono 1 [(Here, 2)] zeroPoly,
                                             Mono 1 [(Here, 1)] zeroPoly])]
 
--- >>> example4
--- integrate(integrate(Boole[3 + (-1 * y) ≤ 0] * DiracDelta[x + (-1 * y)] * ((exp(((y^2) + (y))))), y, -inf, inf), x, -inf, inf)
-
--- >>> normalise example4
--- integrate(((Exp[((x * x) + (x))])), x, max(3, -inf), inf)
-
--- example5 :: Returned () Rat
--- example5 = Ret $ Poly 2 [(1, Poly 2 [(1, [(Here, 1)]), (2, [(Here, 1)])])]
-
--- example6 :: Returned ((), Rat) Rat
--- example6 = RetExps $ Exps 1 [(1, Poly 2 [(1, [(Here, 2)]), (1, [(Here, 1)])])]  
-
--- >>> Integrate full $ multP (Ret example5) $ Integrate full $ wkP $ Ret example6
--- <interactive>:3173:30-37: error:
---     • Variable not in scope: example5 :: Returned (γ, Rat) Rat
---     • Perhaps you meant one of these:
---         ‘example’ (line 570), ‘example1’ (line 582), ‘example2’ (line 593)
--- <interactive>:3173:69-76: error:
---     • Variable not in scope: example6 :: Returned (γ, Rat) Rat
---     • Perhaps you meant one of these:
---         ‘example’ (line 570), ‘example1’ (line 582), ‘example2’ (line 593)
-
--- integrate((2.0 + exp(x^2.0 + x) + (2.0 * exp(2.0 + x^2.0 + x)) + exp(2.0 + x^2.0 + x + x^2.0 + x)), x)
-
--- >>> Integrate full $ Ret $ expReturned 3 $ Poly 1 [(3,[(Here, 2)])] :: P () Rat
--- integrate((1 / 1 + (3 / 1 * x^2 / 1) + (9 / 1 * x^2 / 1*x^2 / 1) + (3 / 1 * x^2 / 1) + (9 / 1 * x^2 / 1*x^2 / 1) + (27 / 1 * x^2 / 1*x^2 / 1*x^2 / 1) + (9 / 1 * x^2 / 1*x^2 / 1) + (3 / 1 * x^2 / 1)), x)
