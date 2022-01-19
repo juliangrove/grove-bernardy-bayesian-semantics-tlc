@@ -534,6 +534,8 @@ divide p1 p2 = Div p1 p2
 maxima :: (γ ⊢ 'R) -> P (Eval γ) Rat
 maxima = normalise . evalP' . normalForm . clean . evalβ
 
+maximaPrint :: 'Unit
+
 -- | Take typed descriptions of real numbers onto Mathematica programs.
 mathematica :: 'Unit ⊢ 'R -> IO ()
 mathematica = mathematica' freshes (\case) . maxima
