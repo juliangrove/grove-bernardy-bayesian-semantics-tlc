@@ -338,26 +338,30 @@ brackets x = "[" ++ x ++ "]"
 braces :: String -> String
 braces x = "{" ++ x ++ "}"
 
+foldrAlt :: (p -> p -> p) -> p -> [p] -> p
+foldrAlt _ k [] = k
+foldrAlt f _ xs = foldr1 f xs
+
 showBounds :: Vars γ -> Bool -> [Expr γ Rat] -> ShowType -> String
 showBounds _ lo [] = \case
   Maxima -> (if lo then "-" else "") <> "inf"
   Mathematica -> (if lo then "-" else "") <> "Infinity"
 showBounds v lo xs = \case
   Maxima -> if lo
-            then foldr
+            then foldrAlt
                  (\x y -> "max(" ++ x ++ ", " ++ y ++ ")")
                  "-inf" $
                  map (showExpr v) xs
-            else foldr
+            else foldrAlt
                  (\x y -> "min(" ++ x ++ ", " ++ y ++ ")")
                  "inf" $
                  map (showExpr v) xs
   Mathematica -> if lo
-                 then foldr
+                 then foldrAlt
                       (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
                       "-Infinity" $
                       map (showExpr v) xs
-                 else foldr
+                 else foldrAlt
                       (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
                       "Infinity" $
                       map (showExpr v) xs
