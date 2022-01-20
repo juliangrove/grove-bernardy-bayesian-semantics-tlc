@@ -434,17 +434,17 @@ showP freshes@(f:fs) v = \case
                       showBounds v False his LaTeX ++ "}" ++
                       showP fs (\case Here -> f; There i -> v i) e LaTeX ++
                       "\\,d" ++ f 
-             _ -> (\rest -> case st of
-                              Maxima -> "integrate" ++ parens rest
-                              Mathematica -> "Integrate" ++ brackets rest) $
-                  showP fs (\case Here -> f; There i -> v i) e st ++
+             _ -> (\(integrand,dom) -> case st of
+                              Maxima -> "integrate" ++ parens (integrand ++ ", " ++ dom)
+                              Mathematica -> "Integrate" ++ brackets (integrand ++ ", " ++ braces dom)) $
+                  (showP fs (\case Here -> f; There i -> v i) e st,
                   (when cs $ f ++ "∈" ++
                    braces (intercalate "∧" $ map (showCond st (\case
                                                                Here -> f
                                                                There i -> v i))
-                           cs)) ++ ", " ++ f ++ ", " ++
+                           cs)) ++ f ++ ", " ++
                   showBounds v True los st ++ ", " ++
-                  showBounds v False his st
+                  showBounds v False his st)
   Cond c e -> \st -> showCond st v c ++ " * " ++ showP freshes v e st
 
 showProg :: P () Rat -> ShowType -> String
