@@ -23,6 +23,53 @@
 
 (Not normalized) pdf of l0 posterior for θ:
 
+* Approximation of normal distribution using quartic formula
+
+#+begin_src maxima :results output
+a : sqrt(7)*sigma;
+A : 15/16 / a^5 * (x-mu-a)^2*(x-mu+a)^2;
+
+print("zeros",solve(A,x));
+
+D : diff(A,x);
+DD : diff(D,x);
+
+print("extrema",solve(D,x));
+
+print("value at mu:",at(A,[x=mu]));
+print("formula: ",A);
+
+mass : expand(integrate(A,x,mu-a,mu+a));
+print("mass=",mass);
+
+avg : expand(integrate(A*x,x,mu-a,mu+a));
+print("avg=",avg);
+
+variance : expand(integrate(A*(x-avg)^2,x,mu-a,mu+a));
+stddev : sqrt(variance);
+print("stddev=", stddev);
+
+#+end_src
+
+#+RESULTS:
+#+begin_example
+zeros [x = mu - sqrt(7) sigma, x = sqrt(7) sigma + mu] 
+extrema [x = mu - sqrt(7) sigma, x = sqrt(7) sigma + mu, x = mu] 
+                    15
+value at mu: ---------------- 
+             16 sqrt(7) sigma
+                                     2                         2
+          15 (x - sqrt(7) sigma - mu)  (x + sqrt(7) sigma - mu)
+formula:  ------------------------------------------------------ 
+                                  5/2      5
+                              16 7    sigma
+mass= 1 
+avg= mu 
+stddev= abs(sigma) 
+#+end_example
+
+* Random stuff
+
 #+begin_src maxima :results output
   print(1);
   E : integrate(exp(x^2+y^2), x, 0, 10);
