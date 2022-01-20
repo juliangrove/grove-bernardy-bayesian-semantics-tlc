@@ -432,7 +432,7 @@ f +! v = \case Here -> f
 
 showP :: [String] -> Vars γ -> P γ Rat -> ShowType -> String
 showP freshes@(f:fs) v = \case
-  Ret e -> showPoly v e
+  Ret e -> parens . showPoly v e
   Add p1 p2 -> \st -> "(" ++ showP freshes v p1 st ++ ") + (" ++
                       showP freshes v p2 st ++ ")"
   Div p1 p2 -> \st -> case st of
