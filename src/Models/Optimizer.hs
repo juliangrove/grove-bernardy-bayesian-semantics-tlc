@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -18,7 +20,8 @@ import Data.Ratio
 import Algebra.Classes hiding (isZero)
 import Prelude hiding (Num(..), Fractional(..), (^))
 import TLC.Terms hiding ((>>))
-
+import Data.Map (Map)
+import qualified Data.Map as M
 
 type Rat = Rational
 
@@ -51,12 +54,29 @@ data Available α γ where
   Here :: Available α (γ, α)
   There :: Available α γ -> Available α (γ, β)
 deriving instance Eq (Available α γ)
+deriving instance Ord (Available α γ)
 deriving instance Show (Available α γ)
 
 data Expr γ α = Expr α [(α, Available α γ)] deriving Eq
-  -- Linear combination. List of coefficients and variables (α is a vector
-  -- space).
-  -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@.
+  -- Linear combination. List of coefficients and variables (α is a Ring).
+  -- Example: u - v is represented by @Expr 0 [(1, u), (-1,v)]@.
+
+type Mono γ a = Exponential (Map (Either (Available a γ) (Poly γ a)) Natural)
+deriving instance Eq a => Eq (Mono γ a)
+deriving instance Ord a => Ord (Mono γ a)
+
+-- map each monomial to its coefficient
+newtype Poly γ a = P (Map (Mono γ a) a) deriving (Additive,Group,AbelianAdditive,Ord,Eq)
+
+instance (Eq a, Ord a,Ring a) => Multiplicative (Poly γ a) where
+  one = P (M.singleton one one)
+  P p * P q = P (M.fromListWith (+) [(m1 * m2, coef1 * coef2) | (m1,coef1) <- M.toList p, (m2,coef2) <- M.toList q])
+
+instance (Eq a, Ord a,Ring a) => Module (Poly γ a) (Poly γ a) where
+  (*^) = (*)
+
+instance (Eq a, Ord a,Ring a) => Ring (Poly γ a) where
+
 
 data Monomial γ α = Mono { monoCoef :: α,
                            monoVars :: [(Available α γ, Natural)],

@@ -18,5 +18,6 @@ library
   hs-source-dirs: src
   build-depends: base
                , gasp
+               , containers
                , MissingH
   default-language: Haskell2010
