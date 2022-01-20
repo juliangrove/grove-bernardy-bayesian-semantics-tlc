@@ -36,6 +36,8 @@ deriving instance Eq (α ∈ γ)
 
 type α × β = α ':× β
 type α ⟶ β = α ':-> β
+infixr ⟶
+infixr :->
 
 (≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ R
 m ≐ n = App (App (Con (General EqGen)) m) n
