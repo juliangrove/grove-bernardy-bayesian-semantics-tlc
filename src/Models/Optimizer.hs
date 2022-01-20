@@ -333,6 +333,7 @@ evalP' = \case
                    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Neu (NeuVar (evalVar -> i)) -> Ret $ monoPoly one $ varMono i
   Divide x y -> Div (evalP' x) (evalP' y)
+  t -> error ("evalP': unknown input: " ++ (show . nf_to_λ) t)
 
 sqr :: Multiplicative a => a -> a
 sqr x = x * x
