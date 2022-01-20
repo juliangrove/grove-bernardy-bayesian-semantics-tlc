@@ -418,6 +418,11 @@ when :: [a] -> [Char] -> [Char]
 when [] _ = ""
 when _ x = x
 
+
+(+!) :: String -> Vars γ -> Vars (γ, d)
+f +! v = \case Here -> f
+               There i -> v i
+
 showP :: [String] -> Vars γ -> P γ Rat -> ShowType -> String
 showP freshes@(f:fs) v = \case
   Ret e -> showPoly v e
@@ -432,16 +437,14 @@ showP freshes@(f:fs) v = \case
     \st -> case st of
              LaTeX -> "\\int_{" ++ showBounds v True los LaTeX ++ "}^{" ++
                       showBounds v False his LaTeX ++ "}" ++
-                      showP fs (\case Here -> f; There i -> v i) e LaTeX ++
+                      showP fs (f +! v) e LaTeX ++
                       "\\,d" ++ f 
              _ -> (\(integrand,dom) -> case st of
                               Maxima -> "integrate" ++ parens (integrand ++ ", " ++ dom)
                               Mathematica -> "Integrate" ++ brackets (integrand ++ ", " ++ braces dom)) $
-                  (showP fs (\case Here -> f; There i -> v i) e st,
+                  (showP fs (f +! v) e st,
                   (when cs $ f ++ "∈" ++
-                   braces (intercalate "∧" $ map (showCond st (\case
-                                                               Here -> f
-                                                               There i -> v i))
+                   braces (intercalate "∧" $ map (showCond st (f +! v))
                            cs)) ++ f ++ ", " ++
                   showBounds v True los st ++ ", " ++
                   showBounds v False his st)
