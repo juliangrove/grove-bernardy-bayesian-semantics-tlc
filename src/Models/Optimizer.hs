@@ -78,67 +78,9 @@ instance (Eq a, Ord a,Ring a) => Module (Poly γ a) (Poly γ a) where
 
 instance (Eq a, Ord a,Ring a) => Ring (Poly γ a) where
 
-
-data Monomial γ α = Mono { monoCoef :: α,
-                           monoVars :: [(Available α γ, Natural)],
-                           monoExponential :: Polynomial γ α }
-  -- E.g., @Mono c [(x, c1), (y, c2)] p@ represents c * x^c1 * y^c2 * exp(p).
-
 same :: Eq α => [α] -> [α] -> Bool
 same xs ys = and $ xs >>= \x -> ys >>= \y -> [x `elem` ys && y `elem` xs]
 
-instance Eq α => Eq (Monomial γ α) where
-  Mono c vs e == Mono c' vs' e' = c == c' && vs `same` vs' && e == e'
-
-data Polynomial γ α = Poly α [Monomial γ α]
-
-instance Eq α => Eq (Polynomial γ α) where
-  Poly c ms == Poly c' ms' = c == c' && ms `same` ms'
-
-type Returned γ α = Poly γ α
-
-multConst :: Ring α => α -> Polynomial γ α -> Polynomial γ α
-multConst c (Poly c1 cs)
-  = case cs of
-      [] -> Poly (c * c1) []
-      Mono c' xs e : cs' -> case multConst c (Poly c1 cs') of
-                              Poly c1' cs'' ->
-                                Poly c1' ((Mono (c * c') xs e) : cs'')
-
-compactMons :: (Ring α, Eq α) => [Monomial γ α] -> [Monomial γ α]
-compactMons = \case
-  [] -> []
-  m@(Mono c xs e) : (compactMons -> ms) ->
-    if (xs, e) `elem` (map (\(Mono _ xs' e') -> (xs', e')) ms)
-    then [ Mono (c + c') xs' e'
-         | Mono c' xs' e' <- ms, xs' `same` xs, e' == e' ] ++
-         filter (\(Mono _ xs' e') -> not (xs' `same` xs) || e' /= e) ms
-    else Mono c xs e : ms
-
-compactVars :: (Ring α, Eq α) => [(Available α γ, Natural)] -> [(Available α γ, Natural)]
-compactVars = \case
-  [] -> []
-  (x, c) : (compactVars -> xs) -> if x `elem` map fst xs
-                                  then [ (y, c' + c) | (y, c') <- xs, y == x ]
-                                       ++ filter (\(y, _) -> y /= x) xs
-                                  else (x, c) : xs
-                                
-multComp :: (Ring α, Eq α) => Polynomial γ α -> Monomial γ α -> [Monomial γ α]
-multComp (Poly c1 cs) m@(Mono c xs e)
-  = case cs of
-      [] -> [Mono (c1 * c) xs e]
-      Mono c' xs' e' : cs' ->
-        Mono (c * c') (compactVars $ xs ++ xs') (e + e') :
-        multComp (Poly c1 cs') m
-
-instance (Eq α, Ring α) => Multiplicative (Polynomial γ α) where
-  one = Poly one []
-  (*) = multPoly where
-   multPoly :: (Ring α, Eq α) => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
-   multPoly (Poly c1 cs1) p2
-     = case multConst c1 p2 of
-         Poly c2' cs2' -> Poly c2' $ filter (\(Mono c _ _) -> c /= zero) $
-                          cs2' ++ (concat $ map (multComp p2) cs1)
 
 -- | Induced vector space structure over Expr γ α:
 
@@ -149,14 +91,6 @@ c *< Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c', v) <- xs ]
 instance Additive α => Additive (Expr γ α) where
   (Expr c1 xs1) + (Expr c2 xs2) = Expr (c1 + c2) (xs1 ++ xs2)
   zero = Expr zero []
-
-
-instance (Eq α, Ring α) => Additive (Polynomial γ α) where
-  zero = Poly zero []
-  (+) = addPoly where
-    addPoly :: (Ring α, Eq α) => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
-    addPoly (Poly c1 cs1) (Poly c2 cs2) = Poly (c1 + c2) $ compactMons $ cs1 ++ cs2
-
 
 data Cond γ = IsNegative { condExpr :: (Expr γ Rat) }
               -- Meaning of this constructor: expression ≤ 0
@@ -178,7 +112,7 @@ data P γ α where
   Cond :: Cond γ -> P γ α -> P γ α
   Add :: P γ α -> P γ α -> P γ α
   Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor" ? No, because we do integration in these factors as well.
-  Ret :: Returned γ α -> P γ α
+  Ret :: Poly γ α -> P γ α
 
 multP :: P γ Rat -> P γ Rat -> P γ Rat
 multP (Integrate d p1) (wkP -> p2) = Integrate d $ multP p1 p2
@@ -391,10 +325,6 @@ foldrAlt _ k [] = k
 foldrAlt f _ xs = foldr1 f xs
 
 showBounds :: Vars γ -> Bool -> [Expr γ Rat] -> ShowType -> String
-showBounds _ lo [] = \case
-  Maxima -> (if lo then "-" else "") <> "inf"
-  Mathematica -> (if lo then "-" else "") <> "Infinity"
-  LaTeX -> (if lo then "-" else "") <> "\\infty"
 showBounds v lo (nub -> xs) = \case
   Maxima -> if lo
             then foldrAlt
@@ -523,7 +453,7 @@ minVar x NoVar = x
 deepest :: Cond γ -> SomeVar γ
 deepest c = case condExpr c of
    (Expr _ e) -> case e of
-                   (e':es) -> foldr1 minVar . map SomeVar . map snd $ e
+                   (_:_) -> foldr1 minVar . map SomeVar . map snd $ e
                    [] -> NoVar
 
 travExpr :: Applicative f =>
@@ -606,7 +536,7 @@ latexFun :: 'Unit ⊢ ('R ⟶ 'R) -> IO ()
 latexFun = latex' fs (\case Here -> f; There _ -> error "latexFun: are you trying to access the end of context? (Unit)") . maxima . absInversion
   where (f:fs) = freshes
 
-mathematicaFun' :: 'Unit ⊢ ('R ⟶ ('R ⟶ R)) -> IO ()
+mathematicaFun' :: 'Unit ⊢ ('R ⟶ ('R ⟶ 'R)) -> IO ()
 mathematicaFun' = mathematica' fs (\case Here -> f; There Here -> f'; There (There _) -> error "mathematicaFun: are you trying to access the end of context? (Unit)") . maxima . absInversion . absInversion
   where (f:f':fs) = freshes
 
@@ -616,9 +546,6 @@ mathematicaFun' = mathematica' fs (\case Here -> f; There Here -> f'; There (The
 -- Domain without restriction
 full :: Domain γ x
 full = Domain [] [] []
-
-var :: Available Rational γ -> Monomial γ Rational
-var x = (Mono 1 [(x,1)] zero )
 
 exampleInEq :: P () Rat
 exampleInEq = Integrate full $
@@ -696,4 +623,3 @@ example4 = Integrate full $
            Cond (IsNegative (Expr 3 [(-1, Here)])) $
            Cond (IsZero (Expr 0 [(1, (There Here)), (-1, Here)])) $
            Ret $ exponential $ varPoly Here + varPoly (There Here)
-
