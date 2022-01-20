@@ -531,9 +531,8 @@ isZero (Poly 0 ms) = and [ c == 0 | Mono c _ _ <- ms ]
 isZero _ = False
 
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
-integrate d (Ret z) | isZero z = Ret $ zeroPoly
+integrate _ (Ret z) | isZero z = Ret $ zeroPoly
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
-  -- Nothing -> integrate d' e
   Nothing -> foldr cond (integrate d' e) cs
     where (d', cs) = restrictDomain c d
   Just c'' -> cond (IsNegative c'') (integrate d e)
@@ -618,10 +617,10 @@ exampleInEq = Integrate full $
               Ret $ Poly 10 [var Here]
 
 -- >>> exampleInEq
--- integrate(𝟙(7 / 1 + ((-1) / 1 * x) ≤ 0) * (10 / 1 + x), x)
+-- integrate(charfun[7 + (-1 * x) ≤ 0] * (10 + (x)), x, -inf, inf)
 
 -- >>> normalise exampleInEq
--- integrate((10 / 1 + x), x, max(7 / 1, -inf), inf)
+-- integrate((10 + (x)), x, 7, inf)
 
 exampleEq :: P () Rat
 exampleEq = Integrate full $
@@ -629,10 +628,10 @@ exampleEq = Integrate full $
             Ret $ Poly 10 [var Here]
 
 -- >>> exampleEq
--- integrate((7.0 + (-1.0 * x) ≐ 0) * (10.0 + x), x)
+-- integrate(DiracDelta[7 + (-1 * x)] * (10 + (x)), x, -inf, inf)
 
 -- >>> normalise exampleEq
--- (17.0)
+-- (10 + (7))
 
 example :: P () Rat
 example = Integrate full $ Integrate full $
@@ -641,10 +640,10 @@ example = Integrate full $ Integrate full $
           Ret $ Poly 1 []
 
 -- >>> example
--- integrate(integrate(𝟙((3.0 * x) + (2.0 * y) ≤ 0) * 𝟙(2.0 + x ≤ 0) * (1.0), y), x)
+-- integrate(integrate(charfun[(3 * x) + (2 * y) ≤ 0] * charfun[2 + x ≤ 0] * (1), y, -inf, inf), x, -inf, inf)
 
 -- >>> normalise example
--- integrate(integrate((1.0), y, -inf, min((-1.5 * x), inf)), x, -inf, min(-2.0, inf))
+-- integrate(integrate((1), y, -inf, ((-3 / 2) * x)), x, -inf, -2)
 
 example1 :: P () Rat
 example1 = Integrate full $ Integrate full $
@@ -655,7 +654,7 @@ example1 = Integrate full $ Integrate full $
 -- integrate(integrate(DiracDelta[4 + x + (-1 * y)] * (1), y, -inf, inf), x, -inf, inf)
 
 -- >>> normalise example1
--- integrate((1.0), x)
+-- integrate((1), x, -inf, inf)
 
 example2 :: P () Rat
 example2 = Integrate full $
@@ -679,8 +678,8 @@ example3 = Integrate full $
 -- >>> example3
 -- integrate(integrate(Boole[3 + (-1 * y) ≤ 0] * DiracDelta[4 + x + (-1 * y)] * (2 + (2 * y^2 * x)), y, -inf, inf), x, -inf, inf)
 
--- >>> example3
--- <interactive>:1154:2-9: error: Variable not in scope: example3
+-- >>> normalise example3
+-- integrate((2 + (32 * x) + (16 * x^2) + (2 * x^3)), x, -1, inf)
 
 example4 :: P () Rat
 example4 = Integrate full $
