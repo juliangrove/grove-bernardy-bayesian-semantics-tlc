@@ -95,14 +95,14 @@ expectedValue m = lower m / measure m
 -- | Pragmatic listener
 l1 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
 l1 = Lam (k ⋆ Lam (
-             factor' (App (distr (App s1 (Var Get))) (Var (Weaken Get))) >>
+             factor' ((App (distr $ normalize (App s1 (Var Get))) (Var (Weaken Get)))) >>
              η (Var Get)))
     
 -- | Pragmatic speaker
 s1' :: Integer -> γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
 s1' α = Lam (utts'' ⋆ Lam (
              factor'
-             ((App (distr (App l0 (Var Get))) (Var (Weaken Get))) ^+ α) >>
+             ((App (distr $ normalize (App l0 (Var Get))) (Var (Weaken Get))) ^+ α) >>
              η (Var Get)))
 
 s1 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
@@ -133,15 +133,18 @@ test = distr $ uniform 0 10 ⋆ Lam (uniform 0 10 ⋆ Lam (η ((Con (General Add
 utility' :: γ ⊢ (Context ⟶ ('U ⟶ 'R))
 utility' = Lam (distr $ normalize $ App s1 (Var Get))
 
-utility :: γ ⊢ ('R ⟶ ('R ⟶ 'R))
-utility = Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ App s1 (App (updctx (Var Get)) (Var (Weaken (Weaken Get))))) (u' (Var (Weaken Get))))))
+utilityl :: γ ⊢ ('R ⟶ ('R ⟶ 'R))
+utilityl = Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ normalize $ App l1 (u' (Var (Weaken Get)))) (App (updctx (Var Get)) (Var (Weaken (Weaken Get)))))))
+
+utilitys :: γ ⊢ ('R ⟶ ('R ⟶ 'R))
+utilitys = Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ normalize $ App s1 (App (updctx (Var Get)) (Var (Weaken (Weaken Get))))) (u' (Var (Weaken Get))))))
 
 -- exp1 = Lam (App k $ Lam (App (utility 1) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
 -- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
--- >>> mathematicaFun' utility
--- Boole[-100 ≤ 0] * Boole[(-1 * x) ≤ 0] * Boole[-100 + x ≤ 0] * Boole[(-1 * y) + x ≤ 0] * (Integrate[Integrate[(((10000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u) + ((-1 / 18) * y^2) + ((68 / 9) * y))])), {u, -Infinity, Infinity}], {z, 0, 100}]) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), {u, -Infinity, Infinity}], {z, 0, 100}])
+-- >>> mathematicaFun' utilitys
+-- Boole[(-1 * y) ≤ 0] * Boole[-100 ≤ 0] * (Integrate[Integrate[Integrate[(Integrate[Integrate[(((10000000000000000000000000 / 425239468533996139387486381421029869) * Exp[((-2312 / 3) + ((-1 / 18) * u^2) + ((68 / 9) * u) + ((-1 / 18) * y^2) + ((68 / 9) * y) + ((-1 / 18) * x1^2) + ((68 / 9) * x1))])), {x1, v, Infinity}], {w, 0, 100}]) / (Boole[(-1 * y) ≤ 0] * Boole[(-1 * z) ≤ 0] * Boole[-100 + z ≤ 0] * DiracDelta[v + (-1 * x)] * Integrate[((((10000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * y^2) + ((68 / 9) * y))]))) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * y1^2) + ((68 / 9) * y1))])), {y1, w, Infinity}], {x1, 0, 100}]), {w, 0, Min[y, 100]}]), {v, 0, Min[y, 100]}], {u, -Infinity, Infinity}], {z, 0, 100}]) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), {u, -Infinity, Infinity}], {z, 0, 100}])
 
 -- >>> displayVs $ evalβ $ s1
 -- (λx.(λy.Uniform(⟨0, 100⟩)(λz.(Uniform(⟨0, 100⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩ ≐ x)))) * y(U(z))))))
