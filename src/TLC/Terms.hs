@@ -15,10 +15,12 @@
 
 module TLC.Terms where
 
+import Algebra.Classes
+
 import Data.Functor.Identity
 import Data.Ratio
 import Data.String.Utils
-import Prelude hiding ((>>))
+import Prelude hiding ((>>), Num(..))
 
 
 data Type = E | T | R | U | Γ
@@ -215,6 +217,15 @@ data General α where
   Utt' :: General ('R ⟶ 'U)
   Interp :: General ('U ⟶ (Context ⟶ 'T))
 
+instance Additive (γ ⊢ 'R) where
+  zero = Con (General (Incl 0))
+  x + y  = Con (General Addi) `App` x `App` y
+instance AbelianAdditive (γ ⊢ 'R)
+instance Group (γ ⊢ 'R) where
+  negate = App (App (Con (General Mult)) (Con (General (Incl (-1)))))
+instance Multiplicative (γ ⊢ 'R) where
+  one = Con (General (Incl 1))
+  x * y  = Con (General Mult) `App` x `App` y
 
 instance Show (General α) where
   show (Incl x) = showR x
