@@ -362,9 +362,9 @@ showPoly v (Poly k0 cs) = \case
                     ++ [ "e^{" ++ showPoly v e LaTeX ++"}" | not (isZero e) ]
            | Mono c xs e <- cs ]
 
-showCond :: Vars γ -> Cond γ -> String
-showCond v = \case
-  c@(IsNegative c') -> "Boole" <> (brackets $ showExpr v c' <> " ≤ 0")
+showCond :: ShowType -> Vars γ -> Cond γ -> String
+showCond t v c0 = case c0 of
+  c@(IsNegative c') -> (case t of Mathematica -> "Boole"; Maxima -> "charfun") <> (brackets $ showExpr v c' <> " ≤ 0")
   c@(IsZero c') -> "DiracDelta" ++ (brackets $ showExpr v c')
 
 parens :: String -> String
@@ -439,13 +439,13 @@ showP freshes@(f:fs) v = \case
                               Mathematica -> "Integrate" ++ brackets rest) $
                   showP fs (\case Here -> f; There i -> v i) e st ++
                   (when cs $ f ++ "∈" ++
-                   braces (intercalate "∧" $ map (showCond (\case
+                   braces (intercalate "∧" $ map (showCond st (\case
                                                                Here -> f
                                                                There i -> v i))
                            cs)) ++ ", " ++ f ++ ", " ++
                   showBounds v True los st ++ ", " ++
                   showBounds v False his st
-  Cond c e -> \st -> showCond v c ++ " * " ++ showP freshes v e st
+  Cond c e -> \st -> showCond st v c ++ " * " ++ showP freshes v e st
 
 showProg :: P () Rat -> ShowType -> String
 showProg = showP freshes (\case)
