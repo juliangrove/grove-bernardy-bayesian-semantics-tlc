@@ -256,7 +256,7 @@ evalP' = \case
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> multP x y
   Normal μ σ f -> Integrate full $ multP
-                  (Ret $ constPoly (1 / (σ * sqrt2pi)) * exponential (constPoly (1/2) * (sqr ((1/σ) *^ (constPoly μ - varPoly Here)))))
+                  (Ret $ constPoly (1 / (σ * sqrt2pi)) * exponential (constPoly (-1/2) * (sqr ((1/σ) *^ (constPoly μ - varPoly Here)))))
                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where sqrt2pi = 250662827463 % 100000000000
   Uniform x y f -> Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
