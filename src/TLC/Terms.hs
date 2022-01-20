@@ -202,18 +202,19 @@ instance Show (Logical α) where
  
 data General α where
   Incl :: Rational -> General R
-  Indi :: General (T ⟶ R)
-  Addi :: General (R ⟶ (R ⟶ R))
-  Mult :: General (R ⟶ (R ⟶ R))
-  Divi :: General (R ⟶ (R ⟶ R))
-  Nml :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
-  Uni :: General ((R × R) ⟶ ((R ⟶ R) ⟶ R))
-  Les :: General ((R ⟶ R) ⟶ R)
-  EqGen :: Equality α => General (α ⟶ (α ⟶ R))
-  EqRl :: General (R ⟶ (R ⟶ R))
-  Utt :: Int -> General U
-  Utt' :: General (R ⟶ U)
-  Interp :: General (U ⟶ (Context ⟶ T))
+  Indi :: General ('T ⟶ 'R)
+  Addi :: General ('R ⟶ ('R ⟶ 'R))
+  Mult :: General ('R ⟶ ('R ⟶ 'R))
+  Divi :: General ('R ⟶ ('R ⟶ 'R))
+  Nml :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
+  Uni :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
+  Les :: General (('R ⟶ 'R) ⟶ R)
+  EqGen :: Equality α => General (α ⟶ (α ⟶ 'R))
+  EqRl :: General ('R ⟶ ('R ⟶ 'R))
+  Utt :: Int -> General 'U
+  Utt' :: General ('R ⟶ 'U)
+  Interp :: General ('U ⟶ (Context ⟶ 'T))
+
 
 instance Show (General α) where
   show (Incl x) = showR x

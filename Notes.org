@@ -23,3 +23,14 @@
 
 (Not normalized) pdf of l0 posterior for θ:
 
+#+begin_src maxima :results output
+  print(1);
+  E : integrate(exp(x^2+y^2), x, 0, 10);
+  E2 : integrate(E, y, 0, 9);
+  print(charfun(2 > 1) * 34);
+  ? charfun;
+#+end_src
+
+#+RESULTS:
+: 1 
+: 34 
