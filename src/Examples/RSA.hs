@@ -5,6 +5,7 @@
 module Examples.RSA where
 
 import Data.Ratio
+import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..))
 import Models.Optimizer
 import TLC.Terms
@@ -101,11 +102,14 @@ l1 = Lam (k ⋆ Lam (
              η (Var Get)))
     
 -- | Pragmatic speaker
-s1 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
-s1 = Lam (utts'' ⋆ Lam (
+s1' :: Integer -> γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
+s1' α = Lam (utts'' ⋆ Lam (
              factor'
-             (App (distr (App l0 (Var Get))) (Var (Weaken Get))) >>
+             ((App (distr (App l0 (Var Get))) (Var (Weaken Get))) ^+ α) >>
              η (Var Get)))
+
+s1 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
+s1 = s1' 1
 
 -- | Literal listener
 l0 :: γ ⊢ ('U ⟶ ((Context ⟶ 'R) ⟶ 'R))
