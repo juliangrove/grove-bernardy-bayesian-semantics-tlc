@@ -6,7 +6,7 @@ module Examples.RSA where
 
 import Data.Ratio
 import Algebra.Classes hiding (normalize)
-import Prelude hiding (Monad(..))
+import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Optimizer
 import TLC.Terms
 
@@ -80,17 +80,14 @@ updctx k = Lam (Pair
 lower :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
 lower m = App m (Lam (Var Get))
 
-measure :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ R
-measure m = App m (Lam (Con $ General $ Incl 1))
+measure :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
+measure m = App m (Lam one)
 
-recipr :: γ ⊢ R -> γ ⊢ R
-recipr m = App (App (Con (General Divi)) (Con (General (Incl (1 % 1))))) m
+normalize :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ ((α ⟶ 'R) ⟶ 'R)
+normalize m = m ⋆ Lam (factor' (recip $ measure $ wkn m) >> η (Var Get))
 
-normalize :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ ((α ⟶ R) ⟶ R)
-normalize m = m ⋆ Lam (factor' (recipr $ measure $ wkn m) >> η (Var Get))
-
-expectedValue :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
-expectedValue m = App (App (Con $ General $ Divi) (lower m)) (measure m)
+expectedValue :: γ ⊢ (('R ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
+expectedValue m = lower m / measure m
 
 
 -- | RSA

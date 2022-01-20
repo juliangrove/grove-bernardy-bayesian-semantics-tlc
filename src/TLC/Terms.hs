@@ -226,7 +226,8 @@ instance Group (γ ⊢ 'R) where
 instance Multiplicative (γ ⊢ 'R) where
   one = Con (General (Incl 1))
   x * y  = Con (General Mult) `App` x `App` y
-
+instance Division (γ ⊢ 'R) where
+  x / y  = Con (General Divi) `App` x `App` y
 instance Show (General α) where
   show (Incl x) = showR x
   show Indi = "𝟙"
