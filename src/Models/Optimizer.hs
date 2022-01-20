@@ -265,6 +265,7 @@ type family RepOf γ where
 
 pattern NNVar :: Available (Eval α) (Eval γ) -> NF γ α
 pattern NNVar i <- Neu (NeuVar (evalVar -> i))
+pattern Equ x y = Neu (NeuApp (NeuApp (NeuCon (General EqRl)) x) y)
 pattern EqVars :: 'R ∈ γ -> 'R ∈ γ -> NF γ 'R
 pattern EqVars i j = Neu (NeuApp (NeuApp (NeuCon (General EqRl))
                                   (Neu (NeuVar i))) (Neu (NeuVar j)))
@@ -316,6 +317,7 @@ evalP' = \case
     Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ one
   InEqVars (evalVar -> i) (evalVar -> j) ->    
     Cond (IsNegative $ Expr 0 [(-1, i), (1, j)]) $ Ret $ one
+  Equ (NNVar i) (NNCon x) ->  Cond (IsZero $ Expr x [(-1, i)]) $ Ret $ one
   InEq (NNVar i) (NNCon x) ->  Cond (IsNegative $ Expr x [(-1, i)]) $ Ret $ one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> multP x y
