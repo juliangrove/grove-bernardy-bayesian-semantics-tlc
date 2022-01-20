@@ -15,7 +15,8 @@ module Models.Optimizer where
 
 import Data.List
 import Data.Ratio
-import Data.String.Utils
+import Algebra.Classes hiding (isZero)
+import Prelude hiding (Num(..), Fractional(..), (^))
 import TLC.Terms hiding ((>>))
 
 
@@ -25,17 +26,18 @@ data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
 
 isPositive :: Expr γ Rat -> Cond γ
-isPositive e = isNegative ((-1) *^ e)
+isPositive e = isNegative ((-1) *< e)
 
 isNegative :: Expr γ Rat -> Cond γ
 isNegative e = IsNegative e
 
 lessThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
-t `lessThan` u = isNegative (t `add` ((-1) *^ u))
+t `lessThan` u = isNegative (t + ((-1) *< u))
 
 greaterThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
 t `greaterThan` u = u `lessThan` t
 
+domainToConditions :: Expr γ Rat -> Domain γ Rat -> P γ α -> P γ α
 domainToConditions e0 = \case
   Domain [] [] [] -> id
   Domain (c:cs) los his ->
@@ -57,7 +59,7 @@ data Expr γ α = Expr α [(α, Available α γ)] deriving Eq
   -- Example u - v is represented by @Expr 0 [(1, u), (-1,v)]@.
 
 data Monomial γ α = Mono { monoCoef :: α,
-                           monoVars :: [(Available α γ, α)],
+                           monoVars :: [(Available α γ, Natural)],
                            monoExponential :: Polynomial γ α }
   -- E.g., @Mono c [(x, c1), (y, c2)] p@ represents c * x^c1 * y^c2 * exp(p).
 
@@ -74,7 +76,7 @@ instance Eq α => Eq (Polynomial γ α) where
 
 type Returned γ α = Polynomial γ α
 
-multConst :: Num α => α -> Polynomial γ α -> Polynomial γ α
+multConst :: Ring α => α -> Polynomial γ α -> Polynomial γ α
 multConst c (Poly c1 cs)
   = case cs of
       [] -> Poly (c * c1) []
@@ -82,7 +84,7 @@ multConst c (Poly c1 cs)
                               Poly c1' cs'' ->
                                 Poly c1' ((Mono (c * c') xs e) : cs'')
 
-compactMons :: (Num α, Eq α) => [Monomial γ α] -> [Monomial γ α]
+compactMons :: (Ring α, Eq α) => [Monomial γ α] -> [Monomial γ α]
 compactMons = \case
   [] -> []
   m@(Mono c xs e) : (compactMons -> ms) ->
@@ -92,7 +94,7 @@ compactMons = \case
          filter (\(Mono _ xs' e') -> not (xs' `same` xs) || e' /= e) ms
     else Mono c xs e : ms
 
-compactVars :: (Num α, Eq α) => [(Available α γ, α)] -> [(Available α γ, α)]
+compactVars :: (Ring α, Eq α) => [(Available α γ, Natural)] -> [(Available α γ, Natural)]
 compactVars = \case
   [] -> []
   (x, c) : (compactVars -> xs) -> if x `elem` map fst xs
@@ -100,38 +102,40 @@ compactVars = \case
                                        ++ filter (\(y, _) -> y /= x) xs
                                   else (x, c) : xs
                                 
-multComp :: (Num α, Eq α) => Polynomial γ α -> Monomial γ α -> [Monomial γ α]
+multComp :: (Ring α, Eq α) => Polynomial γ α -> Monomial γ α -> [Monomial γ α]
 multComp (Poly c1 cs) m@(Mono c xs e)
   = case cs of
       [] -> [Mono (c1 * c) xs e]
       Mono c' xs' e' : cs' ->
-        Mono (c * c') (compactVars $ xs ++ xs') (e `addPoly` e') :
+        Mono (c * c') (compactVars $ xs ++ xs') (e + e') :
         multComp (Poly c1 cs') m
 
-multPoly :: (Num α, Eq α) => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
-multPoly (Poly c1 cs1) p2
-  = case multConst c1 p2 of
-      Poly c2' cs2' -> Poly c2' $ filter (\(Mono c _ _) -> c /= 0) $
-                       cs2' ++ (concat $ map (multComp p2) cs1)
-
-expPoly :: (Num α, Eq α) => α -> Polynomial γ α -> Polynomial γ α
-expPoly 1 e = e
-expPoly n e = multPoly e (expPoly (n - 1) e)
+instance (Eq α, Ring α) => Multiplicative (Polynomial γ α) where
+  one = Poly one []
+  (*) = multPoly where
+   multPoly :: (Ring α, Eq α) => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
+   multPoly (Poly c1 cs1) p2
+     = case multConst c1 p2 of
+         Poly c2' cs2' -> Poly c2' $ filter (\(Mono c _ _) -> c /= zero) $
+                          cs2' ++ (concat $ map (multComp p2) cs1)
 
 -- | Induced vector space structure over Expr γ α:
 
 -- | Multiplication by a scalar (expresions are linear)
-(*^) :: Num α => α -> Expr γ α -> Expr γ α
-c *^ Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c', v) <- xs ]
+(*<) :: Ring α => α -> Expr γ α -> Expr γ α
+c *< Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c', v) <- xs ]
 
--- | Addition
-add :: Num α => Expr γ α -> Expr γ α -> Expr γ α
-add (Expr c1 xs1) (Expr c2 xs2) = Expr (c1 + c2) (xs1 ++ xs2)
+instance Additive α => Additive (Expr γ α) where
+  (Expr c1 xs1) + (Expr c2 xs2) = Expr (c1 + c2) (xs1 ++ xs2)
+  zero = Expr zero []
 
-addPoly :: (Num α, Eq α) => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
-addPoly (Poly c1 cs1) (Poly c2 cs2) = Poly (c1 + c2) $ compactMons $ cs1 ++ cs2
 
-zero = Expr 0 []
+instance (Eq α, Ring α) => Additive (Polynomial γ α) where
+  zero = Poly zero []
+  (+) = addPoly where
+    addPoly :: (Ring α, Eq α) => Polynomial γ α -> Polynomial γ α -> Polynomial γ α
+    addPoly (Poly c1 cs1) (Poly c2 cs2) = Poly (c1 + c2) $ compactMons $ cs1 ++ cs2
+
 
 data Cond γ = IsNegative { condExpr :: (Expr γ Rat) }
               -- Meaning of this constructor: expression ≤ 0
@@ -160,46 +164,46 @@ multP (Integrate d p1) (wkP -> p2) = Integrate d $ multP p1 p2
 multP (Cond c p1) p2 = Cond c $ multP p1 p2
 multP (Ret e) (Integrate d p) = Integrate d $ multP (wkP $ Ret e) p
 multP (Ret e) (Cond c p) = Cond c $ multP (Ret e) p
-multP (Ret e1) (Ret e2) = Ret $ multPoly e1 e2
+multP (Ret e1) (Ret e2) = Ret $ e1 * e2
 multP (Add p1 p1') p2 = Add (multP p1 p2) (multP p1' p2)
 multP p1 (Add p2 p2') = Add (multP p1 p2) (multP p1 p2')
 multP (Div p1 p1') (Div p2 p2') = Div (multP p1 p1') (multP p2 p2')
 multP (Div p1 p1') p2 = Div (multP p1 p2) p1'
 multP p1 (Div p2 p2') = Div (multP p1 p2) p2'
   
-type Subst γ δ = forall α. Num α => Available α γ -> Expr δ α
+type Subst γ δ = forall α. Ring α => Available α γ -> Expr δ α
 
-wkSubst :: Subst γ δ -> Subst (γ, α) (δ, α)
+wkSubst :: Ring α => Subst γ δ -> Subst (γ, α) (δ, α)
 wkSubst f = \case
-  Here -> Expr 0 [(1, Here)]
+  Here -> Expr zero [(one, Here)]
   There x -> Expr k0 [ (c, There y) | (c, y) <- xs ]
     where Expr k0 xs = f x
 
-substExpr :: Subst γ δ -> forall α. Num α => Expr γ α -> Expr δ α
-substExpr f (Expr k0 e) = foldr add (Expr k0 []) [ c *^ f x | (c, x) <- e ]
+substExpr :: Subst γ δ -> forall α. Ring α => Expr γ α -> Expr δ α
+substExpr f (Expr k0 e) = foldr (+) (Expr k0 []) [ c *< f x | (c, x) <- e ]
 
-exprToPoly :: Num α => Expr γ α -> Polynomial γ α
+exprToPoly :: (Eq α, Ring α) => Expr γ α -> Polynomial γ α
 exprToPoly (Expr c xs)
-  = Poly c [ (Mono c' [(x, 1)] zeroPoly) | (c', x) <- xs ] 
+  = Poly c [ (Mono c' [(x, one)] zero) | (c', x) <- xs ] 
 
-exponential :: Num α => Polynomial γ α -> Polynomial γ α
-exponential p = Poly 0 [Mono 1 [] p]
+exponential :: Ring α => Polynomial γ α -> Polynomial γ α
+exponential p = Poly zero [Mono one [] p]
 
-substMono :: (Num α, Eq α) => Subst γ δ -> Monomial γ α -> Polynomial δ α
+substMono :: (Ring α, Eq α) => Subst γ δ -> Monomial γ α -> Polynomial δ α
 substMono f (Mono c xs e) = multConst c
-                            (foldr multPoly onePoly
-                                   [ expPoly c' (exprToPoly (f x))
+                            (foldr (*) one
+                                   [ (exprToPoly (f x) ^+ c')
                                    | (x, c') <- xs ])
-                            `multPoly` exponential (substPoly f e)
+                            * exponential (substPoly f e)
 
-substPoly :: (Num α, Eq α) => Subst γ δ -> Polynomial γ α -> Polynomial δ α
-substPoly f (Poly k0 cs) = foldr addPoly (Poly k0 []) (map (substMono f) cs)
+substPoly :: (Ring α, Eq α) => Subst γ δ -> Polynomial γ α -> Polynomial δ α
+substPoly f (Poly k0 cs) = foldr (+) (Poly k0 []) (map (substMono f) cs)
    
 substCond :: Subst γ δ -> Cond γ -> Cond δ
 substCond f (IsNegative e) = IsNegative $ substExpr f e
 substCond f (IsZero e) = IsZero $ substExpr f e
 
-substDomain :: Num α => Subst γ δ -> Domain γ α -> Domain δ α
+substDomain :: Ring α => Subst γ δ -> Domain γ α -> Domain δ α
 substDomain f (Domain c lo hi) = Domain
                                  (substCond (wkSubst f) <$> c)
                                  (substExpr f <$> lo)
@@ -214,7 +218,7 @@ substP f p0 = case p0 of
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p)
 
 wkP :: P γ Rat -> P (γ, α) Rat
-wkP = substP $ \i -> Expr 0 [(1, There i)] 
+wkP = substP $ \i -> Expr zero [(one, There i)] 
 
 type family Eval γ where
   Eval 'R = Rat
@@ -260,16 +264,13 @@ pattern Lesbegue :: NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Lesbegue f = Neu (NeuApp (NeuCon (General Les)) f)
 pattern Divide :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
+pattern NNCon :: forall (γ :: Type) (α :: Type).
+                   () =>
+                   (α ~ 'R) => Rational -> NF γ α
 pattern NNCon x = Neu (NeuCon (General (Incl x)))
 
 evalP :: NF 'Unit 'R -> P () Rat
 evalP = evalP'
-
-zeroPoly :: Num α => Polynomial γ α
-zeroPoly = Poly 0 []
-
-onePoly :: Num α => Polynomial γ α
-onePoly = Poly 1 []
 
 evalP' :: NF γ 'R -> P (Eval γ) Rat
 evalP' = \case
@@ -289,8 +290,8 @@ evalP' = \case
                   (Ret $ 
                    Poly 0 [Mono (1 / (y * sqrt2pi)) []
                             (Poly (-(sqr x) / (2 * sqr y))
-                            [Mono (-1 / (2 * sqr y)) [(Here, 2)] zeroPoly,
-                             Mono (x / sqr y) [(Here, 1)] zeroPoly])])
+                            [Mono (-1 / (2 * sqr y)) [(Here, 2)] zero,
+                             Mono (x / sqr y) [(Here, 1)] zero])])
                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where sqr x = x * x
           sqrt2pi = 250662827463 % 100000000000
@@ -302,7 +303,7 @@ evalP' = \case
                    (Ret $ 
                     Poly 1 [])
                    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-  Neu (NeuVar (evalVar -> i)) -> Ret $ Poly 0 [Mono 1 [(i,1)] zeroPoly]
+  Neu (NeuVar (evalVar -> i)) -> Ret $ Poly 0 [Mono 1 [(i,1)] zero]
   Divide x y -> Div (evalP' x) (evalP' y)
 
 evalVar :: α ∈ γ -> Available (Eval α) (Eval γ)
@@ -333,7 +334,7 @@ showPoly v (Poly k0 cs) = \case
                      (if c /= 1 then (showR c :) else id) 
                      [ v x ++ (case c' of
                                  1 -> ""
-                                 _ -> "^" ++ showR c') | (x, c') <- xs ]
+                                 _ -> "^" ++ show c') | (x, c') <- xs ]
                      ++ [ "exp(" ++ showPoly v e Maxima ++")" | not (isZero e) ]
             | Mono c xs e <- cs ]
   Mathematica -> parens $ intercalate " + " $
@@ -345,7 +346,7 @@ showPoly v (Poly k0 cs) = \case
                           (if c /= 1 then (showR c :) else id) 
                           [ v x ++ (case c' of
                                       1 -> ""
-                                      _ -> "^" ++ showR c') | (x, c') <- xs ]
+                                      _ -> "^" ++ show c') | (x, c') <- xs ]
                           ++ [ "Exp[" ++ showPoly v e Maxima ++"]"
                              | not (isZero e) ]
                  | Mono c xs e <- cs ]
@@ -358,7 +359,7 @@ showPoly v (Poly k0 cs) = \case
                     (if c /= 1 then (showR c :) else id) 
                     [ v x ++ (case c' of
                                 1 -> ""
-                                _ -> "^" ++ showR c') | (x, c') <- xs ]
+                                _ -> "^" ++ show c') | (x, c') <- xs ]
                     ++ [ "e^{" ++ showPoly v e LaTeX ++"}" | not (isZero e) ]
            | Mono c xs e <- cs ]
 
@@ -484,8 +485,8 @@ solveAffine ((c, There x) : xs) = (c', (c, x) : e)
 -- FIXME: detect always true and always false cases.
 solve' :: Cond (γ, Rat) -> Solution γ Rat
 solve' c0 = case c0 of
-  IsZero _ -> (EQ, (-1 / c) *^ e)
-  IsNegative _ -> if c < 0 then (GT, (1 / (-c)) *^ e) else (LT, (-1 / c) *^ e)
+  IsZero _ -> (EQ, (-1 / c) *< e)
+  IsNegative _ -> if c < 0 then (GT, (1 / (-c)) *< e) else (LT, (-1 / c) *< e)
   where (c, e) = solve (condExpr c0)
   
 shallower :: SomeVar γ -> SomeVar γ -> Bool
@@ -526,12 +527,12 @@ occurExpr = travExpr $ \case
   Here -> Nothing
   There x -> Just x
 
-isZero :: (Num α, Eq α) => Polynomial γ α -> Bool
-isZero (Poly 0 ms) = and [ c == 0 | Mono c _ _ <- ms ]
+isZero :: (Ring α, Eq α) => Polynomial γ α -> Bool
+isZero (Poly k ms) | k == zero = and [ c == zero | Mono c _ _ <- ms ]
 isZero _ = False
 
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
-integrate _ (Ret z) | isZero z = Ret $ zeroPoly
+integrate _ (Ret z) | isZero z = Ret $ zero
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> foldr cond (integrate d' e) cs
     where (d', cs) = restrictDomain c d
@@ -545,9 +546,9 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     -- investigated.)
     domainToConditions x0 d $ substP (\i -> case i of { Here -> x0;
                                                         There i
-                                                        -> Expr 0 [(1, i)] }) e
+                                                        -> Expr zero [(one, i)] }) e
     where (coef, expr) = solve c'
-          x0 = (-1 / coef) *^ expr
+          x0 = (-1 / coef) *< expr
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
 integrate d e = Integrate d e
@@ -558,7 +559,7 @@ adding x (Ret z) | isZero z = x
 adding x y = Add x y
 
 cond :: Cond γ -> P γ Rat -> P γ Rat
-cond _ (Ret z) | isZero z = Ret $ zeroPoly
+cond _ (Ret z) | isZero z = Ret $ zero
 cond c (Cond c' e) | c == c' = cond c e
 cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
                      then Cond c (Cond c' e)
@@ -574,7 +575,7 @@ normalise = \case
   Ret e -> Ret e
 
 divide :: P γ Rat -> P γ Rat -> P γ Rat
-divide (Ret z) _ | isZero z = Ret $ zeroPoly
+divide (Ret z) _ | isZero z = Ret $ zero
 divide (Cond c n) d = Cond c (divide n d) -- this exposes conditions to the integrate function.
 divide p1 p2 = Div p1 p2
 
@@ -609,7 +610,7 @@ full :: Domain γ x
 full = Domain [] [] []
 
 var :: Available Rational γ -> Monomial γ Rational
-var x = (Mono 1 [(x,1)] zeroPoly )
+var x = (Mono 1 [(x,1)] zero )
 
 exampleInEq :: P () Rat
 exampleInEq = Integrate full $
@@ -673,10 +674,10 @@ example3 = Integrate full $
            Integrate full $
            Cond (IsNegative (Expr 3 [(-1, Here)])) $
            Cond (IsZero (Expr 4 [(1, (There Here)), (-1, Here)])) $
-           Ret $ Poly 2 $ compactMons [Mono 1 [(Here, 2), (There Here, 1)] zeroPoly, Mono 1 [(Here, 2), (There Here, 1)] zeroPoly]
+           Ret $ Poly 2 $ compactMons [Mono 1 [(Here, 2), (There Here, 1)] zero, Mono 1 [(Here, 2), (There Here, 1)] zero]
 
 -- >>> example3
--- integrate(integrate(Boole[3 + (-1 * y) ≤ 0] * DiracDelta[4 + x + (-1 * y)] * (2 + (2 * y^2 * x)), y, -inf, inf), x, -inf, inf)
+-- integrate(integrate(charfun[3 + (-1 * y) ≤ 0] * DiracDelta[4 + x + (-1 * y)] * (2 + (2 * y^2 * x)), y, -inf, inf), x, -inf, inf)
 
 -- >>> normalise example3
 -- integrate((2 + (32 * x) + (16 * x^2) + (2 * x^3)), x, -1, inf)
@@ -686,6 +687,6 @@ example4 = Integrate full $
            Integrate full $
            Cond (IsNegative (Expr 3 [(-1, Here)])) $
            Cond (IsZero (Expr 0 [(1, (There Here)), (-1, Here)])) $
-           Ret $ Poly 0 [Mono 1 [] (Poly 0 [Mono 1 [(Here, 2)] zeroPoly,
-                                            Mono 1 [(Here, 1)] zeroPoly])]
+           Ret $ Poly 0 [Mono 1 [] (Poly 0 [Mono 1 [(Here, 2)] zero,
+                                            Mono 1 [(Here, 1)] zero])]
 
