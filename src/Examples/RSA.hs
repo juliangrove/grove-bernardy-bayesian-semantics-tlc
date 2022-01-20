@@ -141,7 +141,7 @@ utility = Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ App s1 (App (up
 -- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
 -- >>> mathematicaFun' utility
--- Boole[-100 ≤ 0] * Boole[(-1 * x) ≤ 0] * Boole[-100 + x ≤ 0] * Boole[(-1 * y) + x ≤ 0] * (Integrate[Integrate[(((10000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u) + ((-1 / 18) * y^2) + ((68 / 9) * y))])), u, -Infinity, Infinity], z, 0, 100]) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), u, -Infinity, Infinity], z, 0, 100])
+-- Boole[-100 ≤ 0] * Boole[(-1 * x) ≤ 0] * Boole[-100 + x ≤ 0] * Boole[(-1 * y) + x ≤ 0] * (Integrate[Integrate[(((10000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u) + ((-1 / 18) * y^2) + ((68 / 9) * y))])), {u, -Infinity, Infinity}], {z, 0, 100}]) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), {u, -Infinity, Infinity}], {z, 0, 100}])
 
 -- >>> displayVs $ evalβ $ s1
 -- (λx.(λy.Uniform(⟨0, 100⟩)(λz.(Uniform(⟨0, 100⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩ ≐ x)))) * y(U(z))))))
