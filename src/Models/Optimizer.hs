@@ -152,7 +152,7 @@ data P γ α where
   Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
   Cond :: Cond γ -> P γ α -> P γ α
   Add :: P γ α -> P γ α -> P γ α
-  Div :: P γ α -> P γ α -> P γ α -- TODO: can this be replaced by "factor" ?
+  Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor" ? No, because we do integration in these factors as well.
   Ret :: Returned γ α -> P γ α
 
 multP :: P γ Rat -> P γ Rat -> P γ Rat
