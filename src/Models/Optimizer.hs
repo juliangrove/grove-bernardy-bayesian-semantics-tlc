@@ -222,6 +222,10 @@ pattern Normal :: Rat -> Rat -> NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Normal x y f = Neu (NeuApp (NeuApp (NeuCon (General Nml))
                                     (NFPair (Neu (NeuCon (General (Incl x))))
                                      (Neu (NeuCon (General (Incl y)))))) f)
+pattern Cauchy :: Rat -> Rat -> NF γ ('R ⟶ 'R) -> NF γ 'R
+pattern Cauchy x y f = Neu (NeuApp (NeuApp (NeuCon (General TLC.Terms.Cauchy))
+                                    (NFPair (Neu (NeuCon (General (Incl x))))
+                                     (Neu (NeuCon (General (Incl y)))))) f)
 pattern Uniform :: Rat -> Rat -> NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Uniform x y f = Neu (NeuApp (NeuApp (NeuCon (General Uni))
                                      (NFPair (Neu (NeuCon (General (Incl x))))
@@ -257,6 +261,10 @@ evalP' = \case
                   (Ret $ constPoly (1 / (σ * sqrt2pi)) * exponential (constPoly (-1/2) * (sqr ((1/σ) *^ (constPoly μ - varPoly Here)))))
                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where sqrt2pi = 250662827463 % 100000000000
+  Models.Optimizer.Cauchy x0 γ f -> Integrate full $ Div (Ret one) $ 
+                   multP (Ret $ (constPoly (pi' * γ) * (one + sqr ((1/γ) *^ (varPoly Here - constPoly x0))))) $
+                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    where pi' = 3141592653589793 % 1000000000000000
   Uniform x y f -> Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
                    (Ret $ constPoly (1 / (y - x)))
                    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
@@ -266,6 +274,8 @@ evalP' = \case
   Neu (NeuVar (evalVar -> i)) -> Ret $ monoPoly one $ varMono i
   Divide x y -> Div (evalP' x) (evalP' y)
   t -> error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
+
+ 
 
 sqr :: Multiplicative a => a -> a
 sqr x = x * x

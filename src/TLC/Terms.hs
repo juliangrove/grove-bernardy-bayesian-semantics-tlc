@@ -211,6 +211,7 @@ data General α where
   Mult :: General ('R ⟶ ('R ⟶ 'R))
   Divi :: General ('R ⟶ ('R ⟶ 'R))
   Nml :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
+  Cauchy :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
   Uni :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
   Les :: General (('R ⟶ 'R) ⟶ 'R)
   EqGen :: Equality α => General (α ⟶ (α ⟶ 'R))

@@ -21,6 +21,9 @@ observe' φ = App observe φ
 normal :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
 normal x y = App (Con $ General Nml) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
 
+cauchy :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
+cauchy x0 γ = App (Con $ General Cauchy) (Pair (Con $ General $ Incl x0) (Con $ General $ Incl γ))
+
 uniform :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
 uniform x y
   = App (Con $ General Uni) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
