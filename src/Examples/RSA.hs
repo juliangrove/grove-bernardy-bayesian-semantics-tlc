@@ -9,28 +9,7 @@ import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Optimizer
 import TLC.Terms
-
-factor :: γ ⊢ (R ⟶ ((Unit ⟶ R) ⟶ R))
-factor
-  = Lam (Lam (App (App (Con (General Mult)) (Var (Weaken Get))) (App (Var Get) TT)))
-factor' x = App factor x
-
-observe :: γ ⊢ (T ⟶ ((Unit ⟶ R) ⟶ R))
-observe = Lam (App factor (App (Con (General Indi)) (Var Get)))
-observe' φ = App observe φ
- 
-normal :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
-normal x y = App (Con $ General Nml) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
-
-uniform :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
-uniform x y
-  = App (Con $ General Uni) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
-
-lesbegue :: γ ⊢ ((R ⟶ R) ⟶ R)
-lesbegue = Con $ General Les
-
-distr :: Equality α => γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ (α ⟶ 'R)
-distr p = Lam (App (wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))) / measure (wkn p))
+import TLC.Distributions
 
 k :: γ ⊢ ((Context ⟶ R) ⟶ R)
 k = uniform 0 100
@@ -76,20 +55,6 @@ updctx k = Lam (Pair
 -- >>> interp (Con $ General $ Utt 1)
 -- (height(v) ≥ θ)
 
-lower :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
-lower m = App m (Lam (Var Get))
-
-measure :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
-measure m = App m (Lam one)
-
-normalize :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ ((α ⟶ 'R) ⟶ 'R)
-normalize m = m ⋆ Lam (factor' (recip $ measure $ wkn m) >> η (Var Get))
-
-expectedValue :: γ ⊢ (('R ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
-expectedValue m = lower m / measure m
-
-
--- | RSA
 
 -- | Pragmatic listener
 l1 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
