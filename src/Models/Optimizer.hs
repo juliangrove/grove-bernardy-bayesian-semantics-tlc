@@ -291,11 +291,10 @@ type Vars γ  = forall v. Available v γ -> String
 
 showExpr :: Vars γ -> Expr γ Rat -> String
 showExpr v (Expr k0 xs) = intercalate " + " $
-                          (if k0 /= 0 || xs == [] then (showR k0 :) else id) $
-                          [ (if c /= 1 then parens else id) $
-                            (if c /= 1 || xs == []
-                             then showR c ++ " * "
-                             else "") ++ v x | (c, x) <- xs ]
+                          (show k0 : [ (if c /= one then parens else id) $
+                            (if c /= one || xs == []
+                             then show c ++ " * "
+                             else "") ++ v x | (c, x) <- xs ])
 
 showExp :: Natural -> String -> String
 showExp e
