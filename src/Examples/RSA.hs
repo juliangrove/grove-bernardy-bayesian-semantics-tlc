@@ -156,6 +156,6 @@ test1 = mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (
 -- >>> mathematicaFun $ evalβ $ distr $ normal 0 10 ⋆ Lam (normal 0 10 ⋆ Lam (η ((Var Get) + (Var (Weaken Get)))))
 -- Integrate[(((100000000000000000000 / 62831853071745707016369)*Exp[(1 / 100)*y*x + (-1 / 200)*y^2 + (-1 / 200)*x^2]*Exp[(-1 / 200)*y^2])) / (Integrate[Integrate[((100000000000000000000 / 62831853071745707016369)*Exp[(-1 / 200)*u^2]*Exp[(-1 / 200)*z^2]), {u, -Infinity, Infinity}], {z, -Infinity, Infinity}]), {y, -Infinity, Infinity}]
 
--- >>> mathematicaFun $ evalβ $ distr $ normal 0 1
--- (((100000000000 / 250662827463)*Exp[(-1 / 2)*x^2])) / (Integrate[((100000000000 / 250662827463)*Exp[(-1 / 2)*y^2]), {y, -Infinity, Infinity}])
+-- >>> mathematicaFun $ evalβ $ distr $ cauchy 0 1
+-- (((1)) / (((3141592653589793 / 1000000000000000) + (3141592653589793 / 1000000000000000)*x^2))) / (Integrate[((1)) / (((3141592653589793 / 1000000000000000) + (3141592653589793 / 1000000000000000)*y^2)), {y, -Infinity, Infinity}])
 
