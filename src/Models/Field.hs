@@ -1,40 +1,59 @@
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RebindableSyntax #-}
-module Field where
+module Models.Field where
 
 import Data.Ratio
 import Algebra.Classes
-import Prelude hiding (Num(..),Fractional(..),recip)
+import Prelude hiding (Num(..),Fractional(..),recip,(^))
 
-data BinOp = Plus | Times
+data BinOp = Plus | Times deriving (Eq,Ord)
 
-data Fld x = R Rational | Inject x | Op BinOp (Fld x) (Fld x) | Pow (Fld x) Rational
+data Fld x = Con Rational | Inject x | Op BinOp (Fld x) (Fld x) | Pow (Fld x) Int deriving (Ord,Eq)
 
-instance Additive (Fld x) where
-  zero = R zero
-  R x + R y = R (x + y)
-  x + y = Op Plus x y
+pattern (:*) :: forall x. Fld x -> Fld x -> Fld x
+pattern x :* y = Op Times x y
 
-instance Multiplicative (Fld x) where
-  one = R one
-  R x * R y = R (x * y)
-  x * y = Op Times x y
+pow :: Fld x -> Int -> Fld x
+pow (Pow x n) m = Pow x (n*m)
+pow x n = Pow x n
 
-instance Group (Fld x) where
-  negate = Op Times (negate one)
+instance Eq x => Additive (Fld x) where
+  zero = Con zero
+  Con x + Con y = Con (x + y)
+  x + y
+    | x == 0 = y
+    | y == 0 = x
+    | otherwise = Op Plus x y
 
-instance Division (Fld x) where
-  recip x = Pow x (-1)
+instance Eq x => Multiplicative (Fld x) where
+  one = Con one
+  Con x * Con y = Con (x * y)
+  (Con x) * (Con y :* z) = Con (x*y) * z
+  x * y | x == zero || y == zero = zero
+        | x == one = y
+        | y == one = x
+        | x == y = pow x 2
+        | otherwise = Op Times x y
 
-instance AbelianAdditive (Fld x)
+instance Eq x => Group (Fld x) where
+  negate (Con x) = Con (negate x)
+  negate x = Op Times (Con (-1)) x
 
-instance Ring (Fld x)
-instance Module (Fld x) (Fld x) where
+instance Eq x => Division (Fld x) where
+  recip (Con x) = Con (recip x)
+  recip x = pow x (-1)
+
+instance Eq x => AbelianAdditive (Fld x)
+
+instance Eq x => Ring (Fld x)
+instance Eq x => Module (Fld x) (Fld x) where
   (*^) = (*)
 
-instance Field (Fld x)
+instance Eq x => Field (Fld x)
 
 showR :: Int -> Rational -> ShowS
 showR p (\x -> (numerator x, denominator x) -> (num, den))
@@ -45,9 +64,9 @@ showR p (\x -> (numerator x, denominator x) -> (num, den))
 
 instance Show x => Show (Fld x) where
   showsPrec p = \case 
-       (R x) -> showR p x
+       (Con x) -> showR p x
        (Inject x) -> showsPrec p x
-       Pow x e -> showsPrec 8 x . showString "^" . showR 10 e
+       Pow x e -> showsPrec 8 x . showString "^" . showsPrec 10 e
        Op op x y -> showParen (p > opPrec op) $ showsPrec (opPrec op) x . showString (showOp op) . showsPrec (opPrec op + 1) y
 
 opPrec :: BinOp -> Int
@@ -61,21 +80,27 @@ showOp = \case
   Times -> "*"
 
 ex1 :: Fld String
-ex1 = Inject "pi" + 6
+ex1 = Inject "pi" + 66.8
 
 -- >>> ex1
--- "pi"+6 % 1
+-- "pi"+334/5
+
+-- >>> negate ex1
+-- -1*("pi"+334/5)
+
 
 ex2 :: Fld String
 ex2 = Inject "pi" / 2
 
 -- >>> ex2
--- "pi"*2^(-1)
+-- "pi"*(1/2)
 
 
 ex3 :: Fld String
-ex3 = Inject "pi" `Pow` (1/2)
+ex3 = Inject "pi" ^ 16
 
 -- >>> ex3
--- "pi"^(1/2)
+-- "pi"^16
 
+half :: Field a => a
+half = 1/2
