@@ -517,8 +517,6 @@ divide p1 p2 = Div p1 p2
 maxima :: (γ ⊢ 'R) -> P (Eval γ) Rat
 maxima = normalise . evalP' . normalForm . clean . evalβ
 
--- maximaPrint :: 'Unit?m
-
 -- | Take typed descriptions of real numbers onto Mathematica programs.
 mathematica :: 'Unit ⊢ 'R -> IO ()
 mathematica = mathematica' freshes (\case) . maxima
@@ -535,9 +533,6 @@ latexFun = latex' fs (\case Here -> f; There _ -> error "latexFun: are you tryin
 mathematicaFun' :: 'Unit ⊢ ('R ⟶ ('R ⟶ 'R)) -> IO ()
 mathematicaFun' = mathematica' fs (\case Here -> f; There Here -> f'; There (There _) -> error "mathematicaFun: are you trying to access the end of context? (Unit)") . maxima . absInversion . absInversion
   where (f:f':fs) = freshes
-
--- >>> :t absInversion
--- absInversion :: (γ ⊢ ('R ⟶ 'R)) -> (γ × 'R) ⊢ 'R
 
 -- Domain without restriction
 full :: Domain γ x
@@ -608,10 +603,10 @@ example3 = Integrate full $
            Ret $ constPoly 2 + sqr (varPoly Here) + (2::Rat) *^ (varPoly (There Here))
 
 -- >>> example3
--- integrate(integrate(charfun[3 + (-1 * y) ≤ 0] * DiracDelta[4 + x + (-1 * y)] * 2 + y^2 + 2*x, y, -inf, inf), x, -inf, inf)
+-- integrate(integrate(charfun[3 + (-1 * y) ≤ 0] * DiracDelta[4 + x + (-1 * y)] * (2 + y^2 + 2*x), y, -inf, inf), x, -inf, inf)
 
 -- >>> normalise example3
--- integrate(18 + 10*x + x^2, x, -1, inf)
+-- integrate((18 + 10*x + x^2), x, -1, inf)
 
 example4 :: P () Rat
 example4 = Integrate full $
