@@ -22,7 +22,11 @@ normal :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
 normal x y = App (Con $ General Nml) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
 
 cauchy :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
-cauchy x0 γ = App (Con $ General Cauchy) (Pair (Con $ General $ Incl x0) (Con $ General $ Incl γ))
+cauchy x0 γ = App (Con $ General Cau) (Pair (Con $ General $ Incl x0) (Con $ General $ Incl γ))
+
+quartic :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
+quartic x y = App (Con $ General Qua) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
+
 
 uniform :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
 uniform x y
