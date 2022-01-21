@@ -45,5 +45,3 @@ expectedValue :: γ ⊢ (('R ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
 expectedValue m = lower m / measure m where
   lower :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
   lower m = App m (Lam (Var Get))
-
-
