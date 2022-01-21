@@ -78,10 +78,6 @@ instance (Eq a, Ord a,Ring a) => Module (Poly γ a) (Poly γ a) where
 
 instance (Eq a, Ord a,Ring a) => Ring (Poly γ a) where
 
-same :: Eq α => [α] -> [α] -> Bool
-same xs ys = and $ xs >>= \x -> ys >>= \y -> [x `elem` ys && y `elem` xs]
-
-
 -- | Induced vector space structure over Expr γ α:
 
 -- | Multiplication by a scalar (expresions are linear)
@@ -192,10 +188,10 @@ type family Eval γ where
   Eval 'Unit = ()
   Eval (γ × α) = (Eval γ, Eval α)
 
-type family RepOf γ where
-  RepOf Rat = 'R
-  RepOf () = 'Unit
-  RepOf (γ, α) = (RepOf γ × RepOf α)
+-- type family RepOf γ where
+--   RepOf Rat = 'R
+--   RepOf () = 'Unit
+--   RepOf (γ, α) = (RepOf γ × RepOf α)
 
 pattern NNVar :: Available (Eval α) (Eval γ) -> NF γ α
 pattern NNVar i <- Neu (NeuVar (evalVar -> i))
