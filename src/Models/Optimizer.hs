@@ -1,3 +1,4 @@
+{-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
@@ -22,20 +23,27 @@ import Prelude hiding (Num(..), Fractional(..), (^), product, sum)
 import TLC.Terms hiding ((>>))
 import Data.Map (Map)
 import qualified Data.Map as M
+import Models.Field (Fld(Inject),half)
 
-type Rat = Rational
+type Rat = Fld Generator
+
+data Generator = GenInt Int | Pi | Sqrt  Generator deriving (Eq,Ord)
+instance Show Generator where
+  show Pi = "pi"
+  show (Sqrt x) = "sqrt" ++ parens (show x)
+  show (GenInt x) = show x
 
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
 
 isPositive :: Expr γ Rat -> Cond γ
-isPositive e = isNegative ((-1) *< e)
+isPositive e = isNegative ((negate one) *< e)
 
 isNegative :: Expr γ Rat -> Cond γ
 isNegative e = IsNegative e
 
 lessThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
-t `lessThan` u = isNegative (t + ((-1) *< u))
+t `lessThan` u = isNegative (t + ((negate one) *< u))
 
 greaterThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
 t `greaterThan` u = u `lessThan` t
@@ -190,11 +198,6 @@ type family Eval γ where
   Eval 'Unit = ()
   Eval (γ × α) = (Eval γ, Eval α)
 
--- type family RepOf γ where
---   RepOf Rat = 'R
---   RepOf () = 'Unit
---   RepOf (γ, α) = (RepOf γ × RepOf α)
-
 pattern NNVar :: Available (Eval α) (Eval γ) -> NF γ α
 pattern NNVar i <- Neu (NeuVar (evalVar -> i))
 pattern Equ x y = Neu (NeuApp (NeuApp (NeuCon (General EqRl)) x) y)
@@ -218,19 +221,16 @@ pattern InEq x y = Neu (NeuApp (NeuCon (General Indi))
                             (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
                                           x)
                                   y)))
-pattern Normal :: Rat -> Rat -> NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Normal x y f = Neu (NeuApp (NeuApp (NeuCon (General Nml))
                                     (NFPair (Neu (NeuCon (General (Incl x))))
                                      (Neu (NeuCon (General (Incl y)))))) f)
-pattern Cauchy :: Rat -> Rat -> NF γ ('R ⟶ 'R) -> NF γ 'R
+
 pattern Cauchy x y f = Neu (NeuApp (NeuApp (NeuCon (General Cau))
                                     (NFPair (Neu (NeuCon (General (Incl x))))
                                      (Neu (NeuCon (General (Incl y)))))) f)
-pattern Quartic :: Rat -> Rat -> NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Quartic x y f = Neu (NeuApp (NeuApp (NeuCon (General Qua))
                                     (NFPair (Neu (NeuCon (General (Incl x))))
                                      (Neu (NeuCon (General (Incl y)))))) f)
-pattern Uniform :: Rat -> Rat -> NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Uniform x y f = Neu (NeuApp (NeuApp (NeuCon (General Uni))
                                      (NFPair (Neu (NeuCon (General (Incl x))))
                                       (Neu (NeuCon (General (Incl y)))))) f)
@@ -248,32 +248,36 @@ evalP = evalP'
 
 evalP' :: NF γ 'R -> P (Eval γ) Rat
 evalP' = \case
-  NNCon x -> Ret $ constPoly x
+  NNCon x -> Ret $ constPoly (fromRational x)
   Neu (NeuApp (NeuApp (NeuCon (General EqRl))
                  (Adds (NNVar i) (NNVar j))) (NNVar k))
-    -> Cond (IsZero $ Expr 0 [(1, i), (1, j), (-1, k)]) $
+    -> Cond (IsZero $ Expr zero [(one, i), (one, j), (negate one, k)]) $
        Ret $ one
   EqVars (evalVar -> i) (evalVar -> j) ->
-    Cond (IsZero $ Expr 0 [(1, i), (-1, j)]) $ Ret $ one
+    Cond (IsZero $ Expr zero [(one, i), (negate one, j)]) $ Ret $ one
   InEqVars (evalVar -> i) (evalVar -> j) ->    
-    Cond (IsNegative $ Expr 0 [(-1, i), (1, j)]) $ Ret $ one
-  Equ (NNVar i) (NNCon x) ->  Cond (IsZero $ Expr x [(-1, i)]) $ Ret $ one
-  InEq (NNVar i) (NNCon x) ->  Cond (IsNegative $ Expr x [(-1, i)]) $ Ret $ one
+    Cond (IsNegative $ Expr zero [(negate one, i), (one, j)]) $ Ret $ one
+  Equ (NNVar i) (NNCon (fromRational -> x)) ->  Cond (IsZero $ Expr x [(negate one, i)]) $ Ret $ one
+  InEq (NNVar i) (NNCon (fromRational -> x)) ->  Cond (IsNegative $ Expr x [(negate one, i)]) $ Ret $ one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> multP x y
-  Normal μ σ f -> Integrate full $ multP
-                  (Ret $ constPoly (1 / (σ * sqrt2pi)) * exponential (constPoly (-1/2) * (sqr ((1/σ) *^ (constPoly μ - varPoly Here)))))
+  Normal (fromRational -> μ) (fromRational -> σ) f -> Integrate full $ multP
+                  (Ret $ constPoly (one / (σ * sqrt2pi)) * exponential (constPoly (negate half) * (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-    where sqrt2pi = 250662827463 % 100000000000
-  Cauchy x0 γ f -> Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
-                   (Ret $ (constPoly (pi' * γ) * (one + sqr ((1/γ) *^ (varPoly Here - constPoly x0)))))
-    where pi' = 3141592653589793 % 1000000000000000
-  Quartic μ σ f -> Integrate (Domain [] [Expr (μ - a) []] [Expr (μ + a) []]) $ multP
-                   (Ret $ (constPoly $ (15 % 16) / (a ^+ 5)) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
+    where sqrt2pi = Inject (Sqrt Pi)
+  Models.Optimizer.Cauchy (fromRational -> x0) (fromRational -> γ) f ->
+    Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
+    (Ret $ (constPoly (pi' * γ) * (one + sqr ((one/γ) *^ (varPoly Here - constPoly x0))))) 
+                   
+    where pi' = Inject Pi
+  Quartic (fromRational -> μ) (fromRational -> σ) f ->
+    Integrate (Domain [] [Expr (μ - a) []] [Expr (μ + a) []]) $ multP
+                   (Ret $ (constPoly $ fromRational (15 % 16) / (a ^+ 5)) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
                    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-    where sqrt7 = 264575131106 % 100000000000
+    where sqrt7 = Inject (Sqrt (GenInt 7))
           a = sqrt7 * σ
-  Uniform x y f -> Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
+  Uniform (fromRational -> x) (fromRational -> y) f ->
+    Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
                    (Ret $ constPoly (1 / (y - x)))
                    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Lesbegue f -> Integrate (Domain [] [] []) $ multP
@@ -315,7 +319,7 @@ showElem vs (Right p) st
   = (case st of Maxima -> ("exp"<>) . parens; Mathematica -> ("Exp"<>) . brackets; LaTeX -> ("e^"<>) . braces)
     (showPoly vs p st)
 showMono :: Rat -> Vars γ -> Mono γ Rat -> ShowType -> String
-showMono coef vs (Exponential m) st = foldrAlt (binOp "*") "1" ([showR coef | coef /= 1] ++[showExp e (showElem vs m st)  | (m,e) <- M.toList m, e /= zero])
+showMono coef vs (Exponential m) st = foldrAlt (binOp "*") "1" ([show coef | coef /= 1] ++[showExp e (showElem vs m st)  | (m,e) <- M.toList m, e /= zero])
 showPoly :: Vars γ -> Poly γ Rat -> ShowType -> String
 showPoly v (P m) st = foldrAlt  (binOp " + ") "0" ([showMono coef v m st  | (m,coef) <- M.toList m, coef /= zero])
 
@@ -557,6 +561,13 @@ mathematicaFun' = mathematica' fs (\case Here -> f; There Here -> f'; There (The
 full :: Domain γ x
 full = Domain [] [] []
 
+example0 :: P () Rat
+example0 = Integrate full $
+           Ret $ constPoly 10 + varPoly Here
+
+-- >>> example0
+-- integrate((10 + x), x, -inf, inf)
+
 exampleInEq :: P () Rat
 exampleInEq = Integrate full $
               Cond (IsNegative (Expr 7 [(-1, Here)])) $
@@ -586,10 +597,10 @@ example = Integrate full $ Integrate full $
           Ret $ one
 
 -- >>> example
--- integrate(integrate(charfun[(3 * x) + (2 * y) ≤ 0] * charfun[2 + x ≤ 0] * 1, y, -inf, inf), x, -inf, inf)
+-- integrate(integrate(charfun[(3 * x) + (2 * y) ≤ 0] * charfun[x ≤ 0] * (1), y, -inf, inf), x, -inf, inf)
 
 -- >>> normalise example
--- integrate(integrate(1, y, -inf, ((-3 / 2) * x)), x, -inf, -2)
+-- integrate(integrate((1), y, -inf, (-3/2 * x)), x, -inf, )
 
 example1 :: P () Rat
 example1 = Integrate full $ Integrate full $
@@ -597,7 +608,7 @@ example1 = Integrate full $ Integrate full $
            Ret $ one
 
 -- >>> example1
--- integrate(integrate(DiracDelta[4 + x + (-1 * y)] * 1, y, -inf, inf), x, -inf, inf)
+-- integrate(integrate(DiracDelta[4 + x + (-1 * y)] * (1), y, -inf, inf), x, -inf, inf)
 
 -- >>> normalise example1
 -- integrate((1), x, -inf, inf)
@@ -609,10 +620,10 @@ example2 = Integrate full $
            Ret $ varPoly Here
 
 -- >>> example2
--- integrate(integrate(DiracDelta[4 + (2 * x) + (-1 * y)] * y, y, 1 + x, inf), x, -inf, inf)
+-- integrate(integrate(DiracDelta[4 + (2 * x) + (-1 * y)] * (y), y, 1 + x, inf), x, -inf, inf)
 
 -- >>> normalise example2
--- integrate(4 + 2*x, x, -3, inf)
+-- integrate((4 + 2*x), x, -3, inf)
 
 example3 :: P () Rat
 example3 = Integrate full $
