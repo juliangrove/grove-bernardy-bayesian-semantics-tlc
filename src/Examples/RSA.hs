@@ -31,7 +31,7 @@ lesbegue :: γ ⊢ ((R ⟶ R) ⟶ R)
 lesbegue = Con $ General Les
 
 distr :: Equality α => γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ (α ⟶ 'R)
-distr p = Lam (App (normalize $ wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))))
+distr p = Lam (App (wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))) / measure (wkn p))
 
 k :: γ ⊢ ((Context ⟶ R) ⟶ R)
 k = uniform 0 100
@@ -97,7 +97,10 @@ l1 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
 l1 = Lam (k ⋆ Lam (
              factor' ((App (distr (App s1 (Var Get))) (Var (Weaken Get)))) >>
              η (Var Get)))
-    
+
+l1Distr :: γ ⊢ ('U ⟶ Context ⟶ 'R)
+l1Distr = Lam (Lam (distr (l1 `App` Var (Weaken Get))) `App` Var Get)
+
 -- | Pragmatic speaker
 s1' :: Integer -> γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
 s1' α = Lam (utts' ⋆ Lam (
@@ -105,8 +108,11 @@ s1' α = Lam (utts' ⋆ Lam (
              ((App (distr (App l0 (Var Get))) (Var (Weaken Get))) ^+ α) >>
              η (Var Get)))
 
-s1 :: γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
+s1 :: γ ⊢ (Context ⟶ ('U ⟶ 'R) ⟶ 'R)
 s1 = s1' 1
+
+s1Distr :: γ ⊢ (Context ⟶ 'U ⟶ 'R)
+s1Distr = Lam (Lam (distr (s1 `App` Var (Weaken Get))) `App` Var Get)
 
 -- | Literal listener
 l0 :: γ ⊢ ('U ⟶ ((Context ⟶ 'R) ⟶ 'R))
@@ -115,33 +121,49 @@ l0 = Lam (k ⋆ Lam (
              (App (App (Con (General Interp)) (Var (Weaken Get))) (Var Get)) >>
              η (Var Get)))
 
--- l0Distr :: γ ⊢ ('R ⟶ 'R)
--- l0Distr = distr $ App l0 (u 2) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Var Get)))
+-- l0DistrForFixedU2 :: γ ⊢ ('R ⟶ 'R)
+-- l0DistrForFixedU2 = distr $ App l0 (u 2) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Var Get)))
 
--- l1Distr :: γ ⊢ ('R ⟶ 'R)
--- l1Distr = distr $ App l1 (u 2) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Var Get)))
+-- l1DistrForFixedU :: Int -> γ ⊢ ('R ⟶ 'R)
+-- l1DistrForFixedU n = distr $ App l1 (u n) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Var Get)))
 
--- >>> interp (u' (Con $ General $ Incl $ 2 % 23))
--- (height(v) ≥ (2 / 23))
 
 test :: γ ⊢ ('R ⟶ 'R)
 test = distr $ uniform 0 10 ⋆ Lam (uniform 0 10 ⋆ Lam (η ((Con (General Addi)) `App` (Var Get) `App` (Var (Weaken Get)))))
 
--- >>>  displayVs $ evalβ $ clean $ evalβ test
--- (λx.Uniform(⟨0, 10⟩)(λy.Uniform(⟨0, 10⟩)(λz.((z + y) ≐ x))))
+utilityl :: γ ⊢ ('R ⟶ 'R ⟶ 'R)
+utilityl = Lam (Lam (l1Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `App` (heightToCtx `App` Var Get) ))
 
-utilityl :: γ ⊢ ('R ⟶ ('R ⟶ 'R))
-utilityl = Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ App l0 (u' (Var (Weaken Get)))) (App (updctx (Var Get)) (Var (Weaken (Weaken Get)))))))
+heightToCtx :: γ ⊢ ('R ⟶ Context)
+heightToCtx = Lam ((Pair
+              (Pair
+               (Pair
+                (Pair
+                 (Pair
+                  (Pair
+                   (Pair
+                    (Pair TT sel)
+                    upd)
+                   emp)
+                  (≥))
+                 (Con (General (Incl 0))))
+                human)
+               (Lam (Var (Weaken Get))))
+              vlad))
 
-utilitys :: γ ⊢ ('R ⟶ ('R ⟶ 'R))
-utilitys = Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ App s1 (App (updctx (Var Get)) (Var (Weaken (Weaken Get))))) (u' (Var (Weaken Get))))))
+toAtLeastHeight :: γ ⊢ ('R ⟶ 'U)
+toAtLeastHeight = Con (General Utt')  
+
+utilitys :: γ ⊢ ('R ⟶ 'R ⟶ 'R)
+utilitys = Lam (Lam (s1Distr `App` (heightToCtx `App` Var Get) `App` (toAtLeastHeight `App` (Var (Weaken Get))) ))
+  -- Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ App s1 (App (updctx (Var Get)) (Var (Weaken (Weaken Get))))) (u' (Var (Weaken Get))))))
 
 -- exp1 = Lam (App k $ Lam (App (utility 1) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
 -- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
--- >>> mathematicaFun' utilitys
--- Boole[(-1 * y) ≤ 0] * Boole[-100 ≤ 0] * (Integrate[Integrate[Integrate[(Integrate[Integrate[((10000000000000000000000000 / 425239468533996139387486381421029869)*Exp[(-2312 / 9) + (68 / 9)*x1 + (-1 / 18)*x1^2]*Exp[(-2312 / 9) + (68 / 9)*u + (-1 / 18)*u^2]*Exp[(-2312 / 9) + (68 / 9)*y + (-1 / 18)*y^2]), {x1, v, Infinity}], {w, 0, 100}]) / (Boole[(-1 * y) ≤ 0] * Boole[(-1 * z) ≤ 0] * Boole[-100 + z ≤ 0] * DiracDelta[v + (-1 * x)] * Integrate[(((10000000 / 751988482389)*Exp[(-2312 / 9) + (68 / 9)*y + (-1 / 18)*y^2])) / (Integrate[Integrate[((1000000000 / 751988482389)*Exp[(-2312 / 9) + (68 / 9)*y1 + (-1 / 18)*y1^2]), {y1, w, Infinity}], {x1, 0, 100}]), {w, 0, Min[y, 100]}]), {v, 0, Min[y, 100]}], {u, -Infinity, Infinity}], {z, 0, 100}]) / (Integrate[Integrate[((1000000000 / 751988482389)*Exp[(-2312 / 9) + (68 / 9)*u + (-1 / 18)*u^2]), {u, -Infinity, Infinity}], {z, 0, 100}])
+-- >>> mathematicaFun' utilityl
+-- Boole[(-1 * y) ≤ 0] * Boole[-100 + y ≤ 0] * Boole[y + (-1 * x) ≤ 0] * ((((((10000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 9) * x^2) + ((136 / 9) * x))]))) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))])), {u, y, Infinity}], {z, 0, 100}])) / (Boole[(-1 * x) ≤ 0] * Integrate[((((10000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * x^2) + ((68 / 9) * x))]))) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * v^2) + ((68 / 9) * v))])), {v, z, Infinity}], {u, 0, 100}]), {z, 0, Min[x, 100]}])) / (Boole[(-1 * y) ≤ 0] * Boole[-100 + y ≤ 0] * Boole[-100 ≤ 0] * Integrate[Integrate[(((((10000000000000000 / 565486677645711363147321) * Exp[((-4624 / 9) + ((-1 / 9) * u^2) + ((136 / 9) * u))]))) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * w^2) + ((68 / 9) * w))])), {w, y, Infinity}], {v, 0, 100}])) / (Boole[(-1 * z) ≤ 0] * Boole[-100 + z ≤ 0] * Boole[(-1 * u) ≤ 0] * Integrate[((((10000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * u^2) + ((68 / 9) * u))]))) / (Integrate[Integrate[(((1000000000 / 751988482389) * Exp[((-2312 / 9) + ((-1 / 18) * x1^2) + ((68 / 9) * x1))])), {x1, v, Infinity}], {w, 0, 100}]), {v, 0, Min[u, 100]}]), {u, y, Infinity}], {z, 0, 100}])
 
 -- >>> displayVs $ evalβ $ s1
 -- (λx.(λy.Uniform(⟨0, 100⟩)(λz.(Uniform(⟨0, 100⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩ ≐ x)))) * y(U(z))))))
