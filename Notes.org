@@ -25,6 +25,8 @@
 
 * Approximation of normal distribution using quartic formula
 
+This approximates the "bump", but has 0 probability outside the mu±a interval.
+
 #+begin_src maxima :results output
 a : sqrt(7)*sigma;
 A : 15/16 / a^5 * (x-mu-a)^2*(x-mu+a)^2;
@@ -68,16 +70,59 @@ avg= mu
 stddev= abs(sigma) 
 #+end_example
 
+* Approximation of normal distribution using inverse of quadratic (bad)
+
+variance : integrate(A*(x-avg)^2,x,-inf,+inf);
+
+#+begin_src maxima :results output
+A : sqrt(2) / %pi / (((1/7)^(2/3)*x)^4+((7)^8));
+
+mass : integrate(A,x,-inf,+inf);
+print("mass=",mass);
+
+avg : integrate(A*x,x,-inf,+inf);
+print(avg);
+
+variance : integrate(A*x^2,x,-inf,+inf);
+print(sqrt(variance));
+
+#+end_src
+
+#+RESULTS:
+:         1
+: mass= ----- 
+:        16/3
+:       7
+: 0 
+: 1 
+
+
 * Random stuff
 
 #+begin_src maxima :results output
-  print(1);
   E : integrate(exp(x^2+y^2), x, 0, 10);
   E2 : integrate(E, y, 0, 9);
   print(charfun(2 > 1) * 34);
-  ? charfun;
 #+end_src
 
 #+RESULTS:
 : 1 
 : 34 
+
+
+
+
+#+begin_src maxima :results output
+  I1 : integrate (erf(x), x);
+  S : diff(erf(x),x);
+  I2 : integrate (1/(x+x^2+x^3), x);
+  print(I2);
+#+end_src
+
+#+RESULTS:
+:                            2 x + 1
+:         2             atan(-------)
+:    log(x  + x + 1)         sqrt(3)
+: (- ---------------) - ------------- + log(x) 
+:           2              sqrt(3)
+
