@@ -66,10 +66,11 @@ deriving instance Eq a => Eq (Mono γ a)
 deriving instance Ord a => Ord (Mono γ a)
 
 -- map each monomial to its coefficient
-newtype Poly γ a = P (Map (Mono γ a) a) deriving (Additive,Group,AbelianAdditive,Ord,Eq)
+newtype Poly γ a = P (Map (Mono γ a) a)
+  deriving (Additive, Group, AbelianAdditive, Ord, Eq)
 deriving instance (Ord a,Ring a) => Module a (Poly γ a)
 
-instance (Eq a, Ord a,Ring a) => Multiplicative (Poly γ a) where
+instance (Eq a, Ord a, Ring a) => Multiplicative (Poly γ a) where
   one = P (M.singleton one one)
   P p * P q = P (M.fromListWith (+) [(m1 * m2, coef1 * coef2) | (m1,coef1) <- M.toList p, (m2,coef2) <- M.toList q])
 
@@ -136,6 +137,7 @@ substExpr f (Expr k0 e) = foldr (+) (Expr k0 []) [ c *< f x | (c, x) <- e ]
 
 exprToPoly :: Ord α => (Eq α, Ring α) => Expr γ α -> Poly γ α
 exprToPoly (Expr c xs) = constPoly c + sum [ monoPoly c' (varMono x) | (c', x) <- xs ] 
+  
 
 constPoly :: Ord α => α -> Poly γ α
 constPoly k = monoPoly k one
