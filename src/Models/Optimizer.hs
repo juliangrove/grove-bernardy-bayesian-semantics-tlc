@@ -23,15 +23,41 @@ import Prelude hiding (Num(..), Fractional(..), (^), product, sum)
 import TLC.Terms hiding ((>>))
 import Data.Map (Map)
 import qualified Data.Map as M
-import Models.Field (Fld(Inject),half)
+import Models.Field (BinOp(..), Fld(..), half)
 
 type Rat = Fld Generator
 
-data Generator = GenInt Int | Pi | Sqrt  Generator deriving (Eq,Ord)
-instance Show Generator where
-  show Pi = "pi"
-  show (Sqrt x) = "sqrt" ++ parens (show x)
-  show (GenInt x) = show x
+data Generator = GenInt Int | Pi | Sqrt Generator deriving (Eq, Ord)
+
+showRat :: Fld Generator -> ShowType -> String
+showRat (Models.Field.Con x)
+  | numerator x /= 0 && denominator x /= 1 = \case
+      LaTeX -> "\\frac{" ++ num ++ "}{" ++ den ++ "}"
+      _ -> parens $ num ++ "/" ++ den
+  where num = show $ numerator x
+        den = show $ denominator x
+showRat (Models.Field.Con x) | numerator x == 0 = const "0"
+showRat (Models.Field.Con x) | denominator x == 1 = const $ show $ numerator x
+showRat (Inject (GenInt x)) = const $ show x
+showRat (Inject Pi) = \case
+  Maxima -> "%pi"
+  Mathematica -> "Pi"
+  LaTeX -> "\\pi"
+showRat (Inject (Sqrt x)) = \case
+  Maxima -> "sqrt" ++ parens (showRat (Inject x) Maxima)
+  Mathematica -> "Sqrt" ++ brackets (showRat (Inject x) Maxima)
+  LaTeX -> "\\sqrt" ++ braces (showRat (Inject x) LaTeX)
+showRat (Op Plus x y) = \st -> showRat x st ++ " + " ++ showRat y st
+showRat (Op Times x y) = \st -> showRat x st ++ " * " ++ showRat y st
+showRat (Pow x n) = \st -> parens (showRat x st) ++ "^" ++
+                           (if n < 0 then (case st of
+                                             LaTeX -> braces
+                                             _ -> parens) else id) (show n)
+
+-- instance Show Generator where
+  -- show Pi = "pi"
+  -- show (Sqrt x) = "sqrt" ++ parens (show x)
+  -- show (GenInt x) = show x
 
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
@@ -301,12 +327,13 @@ data ShowType = Maxima | Mathematica | LaTeX
 
 type Vars γ  = forall v. Available v γ -> String
 
-showExpr :: Vars γ -> Expr γ Rat -> String
-showExpr v (Expr k0 xs) = intercalate " + " $
-                          (show k0 : [ (if c /= one then parens else id) $
-                            (if c /= one || xs == []
-                             then show c ++ " * "
-                             else "") ++ v x | (c, x) <- xs ])
+showExpr :: Vars γ -> Expr γ Rat -> ShowType -> String
+showExpr v (Expr k0 xs) st
+  = intercalate " + " $
+    (showRat k0 st : [ (if c /= one then parens else id) $
+                       (if c /= one || xs == []
+                         then showRat c st ++ " * "
+                         else "") ++ v x | (c, x) <- xs ])
 
 showExp :: Natural -> String -> String
 showExp e
@@ -315,20 +342,37 @@ showExp e
            
 showElem :: Vars γ -> Either (Available v γ) (Poly γ Rat) -> ShowType -> String
 showElem vs (Left v) _ = vs v
-showElem vs (Right p) st
-  = (case st of Maxima -> ("exp"<>) . parens; Mathematica -> ("Exp"<>) . brackets; LaTeX -> ("e^"<>) . braces)
-    (showPoly vs p st)
+showElem vs (Right p) st = (case st of
+                              Maxima -> ("exp"<>) . parens
+                              Mathematica -> ("Exp"<>) . brackets
+                              LaTeX -> ("e^"<>) . braces)
+                           (showPoly vs p st)
+    
 showMono :: Rat -> Vars γ -> Mono γ Rat -> ShowType -> String
-showMono coef vs (Exponential m) st = foldrAlt (binOp "*") "1" ([show coef | coef /= 1] ++[showExp e (showElem vs m st)  | (m,e) <- M.toList m, e /= zero])
+showMono coef vs (Exponential m) st
+  = foldrAlt (binOp "*") "1" $
+    [ showRat coef st | coef /= 1 ] ++
+    [ showExp e (showElem vs m st) | (m, e) <- M.toList m, e /= zero ]
+
 showPoly :: Vars γ -> Poly γ Rat -> ShowType -> String
-showPoly v (P m) st = foldrAlt  (binOp " + ") "0" ([showMono coef v m st  | (m,coef) <- M.toList m, coef /= zero])
+showPoly v (P m) st
+  = foldrAlt  (binOp " + ") "0" $
+    [ showMono coef v m st | (m, coef) <- M.toList m, coef /= zero ]
 
 binOp op x y = x ++ op ++ y
 
 showCond :: ShowType -> Vars γ -> Cond γ -> String
-showCond t v c0 = case c0 of
-  c@(IsNegative c') -> (case t of Mathematica -> "Boole"; Maxima -> "charfun") <> (brackets $ showExpr v c' <> " ≤ 0")
-  c@(IsZero c') -> "DiracDelta" ++ (brackets $ showExpr v c')
+showCond st v c0 = case c0 of
+  c@(IsNegative c') -> case st of
+                         Mathematica -> "Boole" ++
+                                        (brackets $ showExpr v c' st ++ " ≤ 0")
+                         Maxima -> "charfun" ++
+                                   (parens $ showExpr v c' st ++ " ≤ 0")
+                         LaTeX -> "\\mathbb" ++
+                                  (braces $ showExpr v c' st ++ " \\leq 0")
+  c@(IsZero c') -> case st of
+                     LaTeX -> "\\delta" ++ (braces $ showExpr v c' st)
+                     _ -> "DiracDelta" ++ (brackets $ showExpr v c' st)
 
 parens :: String -> String
 parens x = "(" ++ x ++ ")"
@@ -349,29 +393,29 @@ showBounds v lo (nub -> xs) = \case
             then foldrAlt
                  (\x y -> "max(" ++ x ++ ", " ++ y ++ ")")
                  "-inf" $
-                 map (showExpr v) xs
+                 map (flip (showExpr v) Maxima) xs
             else foldrAlt
                  (\x y -> "min(" ++ x ++ ", " ++ y ++ ")")
                  "inf" $
-                 map (showExpr v) xs
+                 map (flip (showExpr v) Maxima) xs
   Mathematica -> if lo
                  then foldrAlt
                       (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
                       "-Infinity" $
-                      map (showExpr v) xs
+                      map (flip (showExpr v) Mathematica) xs
                  else foldrAlt
                       (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
                       "Infinity" $
-                      map (showExpr v) xs
+                      map (flip (showExpr v) Mathematica) xs
   LaTeX -> if lo
            then foldrAlt
                 (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
                 "-\\infty" $
-                map (showExpr v) xs
+                map (flip (showExpr v) LaTeX) xs
            else foldrAlt
                 (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
                 "\\infty" $
-                map (showExpr v) xs
+                map (flip (showExpr v) LaTeX) xs
 
 when :: [a] -> [Char] -> [Char]
 when [] _ = ""
@@ -416,10 +460,10 @@ printAs :: ShowType -> P γ Rat -> String
 printAs = flip $ showP freshes (\case)
 
 instance Show (P () Rat) where
-  show = flip showProg Maxima
+  show = flip showProg Mathematica
 
 mathematica' :: [String] -> Vars γ -> P γ Rat -> IO ()
-mathematica' fs vars = putStrLn . flip (showP fs vars) Mathematica
+mathematica' fs vars = putStrLn . flip (showP fs vars) LaTeX
 
 latex' :: [String] -> Vars γ -> P γ Rat -> IO ()
 latex' fs vars = putStrLn . flip (showP fs vars) LaTeX

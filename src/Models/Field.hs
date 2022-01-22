@@ -4,15 +4,16 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RebindableSyntax #-}
+
 module Models.Field where
 
 import Data.Ratio
 import Algebra.Classes
 import Prelude hiding (Num(..),Fractional(..),recip,(^))
 
-data BinOp = Plus | Times deriving (Eq,Ord)
+data BinOp = Plus | Times deriving (Eq, Ord)
 
-data Fld x = Con Rational | Inject x | Op BinOp (Fld x) (Fld x) | Pow (Fld x) Int deriving (Ord,Eq)
+data Fld x = Con Rational | Inject x | Op BinOp (Fld x) (Fld x) | Pow (Fld x) Int deriving (Ord, Eq)
 
 pattern (:*) :: forall x. Fld x -> Fld x -> Fld x
 pattern x :* y = Op Times x y
