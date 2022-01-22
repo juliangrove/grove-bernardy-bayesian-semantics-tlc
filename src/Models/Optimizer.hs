@@ -368,8 +368,8 @@ showCond st v c0 = case c0 of
                                         (brackets $ showExpr v c' st ++ " ≤ 0")
                          Maxima -> "charfun" ++
                                    (parens $ showExpr v c' st ++ " ≤ 0")
-                         LaTeX -> "\\mathbb" ++
-                                  (braces $ showExpr v c' st ++ " \\leq 0")
+                         LaTeX -> "\\mathbb{1}" ++
+                                  (parens $ showExpr v c' st ++ " \\leq 0")
   c@(IsZero c') -> case st of
                      LaTeX -> "\\delta" ++ (braces $ showExpr v c' st)
                      _ -> "DiracDelta" ++ (brackets $ showExpr v c' st)
@@ -428,7 +428,7 @@ f +! v = \case Here -> f
 
 showP :: [String] -> Vars γ -> P γ Rat -> ShowType -> String
 showP freshes@(f:fs) v = \case
-  Ret e -> parens . showPoly v e
+  Ret e -> showPoly v e
   Add p1 p2 -> \st -> "(" ++ showP freshes v p1 st ++ ") + (" ++
                       showP freshes v p2 st ++ ")"
   Div p1 p2 -> \st -> case st of

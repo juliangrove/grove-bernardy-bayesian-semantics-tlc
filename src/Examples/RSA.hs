@@ -133,25 +133,25 @@ utilityl1 = Lam (Lam (l1Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `
 
 -- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
--- >>> mathematicaFun' utilitys1
--- Boole[-100 ≤ 0] * Boole[0 ≤ 0] * Boole[0 + (-1 * y) ≤ 0] * Boole[-100 + y ≤ 0] * Boole[0 + (-1 * x) + y ≤ 0] * (((Integrate[Integrate[((1/1000000)) / ((pi*3*(4633/9) + pi*3*(-136/9)*u + pi*3*(1/9)*u^2)), {u, 0 + y, Infinity}], {z, 0, 100}]) / ((pi*3*(4633/9) + pi*3*(-136/9)*x + pi*3*(1/9)*x^2))) / (Boole[0 ≤ 0] * Boole[-100 ≤ 0] * Boole[0 + (-1 * x) + y ≤ 0] * (Integrate[Integrate[((1/10000)) / ((pi*3*(4633/9) + pi*3*(-136/9)*u + pi*3*(1/9)*u^2)), {u, 0 + y, Infinity}], {z, 0, 100}]) / ((pi*3*(4633/9) + pi*3*(-136/9)*x + pi*3*(1/9)*x^2)))) / (Boole[-100 ≤ 0] * Boole[0 ≤ 0] * Boole[0 + (-1 * x) ≤ 0] * Integrate[((Integrate[Integrate[((1/1000000)) / ((pi*3*(4633/9) + pi*3*(-136/9)*v + pi*3*(1/9)*v^2)), {v, 0 + z, Infinity}], {u, 0, 100}]) / ((pi*3*(4633/9) + pi*3*(-136/9)*x + pi*3*(1/9)*x^2))) / (Boole[-100 ≤ 0] * Boole[0 ≤ 0] * Boole[0 + (-1 * x) + z ≤ 0] * (Integrate[Integrate[((1/10000)) / ((pi*3*(4633/9) + pi*3*(-136/9)*v + pi*3*(1/9)*v^2)), {v, 0 + z, Infinity}], {u, 0, 100}]) / ((pi*3*(4633/9) + pi*3*(-136/9)*x + pi*3*(1/9)*x^2))), {z, 0, Min[0 + x, 100]}])
+-- >>> mathematicaFun' utilityl0
+-- \mathbb{1}(0 \leq 0) * \mathbb{1}(-100 \leq 0) * \mathbb{1}(0 + (-1 * x) + y \leq 0) * \frac{\frac{\frac{1}{100}}{\pi * 3 * \frac{4633}{9} + \pi * 3 * \frac{-136}{9}*x + \pi * 3 * \frac{1}{9}*x^2}}{\int_{0}^{100}\int_{0 + y}^{\infty}\frac{\frac{1}{100}}{\pi * 3 * \frac{4633}{9} + \pi * 3 * \frac{-136}{9}*u + \pi * 3 * \frac{1}{9}*u^2}\,du\,dz}
 
 -- >>> displayVs $ evalβ $ s1
--- (λx.(λy.Uniform(⟨0, 100⟩)(λz.(((Uniform(⟨0, 100⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩ ≐ x)))) * 1) * 1) * y(U(z))))))
+-- (λx.(λy.Uniform(⟨0, 100⟩)(λz.(((((Uniform(⟨0, 100⟩)(λu.*** Exception: /tmp/danters3hnN.hs:(236,3)-(248,20): Non-exhaustive patterns in function show
 
 test1 = mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
 
 -- >>> test1
--- Boole[65 + (-1 * x) ≤ 0] * (Integrate[(1/100*(3*sqrt(pi))^(-1)*Exp[-2312/9 + 68/9*x + -1/18*x^2]), {y, 0, 100}]) / (Integrate[Integrate[(1/100*(3*sqrt(pi))^(-1)*Exp[-2312/9 + 68/9*z + -1/18*z^2]), {z, 65, Infinity}], {y, 0, 100}])
+-- \mathbb{1}(65 + (-1 * x) \leq 0) * \frac{\int_{0}^{100}\frac{\frac{1}{100}}{\pi * 3 * \frac{4633}{9} + \pi * 3 * \frac{-136}{9}*x + \pi * 3 * \frac{1}{9}*x^2}\,dy}{\int_{0}^{100}\int_{65}^{\infty}\frac{\frac{1}{100}}{\pi * 3 * \frac{4633}{9} + \pi * 3 * \frac{-136}{9}*z + \pi * 3 * \frac{1}{9}*z^2}\,dz\,dy}
         
 -- >>> mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- Boole[65 + (-1 * x) ≤ 0] * (Integrate[(1/100*(3*sqrt(pi))^(-1)*Exp[-2312/9 + 68/9*x + -1/18*x^2]), {y, 0, 100}]) / (Integrate[Integrate[(1/100*(3*sqrt(pi))^(-1)*Exp[-2312/9 + 68/9*z + -1/18*z^2]), {z, 65, Infinity}], {y, 0, 100}])
+-- \mathbb{1}(65 + (-1 * x) \leq 0) * \frac{\int_{0}^{100}\frac{\frac{1}{100}}{\pi * 3 * \frac{4633}{9} + \pi * 3 * \frac{-136}{9}*x + \pi * 3 * \frac{1}{9}*x^2}\,dy}{\int_{0}^{100}\int_{65}^{\infty}\frac{\frac{1}{100}}{\pi * 3 * \frac{4633}{9} + \pi * 3 * \frac{-136}{9}*z + \pi * 3 * \frac{1}{9}*z^2}\,dz\,dy}
 
 -- >>> displayVs $ clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
 -- 1
 
 -- >>> mathematica $ expectedValue $ App l0 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- (Integrate[Integrate[(1/100*(3*sqrt(pi))^(-1)*y*Exp[-2312/9 + 68/9*y + -1/18*y^2]), {y, 0 + x, Infinity}], {x, 0, 100}]) / (Integrate[Integrate[(1/100*(3*sqrt(pi))^(-1)*Exp[-2312/9 + 68/9*y + -1/18*y^2]), {y, 0 + x, Infinity}], {x, 0, 100}])
+-- \frac{\int_{0}^{100}\int_{0 + x}^{\infty}\frac{\frac{1}{100}*y}{\pi * 3 * \frac{4633}{9} + \pi * 3 * \frac{-136}{9}*y + \pi * 3 * \frac{1}{9}*y^2}\,dy\,dx}{\int_{0}^{100}\int_{0 + x}^{\infty}\frac{\frac{1}{100}}{\pi * 3 * \frac{4633}{9} + \pi * 3 * \frac{-136}{9}*y + \pi * 3 * \frac{1}{9}*y^2}\,dy\,dx}
 
 -- >>> mathematicaFun $ distr $ App l1 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
 -- (0)
@@ -160,4 +160,4 @@ test1 = mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (
 -- (Integrate[((10*sqrt(pi))^(-2)*Exp[1/100*y*x + -1/200*y^2 + -1/200*x^2]*Exp[-1/200*y^2]), {y, -Infinity, Infinity}]) / (Integrate[Integrate[((10*sqrt(pi))^(-2)*Exp[-1/200*z^2]*Exp[-1/200*y^2]), {z, -Infinity, Infinity}], {y, -Infinity, Infinity}])
 
 -- >>> mathematicaFun $ evalβ $ distr $ normal 68 3
--- \frac{((3 * \sqrt{\pi})^{-1}*e^{\frac{-2312}{9} + \frac{68}{9}*x + \frac{-1}{18}*x^2})}{\int_{-\infty}^{\infty}((3 * \sqrt{\pi})^{-1}*e^{\frac{-2312}{9} + \frac{68}{9}*y + \frac{-1}{18}*y^2})\,dy}
+-- \frac{(3 * \sqrt{\pi})^{-1}*e^{\frac{-2312}{9} + \frac{68}{9}*x + \frac{-1}{18}*x^2}}{\int_{-\infty}^{\infty}(3 * \sqrt{\pi})^{-1}*e^{\frac{-2312}{9} + \frac{68}{9}*y + \frac{-1}{18}*y^2}\,dy}
