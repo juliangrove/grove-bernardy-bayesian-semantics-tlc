@@ -127,8 +127,9 @@ exists :: γ ⊢ (α ⟶ T) -> γ ⊢ T
 exists φ = App (Con (Logical Exists)) φ
 
 interp :: γ ⊢ U -> γ ⊢ T
-interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ
-interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad)
+interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
+interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
+interp (Con (General (Utt 3))) = Con $ Logical Tru -- silence
 
 interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
 
@@ -232,6 +233,7 @@ instance Multiplicative (γ ⊢ 'R) where
   x * y  = Con (General Mult) `App` x `App` y
 instance Division (γ ⊢ 'R) where
   x / y  = Con (General Divi) `App` x `App` y
+
 instance Show (General α) where
   show (Incl x) = showR x
   show Indi = "𝟙"
@@ -240,6 +242,7 @@ instance Show (General α) where
   show Divi = "(/)"
   show Nml = "Normal"
   show Uni = "Uniform"
+  show Cau = "Cauchy"
   show Les = "Lesbegue"
   show EqGen = "(≐)"
   show EqRl = "(≐)"
@@ -293,7 +296,6 @@ infixl `App`
 absInversion :: γ ⊢ ('R ⟶ α) -> (γ × 'R) ⊢ α
 absInversion (Lam f) = f
 absInversion t = App (wkn t) (Var Get)
-
 
 -- Neutral terms (no constructors, except in arguments).
 data Neutral γ α where
@@ -464,10 +466,10 @@ displayVs' fs ρ t =
   App (App (Con (Special Upd)) (dd -> m)) (dd -> n)
     -> m ++ "∷" ++ n
   App (dd -> m) n@(dd -> n') -> m ++ case n of
-                                                           Lam _ -> n'
-                                                           Fst _ -> n'
-                                                           Snd _ -> n'
-                                                           _ -> "(" ++ n' ++ ")"
+                                       Lam _ -> n'
+                                       Fst _ -> n'
+                                       Snd _ -> n'
+                                       _ -> "(" ++ n' ++ ")"
   Con (show -> c) -> c
   Lam t1 -> case fs of
     fresh:rest -> "(λ" ++ fresh ++ "." ++ displayVs' rest (\case Get -> fresh; Weaken x -> ρ x) t1 ++ ")"

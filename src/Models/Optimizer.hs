@@ -45,7 +45,7 @@ showRat (Inject Pi) = \case
   LaTeX -> "\\pi"
 showRat (Inject (Sqrt x)) = \case
   Maxima -> "sqrt" ++ parens (showRat (Inject x) Maxima)
-  Mathematica -> "Sqrt" ++ brackets (showRat (Inject x) Maxima)
+  Mathematica -> "Sqrt" ++ brackets (showRat (Inject x) Mathematica)
   LaTeX -> "\\sqrt" ++ braces (showRat (Inject x) LaTeX)
 showRat (Op Plus x y) = \st -> showRat x st ++ " + " ++ showRat y st
 showRat (Op Times x y) = \st -> showRat x st ++ " * " ++ showRat y st
@@ -106,7 +106,9 @@ deriving instance (Ord a,Ring a) => Module a (Poly γ a)
 
 instance (Eq a, Ord a, Ring a) => Multiplicative (Poly γ a) where
   one = P (M.singleton one one)
-  P p * P q = P (M.fromListWith (+) [(m1 * m2, coef1 * coef2) | (m1,coef1) <- M.toList p, (m2,coef2) <- M.toList q])
+  P p * P q = P (M.fromListWith (+)
+                 [ (m1 * m2, coef1 * coef2)
+                 | (m1, coef1) <- M.toList p, (m2, coef2) <- M.toList q ])
 
 instance (Eq a, Ord a,Ring a) => Module (Poly γ a) (Poly γ a) where
   (*^) = (*)
@@ -170,7 +172,8 @@ substExpr f (Expr k0 e) = foldr (+) (Expr k0 []) [ c *< f x | (c, x) <- e ]
 
 
 exprToPoly :: Ord α => (Eq α, Ring α) => Expr γ α -> Poly γ α
-exprToPoly (Expr c xs) = constPoly c + sum [ monoPoly c' (varMono x) | (c', x) <- xs ] 
+exprToPoly (Expr c xs) = constPoly c +
+                         sum [ monoPoly c' (varMono x) | (c', x) <- xs ] 
   
 
 constPoly :: Ord α => α -> Poly γ α
@@ -188,15 +191,17 @@ varPoly = monoPoly one . varMono
 exponential :: Ring α => Poly γ α -> Poly γ α
 exponential p = monoPoly one (Exponential $ M.singleton (Right p) one) 
 
-substElem :: Ord α => (Ring α, Eq α) => Subst γ δ -> (Either (Available α γ) (Poly γ α)) -> Poly δ α
+substElem :: (Ord α, Ring α, Eq α)
+          => Subst γ δ -> (Either (Available α γ) (Poly γ α)) -> Poly δ α
 substElem f (Left x) = exprToPoly (f x)
 substElem f (Right p) = exponential (substPoly f p)
 
 substMono :: (Ring α, Ord α) => Subst γ δ -> Mono γ α -> Poly δ α
-substMono f (Exponential m) = product [ substElem f v ^+ e  | (v,e) <- M.assocs m] 
+substMono f (Exponential m)
+  = product [ substElem f v ^+ e | (v, e) <- M.assocs m ] 
 
 substPoly :: (Ring α, Ord α) => Subst γ δ -> Poly γ α -> Poly δ α
-substPoly f (P p) = sum [ c *^ substMono f m | (m,c) <- M.assocs p]
+substPoly f (P p) = sum [ c *^ substMono f m | (m, c) <- M.assocs p ]
    
 substCond :: Subst γ δ -> Cond γ -> Cond δ
 substCond f (IsNegative e) = IsNegative $ substExpr f e
@@ -275,45 +280,46 @@ evalP = evalP'
 evalP' :: NF γ 'R -> P (Eval γ) Rat
 evalP' = \case
   NNCon x -> Ret $ constPoly (fromRational x)
+  Neu (NeuApp (NeuCon (General Indi)) (Neu (NeuCon (Logical Tru)))) -> Ret one
   Neu (NeuApp (NeuApp (NeuCon (General EqRl))
-                 (Adds (NNVar i) (NNVar j))) (NNVar k))
-    -> Cond (IsZero $ Expr zero [(one, i), (one, j), (negate one, k)]) $
-       Ret $ one
+               (Adds (NNVar i) (NNVar j))) (NNVar k)) ->
+    Cond (IsZero $ Expr zero [(one, i), (one, j), (negate one, k)]) $ Ret one
   EqVars (evalVar -> i) (evalVar -> j) ->
-    Cond (IsZero $ Expr zero [(one, i), (negate one, j)]) $ Ret $ one
+    Cond (IsZero $ Expr zero [(one, i), (negate one, j)]) $ Ret one
   InEqVars (evalVar -> i) (evalVar -> j) ->    
-    Cond (IsNegative $ Expr zero [(negate one, i), (one, j)]) $ Ret $ one
-  Equ (NNVar i) (NNCon (fromRational -> x)) ->  Cond (IsZero $ Expr x [(negate one, i)]) $ Ret $ one
-  InEq (NNVar i) (NNCon (fromRational -> x)) ->  Cond (IsNegative $ Expr x [(negate one, i)]) $ Ret $ one
+    Cond (IsNegative $ Expr zero [(negate one, i), (one, j)]) $ Ret one
+  Equ (NNVar i) (NNCon (fromRational -> x)) ->
+    Cond (IsZero $ Expr x [(negate one, i)]) $ Ret one
+  InEq (NNVar i) (NNCon (fromRational -> x)) ->
+    Cond (IsNegative $ Expr x [(negate one, i)]) $ Ret one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> multP x y
-  Normal (fromRational -> μ) (fromRational -> σ) f -> Integrate full $ multP
-                  (Ret $ constPoly (one / (σ * sqrt2pi)) * exponential (constPoly (negate half) * (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
-                  (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+  Normal (fromRational -> μ) (fromRational -> σ) f ->
+    Integrate full $ multP
+    (Ret $ constPoly (one / (σ * sqrt2pi)) * exponential (constPoly (negate half) * (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
+    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where sqrt2pi = Inject (Sqrt Pi)
-  Models.Optimizer.Cauchy (fromRational -> x0) (fromRational -> γ) f ->
+  Cauchy (fromRational -> x0) (fromRational -> γ) f ->
     Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
-    (Ret $ (constPoly (pi' * γ) * (one + sqr ((one/γ) *^ (varPoly Here - constPoly x0))))) 
-                   
+    (Ret $ (constPoly (pi' * γ) * (one + sqr ((one/γ) *^ (varPoly Here - constPoly x0)))))
     where pi' = Inject Pi
   Quartic (fromRational -> μ) (fromRational -> σ) f ->
     Integrate (Domain [] [Expr (μ - a) []] [Expr (μ + a) []]) $ multP
-                   (Ret $ (constPoly $ fromRational (15 % 16) / (a ^+ 5)) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
-                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    (Ret $ (constPoly $ fromRational (15 % 16) / (a ^+ 5)) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
+    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where sqrt7 = Inject (Sqrt (GenInt 7))
           a = sqrt7 * σ
   Uniform (fromRational -> x) (fromRational -> y) f ->
     Integrate (Domain [] [Expr x []] [Expr y []]) $ multP
-                   (Ret $ constPoly (1 / (y - x)))
-                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    (Ret $ constPoly (1 / (y - x)))
+    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Lesbegue f -> Integrate (Domain [] [] []) $ multP
-                   (Ret $ one)
-                   (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+                (Ret one)
+                (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Neu (NeuVar (evalVar -> i)) -> Ret $ monoPoly one $ varMono i
   Divide x y -> Div (evalP' x) (evalP' y)
   t -> error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
 
- 
 
 sqr :: Multiplicative a => a -> a
 sqr x = x * x
@@ -329,12 +335,14 @@ type Vars γ  = forall v. Available v γ -> String
 
 showExpr :: Vars γ -> Expr γ Rat -> ShowType -> String
 showExpr v (Expr k0 xs) st
-  = intercalate " + " $
-    (showRat k0 st : [ (if c /= one then parens else id) $
-                       (if c /= one || xs == []
-                         then showRat c st ++ " * "
-                         else "") ++ v x | (c, x) <- xs ])
-
+  = intercalate " + " $ (if k0 /= 0 || xs == [] then [showRat k0 st] else []) ++
+    [ (if c /= one then parens else id) $
+      let binOp' = case st of {LaTeX -> ""; _ -> " * "}
+      in (if (c /= one && c /= -1) || xs == []
+          then showRat c st ++ binOp'
+          else "") ++
+         ((if c == -1 then ("-" ++) else id) (v x)) | (c, x) <- xs ]
+  
 showExp :: Natural -> String -> String
 showExp e
   | e == 1 = id
@@ -345,13 +353,14 @@ showElem vs (Left v) _ = vs v
 showElem vs (Right p) st = (case st of
                               Maxima -> ("exp"<>) . parens
                               Mathematica -> ("Exp"<>) . brackets
-                              LaTeX -> ("e^"<>) . braces)
+                              LaTeX -> braces . ("e^"<>) . braces)
                            (showPoly vs p st)
     
 showMono :: Rat -> Vars γ -> Mono γ Rat -> ShowType -> String
 showMono coef vs (Exponential m) st
-  = foldrAlt (binOp "*") "1" $
-    [ showRat coef st | coef /= 1 ] ++
+  = (if coef == -1 then ("-" ++) else id) $
+    foldrAlt (binOp (case st of LaTeX -> ""; _ -> "*")) "1" $
+    [ showRat coef st | coef /= 1 && coef /= -1 ] ++ 
     [ showExp e (showElem vs m st) | (m, e) <- M.toList m, e /= zero ]
 
 showPoly :: Vars γ -> Poly γ Rat -> ShowType -> String
@@ -442,9 +451,13 @@ showP freshes@(f:fs) v = \case
                       showBounds v False his LaTeX ++ "}" ++
                       showP fs (f +! v) e LaTeX ++
                       "\\,d" ++ f 
-             _ -> (\(integrand,dom) -> case st of
-                              Maxima -> "integrate" ++ parens (integrand ++ ", " ++ dom)
-                              Mathematica -> "Integrate" ++ brackets (integrand ++ ", " ++ braces dom)) $
+             _ -> (\(integrand,dom) ->
+                     case st of
+                       Maxima -> "integrate" ++
+                                 parens (integrand ++ ", " ++ dom)
+                       Mathematica -> "Integrate" ++
+                                      brackets
+                                      (integrand ++ ", " ++ braces dom)) $
                   (showP fs (f +! v) e st,
                   (when cs $ f ++ "∈" ++
                    braces (intercalate "∧" $ map (showCond st (f +! v))
@@ -638,7 +651,7 @@ example :: P () Rat
 example = Integrate full $ Integrate full $
           Cond (IsNegative (Expr 0 [(3, There Here), (2, Here)])) $
           Cond (IsNegative (Expr 2 [(1, There Here)])) $
-          Ret $ one
+          Ret one
 
 -- >>> example
 -- integrate(integrate(charfun[(3 * x) + (2 * y) ≤ 0] * charfun[x ≤ 0] * (1), y, -inf, inf), x, -inf, inf)
@@ -649,7 +662,7 @@ example = Integrate full $ Integrate full $
 example1 :: P () Rat
 example1 = Integrate full $ Integrate full $
            Cond (IsZero (Expr 4 [(1, (There Here)), (-1, Here)])) $
-           Ret $ one
+           Ret one
 
 -- >>> example1
 -- integrate(integrate(DiracDelta[4 + x + (-1 * y)] * (1), y, -inf, inf), x, -inf, inf)
