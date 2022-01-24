@@ -27,7 +27,7 @@ import Models.Field (BinOp(..), Fld(..), half)
 
 type Rat = Fld Generator
 
-data Generator = GenInt Int | Pi | Sqrt Generator deriving (Eq, Ord)
+data Generator = GenInt Int | Pi Int | Sqrt Generator deriving (Eq, Ord)
 
 showRat :: Fld Generator -> ShowType -> String
 showRat (Models.Field.Con x)
@@ -39,15 +39,19 @@ showRat (Models.Field.Con x)
 showRat (Models.Field.Con x) | numerator x == 0 = const "0"
 showRat (Models.Field.Con x) | denominator x == 1 = const $ show $ numerator x
 showRat (Inject (GenInt x)) = const $ show x
-showRat (Inject Pi) = \case
-  Maxima -> "%pi"
-  Mathematica -> "Pi"
-  LaTeX -> "\\pi"
+showRat (Inject (Pi n)) = \case
+  Maxima -> show n ++ " * %pi"
+  Mathematica -> show n ++ "*Pi"
+  LaTeX -> case n of {1 -> ""; -1 -> "-"; _ -> show n} ++ "\\pi"
 showRat (Inject (Sqrt x)) = \case
   Maxima -> "sqrt" ++ parens (showRat (Inject x) Maxima)
   Mathematica -> "Sqrt" ++ brackets (showRat (Inject x) Mathematica)
   LaTeX -> "\\sqrt" ++ braces (showRat (Inject x) LaTeX)
 showRat (Op Plus x y) = \st -> showRat x st ++ " + " ++ showRat y st
+showRat (Op Times x y@(Inject _)) = \st -> showRat x st ++
+                                            case st of
+                                              LaTeX -> showRat y st
+                                              _ -> " * " ++ showRat y st
 showRat (Op Times x y) = \st -> showRat x st ++ " * " ++ showRat y st
 showRat (Pow x n) = \st -> parens (showRat x st) ++ "^" ++
                            (if n < 0 then (case st of
@@ -298,11 +302,11 @@ evalP' = \case
     Integrate full $ multP
     (Ret $ constPoly (one / (σ * sqrt2pi)) * exponential (constPoly (negate half) * (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-    where sqrt2pi = Inject (Sqrt Pi)
+    where sqrt2pi = Inject (Sqrt (Pi 2))
   Cauchy (fromRational -> x0) (fromRational -> γ) f ->
     Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
     (Ret $ (constPoly (pi' * γ) * (one + sqr ((one/γ) *^ (varPoly Here - constPoly x0)))))
-    where pi' = Inject Pi
+    where pi' = Inject (Pi 1)
   Quartic (fromRational -> μ) (fromRational -> σ) f ->
     Integrate (Domain [] [Expr (μ - a) []] [Expr (μ + a) []]) $ multP
     (Ret $ (constPoly $ fromRational (15 % 16) / (a ^+ 5)) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
