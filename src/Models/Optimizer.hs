@@ -148,7 +148,7 @@ data P γ α where
   Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
   Cond :: Cond γ -> P γ α -> P γ α
   Add :: P γ α -> P γ α -> P γ α
-  Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor" ? No, because we do integration in these factors as well.
+  Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor"? No, because we do integration in these factors as well.
   Ret :: Poly γ α -> P γ α
 
 multP :: P γ Rat -> P γ Rat -> P γ Rat
@@ -300,16 +300,21 @@ evalP' = \case
   Mults (evalP' -> x) (evalP' -> y) -> multP x y
   Normal (fromRational -> μ) (fromRational -> σ) f ->
     Integrate full $ multP
-    (Ret $ constPoly (one / (σ * sqrt2pi)) * exponential (constPoly (negate half) * (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
+    (Ret $ constPoly (one / (σ * sqrt2pi)) *
+     exponential (constPoly (negate half) *
+                  (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where sqrt2pi = Inject (Sqrt (Pi 2))
   Cauchy (fromRational -> x0) (fromRational -> γ) f ->
-    Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
-    (Ret $ (constPoly (pi' * γ) * (one + sqr ((one/γ) *^ (varPoly Here - constPoly x0)))))
+    Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    (Ret $ constPoly (pi' * γ) *
+     (one + sqr ((one/γ) *^ (varPoly Here - constPoly x0))))
     where pi' = Inject (Pi 1)
   Quartic (fromRational -> μ) (fromRational -> σ) f ->
     Integrate (Domain [] [Expr (μ - a) []] [Expr (μ + a) []]) $ multP
-    (Ret $ (constPoly $ fromRational (15 % 16) / (a ^+ 5)) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
+    (Ret $ (constPoly $ fromRational (15 % 16) / (a ^+ 5)) *
+     ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 *
+     ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where sqrt7 = Inject (Sqrt (GenInt 7))
           a = sqrt7 * σ
@@ -480,7 +485,7 @@ instance Show (P () Rat) where
   show = flip showProg Mathematica
 
 mathematica' :: [String] -> Vars γ -> P γ Rat -> IO ()
-mathematica' fs vars = putStrLn . flip (showP fs vars) LaTeX
+mathematica' fs vars = putStrLn . flip (showP fs vars) Mathematica
 
 latex' :: [String] -> Vars γ -> P γ Rat -> IO ()
 latex' fs vars = putStrLn . flip (showP fs vars) LaTeX
@@ -562,9 +567,11 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     -- HOWEVER, due to the way we generate the equalities, my hunch is
     -- that we already take into account this coefficient. To be
     -- investigated.)
-    domainToConditions x0 d $ substP (\i -> case i of { Here -> x0;
-                                                        There i
-                                                        -> Expr zero [(one, i)] }) e
+    domainToConditions x0 d $ substP
+                                   (\i -> case i of
+                                         Here -> x0
+                                         There i -> Expr zero [(one, i)])
+                                   e
     where (coef, expr) = solve c'
           x0 = (-1 / coef) *< expr
   Just c'' -> cond (IsZero c'') (integrate d e)
@@ -615,7 +622,14 @@ latexFun = latex' fs (\case Here -> f; There _ -> error "latexFun: are you tryin
   where (f:fs) = freshes
 
 mathematicaFun' :: 'Unit ⊢ ('R ⟶ ('R ⟶ 'R)) -> IO ()
-mathematicaFun' = mathematica' fs (\case Here -> f; There Here -> f'; There (There _) -> error "mathematicaFun: are you trying to access the end of context? (Unit)") . maxima . absInversion . absInversion
+mathematicaFun' = mathematica' fs (\case
+                                      Here -> f
+                                      There Here -> f'
+                                      There (There _) ->
+                                        error "mathematicaFun: are you" ++
+                                        "trying to access the end of" ++
+                                        "context? (Unit)") .
+                  maxima . absInversion . absInversion
   where (f:f':fs) = freshes
 
 -- Domain without restriction
@@ -681,10 +695,10 @@ example2 = Integrate full $
            Ret $ varPoly Here
 
 -- >>> example2
--- integrate(integrate(DiracDelta[4 + (2 * x) + (-1 * y)] * (y), y, 1 + x, inf), x, -inf, inf)
+-- Integrate[Integrate[DiracDelta[4 + (2 * x) + (-y)] * y, {y, 1 + x, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example2
--- integrate((4 + 2*x), x, -3, inf)
+-- Integrate[4 + 2*x, {x, -3, Infinity}]
 
 example3 :: P () Rat
 example3 = Integrate full $
@@ -694,10 +708,10 @@ example3 = Integrate full $
            Ret $ constPoly 2 + sqr (varPoly Here) + (2::Rat) *^ (varPoly (There Here))
 
 -- >>> example3
--- integrate(integrate(charfun[3 + (-1 * y) ≤ 0] * DiracDelta[4 + x + (-1 * y)] * (2 + y^2 + 2*x), y, -inf, inf), x, -inf, inf)
+-- Integrate[Integrate[Boole[3 + (-y) ≤ 0] * DiracDelta[4 + x + (-y)] * 2 + y^2 + 2*x, {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example3
--- integrate((18 + 10*x + x^2), x, -1, inf)
+-- Integrate[18 + 10*x + x^2, {x, -1, Infinity}]
 
 example4 :: P () Rat
 example4 = Integrate full $

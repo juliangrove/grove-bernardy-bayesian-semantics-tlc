@@ -12,12 +12,25 @@ copyright:           2021
 build-type:          Simple
 library 
   exposed-modules: Examples.RSA
+                 , Models.Field
+                 , Models.Logical.Logical
                  , Models.Optimizer
-                 -- , Models.RN
+                 , TLC.Distributions
                  , TLC.Terms
+  other-modules: FOL.CNF
+               , FOL.Connection
+               , FOL.FOL
+               , FOL.Regularity
+               , FOL.Search
+               , FOL.Solver
+               , FOL.Tableau
+               , FOL.Unification
   hs-source-dirs: src
   build-depends: base
                , gasp
                , containers
+               , logict
                , MissingH
+               , mtl
+               , pretty
   default-language: Haskell2010

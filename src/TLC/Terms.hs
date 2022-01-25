@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -62,9 +63,10 @@ class Equality α where
 instance Equality E where
   equals (Con (Special Vlad)) (Con (Special Vlad)) = Con $ General $ Incl 1
 instance Equality R where
-  equals (Con (General (Incl x))) (Con (General (Incl y))) = case x == y of
-                                                     True -> Con $ General $ Incl 1
-                                                     False -> Con $ General $ Incl 0
+  equals (Con (General (Incl x))) (Con (General (Incl y)))
+    = case x == y of
+        True -> Con $ General $ Incl 1
+        False -> Con $ General $ Incl 0
   equals (Con (Special Theta)) (Con (Special Theta)) = Con $ General $ Incl 1
   equals x y = App (App (Con (General EqRl)) x) y
 instance Equality U where
@@ -131,7 +133,7 @@ interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ -- 'Vlad i
 interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
 interp (Con (General (Utt 3))) = Con $ Logical Tru -- silence
 
-interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
+-- interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
 
 subEq :: γ ⊢ α -> γ ⊢ α
 subEq = \case
@@ -188,12 +190,21 @@ showR (\x -> (numerator x, denominator x) -> (num, den))
 data Logical α where
   Tru :: Logical T
   Fal :: Logical T
-  And :: Logical (T ⟶ (T ⟶ T))
-  Or :: Logical (T ⟶ (T ⟶ T))
-  Imp :: Logical (T ⟶ (T ⟶ T))
+  And :: Logical (T ⟶ T ⟶ T)
+  Or :: Logical (T ⟶ T ⟶ T)
+  Imp :: Logical (T ⟶ T ⟶ T)
   Forall :: Logical ((α ⟶ T) ⟶ T)
   Exists :: Logical ((α ⟶ T) ⟶ T)
-  Equals :: Logical (α ⟶ (α ⟶ T))
+  Equals :: Logical (α ⟶ α ⟶ T)
+
+pattern True' = Con (Logical Tru)
+pattern False' = Con (Logical Fal)
+pattern And' φ ψ = App (App (Con (Logical And)) φ) ψ
+pattern Or' φ ψ = App (App (Con (Logical Or)) φ) ψ
+pattern Imp' φ ψ = App (App (Con (Logical Imp)) φ) ψ
+pattern Forall' f = App (Con (Logical Forall)) f
+pattern Exists' f = App (Con (Logical Exists)) f
+pattern Equals' m n = App (App (Con (Logical Equals)) m) n
 
 instance Show (Logical α) where
   show Tru = "⊤"
@@ -208,18 +219,19 @@ instance Show (Logical α) where
 data General α where
   Incl :: Rational -> General R
   Indi :: General ('T ⟶ 'R)
-  Addi :: General ('R ⟶ ('R ⟶ 'R))
-  Mult :: General ('R ⟶ ('R ⟶ 'R))
-  Divi :: General ('R ⟶ ('R ⟶ 'R))
-  Nml :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
-  Cau :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
-  Qua :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
-  Uni :: General (('R × 'R) ⟶ (('R ⟶ 'R) ⟶ 'R))
-  Les :: General (('R ⟶ 'R) ⟶ 'R)
-  EqGen :: Equality α => General (α ⟶ (α ⟶ 'R))
-  EqRl :: General ('R ⟶ ('R ⟶ 'R))
+  Addi :: General ('R ⟶ 'R ⟶ 'R)
+  Mult :: General ('R ⟶ 'R ⟶ 'R)
+  Divi :: General ('R ⟶ 'R ⟶ 'R)
+  EqGen :: Equality α => General (α ⟶ α ⟶ 'R)
+  EqRl :: General ('R ⟶ 'R ⟶ 'R)
   Utt :: Int -> General 'U
   Utt' :: General ('R ⟶ 'U)
+  Ber :: General ('R ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Cau :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Les :: General (('R ⟶ 'R) ⟶ 'R)
+  Nml :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Qua :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Uni :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Interp :: General ('U ⟶ (Context ⟶ 'T))
 
 instance Additive (γ ⊢ 'R) where
@@ -251,20 +263,29 @@ instance Show (General α) where
   show Interp = "⟦⟧"
 
 data Special α where
-  Vlad :: Special E
-  Height :: Special (E ⟶ R)
-  Human :: Special (E ⟶ T)
-  Theta :: Special R
-  GTE :: Special (R ⟶ (R ⟶ T))
+  Entity :: Int -> Special E
+  MeasureFun :: Int -> Special (E ⟶ R)
+  Property :: Int -> Special (E ⟶ T)
+  Degree :: Int -> Special R
+  GTE :: Special (R ⟶ R ⟶ T)
   Empty :: Special Γ
-  Upd :: Special (E ⟶ (Γ ⟶ Γ))
+  Upd :: Special (E ⟶ Γ ⟶ Γ)
   Sel :: Special (Γ ⟶ E)
 
+pattern Vlad = Entity 1
+pattern Height = MeasureFun 1
+pattern Human = Property 1
+pattern Theta = Degree 1
+  
 instance Show (Special α) where
   show Vlad = "v"
+  show (Entity n) = "entity" ++ show n
   show Height = "height"
+  show (MeasureFun n) = "measurefun" ++ show n
   show Human = "human"
+  show (Property n) = "property" ++ show n
   show Theta = "θ"
+  show (Degree n) = "degree" ++ show n
   show GTE = "(≥)"
   show Empty = "ε"
   show Upd = "(∷)"
@@ -436,7 +457,8 @@ displayVs1 t = case freshes of
   [] -> error "displayVs1: panic"
   f:fs -> displayVs' fs (\case Get -> f; Weaken _ -> "γ") t
 
-displayVs' :: forall γ α. [String] -> (forall x. x ∈ γ -> String) -> γ ⊢ α -> String
+displayVs' :: forall γ α.
+              [String] -> (forall x. x ∈ γ -> String) -> γ ⊢ α -> String
 displayVs' fs ρ t =
  let dd :: forall β. γ ⊢ β -> String
      dd = displayVs' fs ρ
@@ -471,8 +493,11 @@ displayVs' fs ρ t =
                                        Snd _ -> n'
                                        _ -> "(" ++ n' ++ ")"
   Con (show -> c) -> c
-  Lam t1 -> case fs of
-    fresh:rest -> "(λ" ++ fresh ++ "." ++ displayVs' rest (\case Get -> fresh; Weaken x -> ρ x) t1 ++ ")"
+  Lam t' -> case fs of
+    fresh:rest -> "(λ" ++ fresh ++ "." ++ displayVs' rest (\case
+                                                              Get -> fresh
+                                                              Weaken x -> ρ x)
+                  t' ++ ")"
     _ -> error "displayVs: ran out of fresh variables."
   Fst (dd -> m) -> "(π₁ " ++ m ++ ")"
   Snd (dd -> m) -> "(π₂ " ++ m ++ ")"
@@ -489,15 +514,7 @@ lft f = \case
 π (Weaken i) κ = π i (Fst κ)
 
 type Context
-  = (((((((Unit
-            × (Γ ⟶ E))
-           × (E ⟶ (Γ ⟶ Γ)))
-          × Γ)
-         × (R ⟶ (R ⟶ T))
-        × R)
-       × (E ⟶ T))
-      × (E ⟶ R))
-     × E)
+  = Unit × (Γ ⟶ E) × (E ⟶ Γ ⟶ Γ) × Γ × (R ⟶ R ⟶ T) × R × (E ⟶ T) × (E ⟶ R) × E
 
 findC :: Special α -> α ∈ Context
 findC = \case
@@ -545,7 +562,7 @@ exch = rename $ \case
   Weaken Get -> Get
   (Weaken (Weaken i)) -> Weaken (Weaken i)
 
-contr :: ((γ × α) × α) ⊢ β -> (γ × α) ⊢ β
+contr :: (γ × α × α) ⊢ β -> (γ × α) ⊢ β
 contr = rename $ \case
   Get -> Get
   Weaken i -> i

@@ -66,7 +66,7 @@ l1Distr :: γ ⊢ ('U ⟶ Context ⟶ 'R)
 l1Distr = Lam (Lam (distr (l1 `App` Var (Weaken Get))) `App` Var Get)
 
 -- | Pragmatic speaker
-s1' :: Integer -> γ ⊢ (Context ⟶ (('U ⟶ 'R) ⟶ 'R))
+s1' :: Integer -> γ ⊢ (Context ⟶ ('U ⟶ 'R) ⟶ 'R)
 s1' α = Lam (utts123 ⋆ Lam (
              factor'
              ((App (distr (App l0 (Var Get))) (Var (Weaken Get))) ^+ α) >>
@@ -79,7 +79,7 @@ s1Distr :: γ ⊢ (Context ⟶ 'U ⟶ 'R)
 s1Distr = Lam (Lam (distr (s1 `App` Var (Weaken Get))) `App` Var Get)
 
 -- | Literal listener
-l0 :: γ ⊢ ('U ⟶ ((Context ⟶ 'R) ⟶ 'R))
+l0 :: γ ⊢ ('U ⟶ (Context ⟶ 'R) ⟶ 'R)
 l0 = Lam (k ⋆ Lam (
              observe'
              (App (App (Con (General Interp)) (Var (Weaken Get))) (Var Get)) >>
@@ -133,30 +133,30 @@ utilityl1 = Lam (Lam (l1Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `
 -- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
 -- >>> mathematicaFun' utilityl0
--- Boole[0 ≤ 0] * Boole[-100 ≤ 0] * Boole[0 + (-1 * x) + y ≤ 0] * (((1/100)) / (Pi * 3 * (4633/9) + Pi * 3 * (-136/9)*x + Pi * 3 * (1/9)*x^2)) / (Integrate[Integrate[((1/100)) / (Pi * 3 * (4633/9) + Pi * 3 * (-136/9)*u + Pi * 3 * (1/9)*u^2), {u, 0 + y, Infinity}], {z, 0, 100}])
+-- \mathbb{1}(0 \leq 0) * \mathbb{1}(-1000 \leq 0) * \mathbb{1}((-x) + y \leq 0) * \frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}x + \frac{-1}{18}x^2}}}{\int_{0}^{1000}\int_{y}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}u + \frac{-1}{18}u^2}}\,du\,dz}
 
 -- >>> displayVs $ evalβ $ s1
--- (λx.(λy.Uniform(⟨0, 100⟩)(λz.(((((Uniform(⟨0, 100⟩)(λu.*** Exception: /tmp/danters3hnN.hs:(236,3)-(248,20): Non-exhaustive patterns in function show
+-- (λx.(λy.(((((Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U1⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩ ≐ x)))) / Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U1⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * 1)))) * 1) * 1) * y(U1)) + (((((Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U2⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩ ≐ x)))) / Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U2⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * 1)))) * 1) * 1) * y(U2)) + ((((Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U3⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩ ≐ x)))) / Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U3⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * 1)))) * 1) * 1) * y(U3))))))
 
 test1 = mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
 
 -- >>> test1
--- Boole[65 + (-1 * x) ≤ 0] * (Integrate[(1/1000) * (3 * Sqrt[%pi])^(-1)*Exp[(-2312/9) + (68/9)*x + (-1/18)*x^2], {y, 0, 1000}]) / (Integrate[Integrate[(1/1000) * (3 * Sqrt[%pi])^(-1)*Exp[(-2312/9) + (68/9)*z + (-1/18)*z^2], {z, 65, Infinity}], {y, 0, 1000}])
+-- \mathbb{1}(65 + (-x) \leq 0) * \frac{\int_{0}^{1000}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}x + \frac{-1}{18}x^2}}\,dy}{\int_{0}^{1000}\int_{65}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}z + \frac{-1}{18}z^2}}\,dz\,dy}
         
 -- >>> mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- Boole[65 + (-1 * x) ≤ 0] * (Integrate[(1/1000) * (3 * Sqrt[%pi])^(-1)*Exp[(-2312/9) + (68/9)*x + (-1/18)*x^2], {y, 0, 1000}]) / (Integrate[Integrate[(1/1000) * (3 * Sqrt[%pi])^(-1)*Exp[(-2312/9) + (68/9)*z + (-1/18)*z^2], {z, 65, Infinity}], {y, 0, 1000}])
+-- \mathbb{1}(65 + (-x) \leq 0) * \frac{\int_{0}^{1000}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}x + \frac{-1}{18}x^2}}\,dy}{\int_{0}^{1000}\int_{65}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}z + \frac{-1}{18}z^2}}\,dz\,dy}
 
 -- >>> displayVs $ clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
 -- 1
 
 -- >>> mathematica $ expectedValue $ App l0 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
--- \frac{\int_{0}^{1000}\int_{0 + x}^{\infty}\frac{1}{1000} * (3 * \sqrt{\pi})^{-1}ye^{\frac{-2312}{9} + \frac{68}{9}y + \frac{-1}{18}y^2}\,dy\,dx}{\int_{0}^{1000}\int_{0 + x}^{\infty}\frac{1}{1000} * (3 * \sqrt{\pi})^{-1}e^{\frac{-2312}{9} + \frac{68}{9}y + \frac{-1}{18}y^2}\,dy\,dx}
+-- \frac{\int_{0}^{1000}\int_{x}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}y{e^{\frac{-2312}{9} + \frac{68}{9}y + \frac{-1}{18}y^2}}\,dy\,dx}{\int_{0}^{1000}\int_{x}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}y + \frac{-1}{18}y^2}}\,dy\,dx}
 
 -- >>> mathematicaFun $ distr $ App l1 (u 1) ⋆ Lam (η (App (hmorph θ) (Var Get)))
 -- \mathbb{1}(-1000 \leq 0) * \mathbb{1}((-x) \leq 0) * \mathbb{1}(-1000 + x \leq 0) * \mathbb{1}(-1000 + x \leq 0) * \mathbb{1}((-x) \leq 0) * \frac{\int_{Max[0, x]}^{\infty}\frac{\frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1} * \frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}y + \frac{-1}{18}y^2}}^2}{\int_{0}^{1000}\int_{z}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}u + \frac{-1}{18}u^2}}\,du\,dz}}{(\mathbb{1}(-1000 + x \leq 0) * \mathbb{1}((-x) \leq 0) * \mathbb{1}((-y) \leq 0) * \mathbb{1}(x + (-y) \leq 0) * \frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}y + \frac{-1}{18}y^2}}}{\int_{0}^{1000}\int_{z}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}u + \frac{-1}{18}u^2}}\,du\,dz}) + ((\mathbb{1}(-1000 + x \leq 0) * \mathbb{1}((-x) \leq 0) * \mathbb{1}(-1000 + y \leq 0) * \mathbb{1}(y + (-x) \leq 0) * \frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}y + \frac{-1}{18}y^2}}}{\int_{0}^{1000}\int_{-\infty}^{z}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}u + \frac{-1}{18}u^2}}\,du\,dz}) + (\mathbb{1}(-1000 + x \leq 0) * \mathbb{1}((-x) \leq 0) * \frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}y + \frac{-1}{18}y^2}}}{\int_{0}^{1000}\int_{-\infty}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}u + \frac{-1}{18}u^2}}\,du\,dz}))}\,dy}{\mathbb{1}(-1000 \leq 0) * \int_{0}^{1000}\int_{Max[0, y]}^{\infty}\frac{\frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1} * \frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}z + \frac{-1}{18}z^2}}^2}{\int_{0}^{1000}\int_{u}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}v + \frac{-1}{18}v^2}}\,dv\,du}}{(\mathbb{1}(-1000 + y \leq 0) * \mathbb{1}((-y) \leq 0) * \mathbb{1}((-z) \leq 0) * \mathbb{1}(y + (-z) \leq 0) * \frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}z + \frac{-1}{18}z^2}}}{\int_{0}^{1000}\int_{u}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}v + \frac{-1}{18}v^2}}\,dv\,du}) + ((\mathbb{1}(-1000 + y \leq 0) * \mathbb{1}((-y) \leq 0) * \mathbb{1}(-1000 + z \leq 0) * \mathbb{1}(z + (-y) \leq 0) * \frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}z + \frac{-1}{18}z^2}}}{\int_{0}^{1000}\int_{-\infty}^{u}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}v + \frac{-1}{18}v^2}}\,dv\,du}) + (\mathbb{1}(-1000 + y \leq 0) * \mathbb{1}((-y) \leq 0) * \frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}z + \frac{-1}{18}z^2}}}{\int_{0}^{1000}\int_{-\infty}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}v + \frac{-1}{18}v^2}}\,dv\,du}))}\,dz\,dy}
 
 -- >>> mathematicaFun $ evalβ $ distr $ normal 0 10 ⋆ Lam (normal 0 10 ⋆ Lam (η ((Var Get) + (Var (Weaken Get)))))
--- \frac{\int_{-\infty}^{\infty}(10 * \sqrt{\pi})^{-2}{e^{\frac{1}{100}yx + \frac{-1}{200}y^2 + \frac{-1}{200}x^2}}{e^{\frac{-1}{200}y^2}}\,dy}{\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}(10 * \sqrt{\pi})^{-2}{e^{\frac{-1}{200}z^2}}{e^{\frac{-1}{200}y^2}}\,dz\,dy}
+-- \frac{\int_{-\infty}^{\infty}(10\sqrt{2\pi})^{-2}{e^{\frac{1}{100}yx + \frac{-1}{200}y^2 + \frac{-1}{200}x^2}}{e^{\frac{-1}{200}y^2}}\,dy}{\int_{-\infty}^{\infty}\int_{-\infty}^{\infty}(10\sqrt{2\pi})^{-2}{e^{\frac{-1}{200}z^2}}{e^{\frac{-1}{200}y^2}}\,dz\,dy}
 
--- >>> mathematicaFun $ evalβ $ distr $ normal 68 3
--- \frac{(3 * \sqrt{\pi})^{-1}*e^{\frac{-2312}{9} + \frac{68}{9}*x + \frac{-1}{18}*x^2}}{\int_{-\infty}^{\infty}(3 * \sqrt{\pi})^{-1}*e^{\frac{-2312}{9} + \frac{68}{9}*y + \frac{-1}{18}*y^2}\,dy}
+-- >>> mathematica $ evalβ $ measure $ normal 68 3
+-- Integrate[(3 * Sqrt[2*Pi])^(-1)*Exp[(-2312/9) + (68/9)*x + (-1/18)*x^2], {x, -Infinity, Infinity}]
