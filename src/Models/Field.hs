@@ -9,7 +9,7 @@ module Models.Field where
 
 import Data.Ratio
 import Algebra.Classes
-import Prelude hiding (Num(..),Fractional(..),recip,(^))
+import Prelude hiding (Num(..), Fractional(..), recip, (^))
 
 data BinOp = Plus | Times deriving (Eq, Ord)
 

@@ -106,7 +106,7 @@ deriving instance Ord a => Ord (Mono γ a)
 -- map each monomial to its coefficient
 newtype Poly γ a = P (Map (Mono γ a) a)
   deriving (Additive, Group, AbelianAdditive, Ord, Eq)
-deriving instance (Ord a,Ring a) => Module a (Poly γ a)
+deriving instance (Ord a, Ring a) => Module a (Poly γ a)
 
 instance (Eq a, Ord a, Ring a) => Multiplicative (Poly γ a) where
   one = P (M.singleton one one)
@@ -259,7 +259,6 @@ pattern InEq x y = Neu (NeuApp (NeuCon (General Indi))
 pattern Normal x y f = Neu (NeuApp (NeuApp (NeuCon (General Nml))
                                     (NFPair (Neu (NeuCon (General (Incl x))))
                                      (Neu (NeuCon (General (Incl y)))))) f)
-
 pattern Cauchy x y f = Neu (NeuApp (NeuApp (NeuCon (General Cau))
                                     (NFPair (Neu (NeuCon (General (Incl x))))
                                      (Neu (NeuCon (General (Incl y)))))) f)
@@ -328,7 +327,6 @@ evalP' = \case
   Neu (NeuVar (evalVar -> i)) -> Ret $ monoPoly one $ varMono i
   Divide x y -> Div (evalP' x) (evalP' y)
   t -> error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
-
 
 sqr :: Multiplicative a => a -> a
 sqr x = x * x

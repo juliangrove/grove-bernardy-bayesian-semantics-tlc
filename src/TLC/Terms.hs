@@ -17,7 +17,6 @@
 module TLC.Terms where
 
 import Algebra.Classes
-
 import Data.Functor.Identity
 import Data.Ratio
 import Data.String.Utils
@@ -61,13 +60,15 @@ equals' _ TT TT = True
 class Equality α where
   equals :: (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ R
 instance Equality E where
-  equals (Con (Special Vlad)) (Con (Special Vlad)) = Con $ General $ Incl 1
+  equals (Con (Special (Entity m))) (Con (Special (Entity n))) =
+    Con $ General $ Incl $ case m == n of True -> 1; False -> 0
 instance Equality R where
   equals (Con (General (Incl x))) (Con (General (Incl y)))
     = case x == y of
         True -> Con $ General $ Incl 1
         False -> Con $ General $ Incl 0
-  equals (Con (Special Theta)) (Con (Special Theta)) = Con $ General $ Incl 1
+  equals (Con (Special (Degree m))) (Con (Special (Degree n))) =
+          Con $ General $ Incl $ case m == n of True -> 1; False -> 0
   equals x y = App (App (Con (General EqRl)) x) y
 instance Equality U where
   equals (Con (General (Utt i))) (Con (General (Utt j))) = case i == j of
@@ -79,11 +80,12 @@ instance Equality U where
 instance Equality Unit where
   equals TT TT = Con $ General $ Incl 1
 instance (Equality α, Equality β) => Equality (α × β) where
-  equals (Pair m n) (Pair m' n')
-    = App (App (Con $ General $ Mult) (equals m m')) (equals n n')
+  equals (Pair m n) (Pair m' n') =
+    App (App (Con $ General $ Mult) (equals m m')) (equals n n')
   equals m n = App (App (Con $ General $ EqGen) m) n
 instance Equality (E ⟶ R) where
-  equals (Con (Special Height)) (Con (Special Height)) = Con $ General $ Incl 1
+  equals (Con (Special (MeasureFun m))) (Con (Special (MeasureFun n))) =
+    Con $ General $ Incl $ case m == n of True -> 1; False -> 0
   equals (Lam m) (Lam n) | equals' 0 (Lam m) (Lam n)
     = case equals m n of
         Con (General (Incl 1)) -> Con $ General $ Incl 1
@@ -91,12 +93,13 @@ instance Equality (E ⟶ R) where
         App (App (Con (General EqRl)) (Var (Weaken i))) (Var (Weaken j))
           -> App (App (Con (General EqRl)) (Var i)) (Var j)
 instance Equality (E ⟶ T) where
-  equals (Con (Special Human)) (Con (Special Human)) = Con $ General $ Incl 1
-instance Equality (R ⟶ (R ⟶ T)) where
+  equals (Con (Special (Property m))) (Con (Special (Property n))) =
+    Con $ General $ Incl $ case m == n of True -> 1; False -> 0
+instance Equality (R ⟶ R ⟶ T) where
   equals (Con (Special GTE)) (Con (Special GTE)) = Con $ General $ Incl 1 
 instance Equality Γ where
   equals (Con (Special Empty)) (Con (Special Empty)) = Con $ General $ Incl 1
-instance Equality (E ⟶ (Γ ⟶ Γ)) where
+instance Equality (E ⟶ Γ ⟶ Γ) where
   equals (Con (Special Upd)) (Con (Special Upd)) = Con $ General $ Incl 1
 instance Equality (Γ ⟶ E) where
   equals (Con (Special Sel)) (Con (Special Sel)) = Con $ General $ Incl 1
@@ -226,7 +229,6 @@ data General α where
   EqRl :: General ('R ⟶ 'R ⟶ 'R)
   Utt :: Int -> General 'U
   Utt' :: General ('R ⟶ 'U)
-  Ber :: General ('R ⟶ ('R ⟶ 'R) ⟶ 'R)
   Cau :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Les :: General (('R ⟶ 'R) ⟶ 'R)
   Nml :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
