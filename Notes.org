@@ -100,6 +100,82 @@ print(sqrt(variance));
 * Random stuff
 
 #+begin_src maxima :results output
+T0:      1; 
+T1:      1*x; 
+T2:      2*x^2      -1;  
+T3:      4*x^3      -3*x;  
+T4:      8*x^4      -8*x^2      +1;
+T5:     16*x^5     -20*x^3      +5*x;
+T6:     32*x^6     -48*x^4      +18*x^2      -1;        
+T7:     64*x^7    -112*x^5      +56*x^3      -7   *x;     
+T8:    128*x^8    -256*x^6      +160*x^4     -32  *x^2  +    1; 
+T9:    256*x^9    -576*x^7      +432*x^5     -120 *x^3  +    9*x; 
+T10:   512*x^10   -1280*x^8     +1120*x^6   -400  *x^4  +    50*x^2     -1; 
+T11:  1024*x^11   -2816*x^9     +2816*x^7   -1232 *x^5  +    220*x^3    -11*x; 
+T12:  2048*x^12   -6144*x^10    +6912*x^8   -3584 *x^6  +    840*x^4    -72*x^2   + 1;
+T13:  4096*x^13  -13312*x^11    +16640*x^9  -9984 *x^7  +    2912*x^5   -364*x^3  + 13*x;
+T14:  8192*x^14  -28672*x^12    +39424*x^10 -26880*x^8  +    9408*x^6   -1568*x^4 +  98*x^2  -1;
+T15: 16384*x^15  -61440*x^13    +92160*x^11 -70400*x^9  +    28800*x^7  -6048*x^5 + 560*x^3 -15*x;
+
+G: 0.3309007141602963*T0  -0.5730282736304728*T2 +0.3844623451366361 * T4 -0.22458862672086277*T6 + 8.278916195746283e-2 * T8;
+display2d:false;
+print(expand (G));
+plot2d(G,[x,-1,1],[gnuplot_term,dumb]);
+
+#+end_src
+
+#+RESULTS:
+#+begin_example
+10.59701273055524*x^8-28.38086151617809*x^6+27.10221875688855*x^4
+                     -10.91360377196837*x^2+1.595769121605731
+  
+                                                                               
+                  +--------------------------------------------+               
+              1.6 |-+        +         **|*         +        +-|               
+                  |                   ** |**                   |               
+              1.4 |-+                *   |  *                +-|               
+                  |                 **   |  **                 |               
+              1.2 |-+              **    |   **              +-|               
+                1 |-+              *     |    *              +-|               
+                  |               **     |    **               |               
+              0.8 |-+             *      |     *             +-|               
+                  |              **      |     **              |               
+              0.6 |-+           **       |      **           +-|               
+                  |             *        |       *             |               
+              0.4 |-+          **        |       **          +-|               
+                  |           **         |        **           |               
+              0.2 |-+        **          |         **        +-|               
+                  |         **           |          **         |               
+                0 |----------------------|---------------------|               
+                  +--------------------------------------------+               
+                 -1        -0.5          0         0.5         1               
+                                        x                                      
+                                                                               
+#+end_example
+
+#+begin_src maxima :results output
+  E : integrate(exp(x^2+y^2), x, 0, 10);
+  E2 : integrate(E, y, 0, 9);
+  print(charfun(2 > 1) * 34);
+  plot2d(sin(x),[x,0,2*%pi],[gnuplot_term,dumb]);
+#+end_src
+
+#+RESULTS:
+: 34 
+
+
+#+name: 3d-maxima
+#+header: :file images/maxima-3d.png
+#+header:
+#+header:
+#+begin_src maxima  :results graphics  :exports results
+  programmode: false;
+  plot3d(atan(-x^2+y^3/4),[x,-4,4],[y,-4,4],[grid,50,50 :exports results],[gnuplot_pm3d,true]);
+#+end_src
+
+#+RESULTS: 3d-maxima
+
+#+begin_src maxima :results output
   E : integrate(exp(x^2+y^2), x, 0, 10);
   E2 : integrate(E, y, 0, 9);
   print(charfun(2 > 1) * 34);
@@ -117,12 +193,22 @@ print(sqrt(variance));
   S : diff(erf(x),x);
   I2 : integrate (1/(x+x^2+x^3), x);
   print(I2);
+  print(float(integrate((exp(-x^2 + -α^2))/(1), x, -3, 3)));
+  print(float(integrate(exp(-2*x^2), x, -3, 3)));
 #+end_src
 
 #+RESULTS:
-:                            2 x + 1
-:         2             atan(-------)
-:    log(x  + x + 1)         sqrt(3)
-: (- ---------------) - ------------- + log(x) 
-:           2              sqrt(3)
+#+begin_example
+                           2 x + 1
+        2             atan(-------)
+   log(x  + x + 1)         sqrt(3)
+(- ---------------) - ------------- + log(x) 
+          2              sqrt(3)
+ 1.772414696519042
+------------------- 
+                  2
+                 α
+2.718281828459045
+1.253314134842492 
+#+end_example
 

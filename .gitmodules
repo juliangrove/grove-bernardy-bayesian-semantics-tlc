@@ -1,3 +1,9 @@
 [submodule "src/FOL"]
 	path = src/FOL
 	url = https://github.com/jyp/FOL
+[submodule "missing-math"]
+	path = missing-math
+	url = git@github.com:jyp/missing-math.git
+[submodule "gasp"]
+	path = gasp
+	url = git@github.com:jyp/gasp.git

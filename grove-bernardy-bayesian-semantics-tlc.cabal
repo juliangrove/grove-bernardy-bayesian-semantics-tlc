@@ -28,6 +28,7 @@ library
   hs-source-dirs: src
   build-depends: base
                , gasp
+               , missing-math
                , containers
                , logict
                , MissingH
