@@ -477,7 +477,7 @@ showCond st v c0 = case c0 of
                          LaTeX -> "\\mathbb{1}" ++
                                   (parens $ showExpr v c' st ++ " \\leq 0")
   (IsZero c') -> case st of
-                     LaTeX -> "\\delta" ++ (braces $ showExpr v c' st)
+                     LaTeX -> "\\delta" ++ (parens $ showExpr v c' st)
                      _ -> "DiracDelta" ++ (brackets $ showExpr v c' st)
 
 parens :: String -> String
