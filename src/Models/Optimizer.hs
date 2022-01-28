@@ -51,10 +51,10 @@ type Ret γ a = DD γ a
 
 data Cond γ = IsNegative { condExpr :: Expr γ Rat }
               -- Meaning of this constructor: expression ≤ 0
-              -- Example: u ≤ v is represented by @IsNegative [(1, u), (-1, v)]@
+              -- Example: u ≤ v is represented by @IsNegative (u - v)@
             | IsZero { condExpr :: Expr γ Rat }
               -- Meaning of this constructor: expression = 0
-              -- Example: u = v is represented by @IsZero [(1, u), (-1, v)]@
+              -- Example: u = v is represented by @IsZero (u - v)@
    deriving (Eq)
 
 
@@ -190,47 +190,7 @@ deriving instance Eq (Available α γ)
 deriving instance Ord (Available α γ)
 deriving instance Show (Available α γ)
 
-data Expr γ α = Expr α [(α, Available α γ)] deriving Eq
-  -- Linear combination. List of coefficients and variables (α is a Ring).
-  -- Example: u - v is represented by @Expr 0 [(1, u), (-1,v)]@.
-
-type Mono γ a = Exponential (Map (Either (Available a γ) (Poly γ a)) Natural)
-deriving instance Eq a => Eq (Mono γ a)
-deriving instance Ord a => Ord (Mono γ a)
-
--- map each monomial to its coefficient
-newtype Poly γ a = P (Map (Mono γ a) a)
-  deriving (Additive, Group, AbelianAdditive, Ord, Eq)
-deriving instance (Ord a, Ring a) => Module a (Poly γ a)
-
-instance (Eq a, Ord a, Ring a) => Multiplicative (Poly γ a) where
-  one = P (M.singleton one one)
-  P p * P q = P (M.fromListWith (+)
-                 [ (m1 * m2, coef1 * coef2)
-                 | (m1, coef1) <- M.toList p, (m2, coef2) <- M.toList q ])
-
-instance (Eq a, Ord a,Ring a) => Module (Poly γ a) (Poly γ a) where
-  (*^) = (*)
-
-instance (Eq a, Ord a,Ring a) => Ring (Poly γ a) where
-
 -- | Induced vector space structure over Expr γ α:
-
--- | Multiplication by a scalar (expresions are linear)
-(*<) :: Ring α => α -> Expr γ α -> Expr γ α
-c *< Expr k0 xs = Expr (c * k0) [ (c * c', v) | (c', v) <- xs ]
-
-instance Additive α => Additive (Expr γ α) where
-  (Expr c1 xs1) + (Expr c2 xs2) = Expr (c1 + c2) (xs1 ++ xs2)
-  zero = Expr zero []
-
-data Cond γ = IsNegative { condExpr :: (Expr γ Rat) }
-              -- Meaning of this constructor: expression ≤ 0
-              -- Example: u ≤ v is represented by @IsNegative [(1, u), (-1, v)]@
-            | IsZero { condExpr :: (Expr γ Rat) }
-              -- Meaning of this constructor: expression = 0
-              -- Example: u = v is represented by @IsZero [(1, u), (-1, v)]@
-   deriving (Eq)
 
 -- | Restrict the bounds by moving the bounds. Also return conditions that
 -- ensure that the bounds are in the right order.
@@ -431,7 +391,7 @@ evalP' = \case
   Mults (evalP' -> x) (evalP' -> y) -> multP x y
   Normal (fromRational -> μ) (fromRational -> σ) f ->
     Integrate full $ multP
-    (retPoly $ (:/ one) $ constPoly (one / (σ * sqrt2pi)) * exponential (constPoly (negate half) * (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
+    (retPoly $ constPoly (one / (σ * sqrt2pi)) * exponential (constPoly (negate half) * (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where sqrt2pi = sqrt (2 * pi)
   Cauchy (fromRational -> x0) (fromRational -> γ) f ->
