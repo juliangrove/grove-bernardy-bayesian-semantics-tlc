@@ -227,7 +227,11 @@ instance (Transcendental a, Ord a) => Scalable (Poly γ a) (P γ a) where
   p *^ q = retPoly p * q
 instance (Ord a, Ring a, DecidableZero a) => Additive (P γ a) where
   zero = Ret zero
-  (+) = adding
+  (Ret z) + x | isZero z = x
+  x + (Ret z) | isZero z = x
+  x + y = Add x y
+
+
 instance (Ord a, Transcendental a, DecidableZero a) => Division (P γ a) where
   (/) = divide
 
@@ -421,13 +425,12 @@ data ShowType = Maxima | Mathematica | LaTeX
 type Vars γ  = forall v. Available v γ -> String
 
 showExpr :: Vars γ -> Expr γ Rat -> ShowType -> String
-showExpr v e st = showPoly v (exprToPoly e) st
+showExpr v = showPoly v . exprToPoly
   
 showExp :: Int -> String -> String
 showExp e
   | e == 1 = id
   | otherwise = (++ "^" ++ show e)
-
                 
 showElem :: Pretty a => Vars γ -> Elem γ a -> ShowType -> String
 showElem vs (Supremum m es) st = showSupremum m [showPoly vs p st | p <- es] st
@@ -461,15 +464,12 @@ binOp op x y = x ++ op ++ y
 showCond :: ShowType -> Vars γ -> Cond γ -> String
 showCond st v c0 = case c0 of
   (IsNegative c') -> case st of
-                         Mathematica -> "Boole" ++
-                                        (brackets $ showExpr v c' st ++ " ≤ 0")
-                         Maxima -> "charfun" ++
-                                   (parens $ showExpr v c' st ++ " ≤ 0")
-                         LaTeX -> "\\mathbb{1}" ++
-                                  (parens $ showExpr v c' st ++ " \\leq 0")
+      Mathematica -> "Boole" ++ (brackets $ showExpr v c' st ++ " ≤ 0")
+      Maxima -> "charfun" ++ (parens $ showExpr v c' st ++ " ≤ 0")
+      LaTeX -> "\\mathbb{1}" ++ (parens $ showExpr v c' st ++ " \\leq 0")
   (IsZero c') -> case st of
-                     LaTeX -> "\\delta" ++ (parens $ showExpr v c' st)
-                     _ -> "DiracDelta" ++ (brackets $ showExpr v c' st)
+      LaTeX -> "\\delta" ++ (parens $ showExpr v c' st)
+      _ -> "DiracDelta" ++ (brackets $ showExpr v c' st)
 
 parens :: String -> String
 parens x = "(" ++ x ++ ")"
@@ -524,7 +524,7 @@ showP fs@(f:fsRest) v = \case
                         _ -> "(" ++ showP fs v p1 st ++ ") / (" ++
                              showP fs v p2 st ++ ")"
   Integrate (Domain cs los his) e -> \st -> 
-    let integrand = showP fsRest (f +! v) e st
+    let body = showP fsRest (f +! v) e st
         dom = (when cs $ f ++ "∈" ++
                braces (intercalate "∧" $ map (showCond st (f +! v))
                        cs)) ++ f ++ ", " ++
@@ -535,11 +535,9 @@ showP fs@(f:fsRest) v = \case
                   showBounds v Min his LaTeX ++ "}" ++
                   showP fsRest (f +! v) e LaTeX ++
                   "\\,d" ++ f 
-         Maxima -> "integrate" ++
-                   parens (integrand ++ ", " ++ dom)
+         Maxima -> "integrate" ++ parens (body ++ ", " ++ dom)
          Mathematica -> "Integrate" ++
-                        brackets
-                        (integrand ++ ", " ++ braces dom)
+                        brackets (body ++ ", " ++ braces dom)
   Cond c e -> \st -> showCond st v c ++ " * " ++ showP fs v e st
 
 showProg :: P () Rat -> ShowType -> String
@@ -633,11 +631,6 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
 integrate d e = Integrate d e
 
-adding :: Ring a => Ord a => DecidableZero a => P γ a -> P γ a -> P γ a
-adding (Ret z) x | isZero z = x
-adding x (Ret z) | isZero z = x
-adding x y = Add x y
-
 cond :: Cond γ -> P γ Rat -> P γ Rat
 cond _ (Ret z) | isZero z = Ret $ zero
 cond (IsNegative (A.Affine k0 vs)) e | k0 <= 0, vs == zero = e
@@ -651,7 +644,7 @@ normalise :: P γ Rat -> P γ Rat
 normalise = \case
   Cond c (normalise -> e) -> cond c e
   Integrate d (normalise -> e) -> integrate d e
-  Add (normalise -> p1) (normalise -> p2) -> adding p1 p2
+  Add (normalise -> p1) (normalise -> p2) -> p1 + p2
   Div (normalise -> p1) (normalise -> p2) -> divide p1 p2
   Ret e -> Ret e
 
