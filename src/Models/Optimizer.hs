@@ -53,20 +53,20 @@ type Mono γ a = Monomial (Elem γ a)
 type DD γ a = Dumb (Poly γ a)
 type Ret γ a = DD γ a 
 
-data Cond γ = IsNegative { condExpr :: Expr γ Rat }
+data Cond γ a = IsNegative { condExpr :: Expr γ a }
               -- Meaning of this constructor: expression ≤ 0
               -- Example: u ≤ v is represented by @IsNegative (u - v)@
-            | IsZero { condExpr :: Expr γ Rat }
+              | IsZero { condExpr :: Expr γ a }
               -- Meaning of this constructor: expression = 0
               -- Example: u = v is represented by @IsZero (u - v)@
    deriving (Eq)
 
-data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
+data Domain γ α = Domain { domainConditions :: [Cond (γ, α) α]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
 
 data P γ α where
   Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
-  Cond :: (DecidableZero a, Ord a, Ring a) => Cond γ -> P γ a -> P γ a
+  Cond :: (DecidableZero a, Ord a, Ring a) => Cond γ a -> P γ a -> P γ a
   Add :: P γ α -> P γ α -> P γ α
   Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor" ? No, because we do integration in these factors as well.
   Ret :: Ret γ α -> P γ α
@@ -103,17 +103,17 @@ instance Multiplicative a => Division (Dumb a) where
 instance Ring a => Field (Dumb a) where
   fromRational x = fromInteger (numerator x) :/ fromInteger (denominator x)
 
-evalPoly :: forall α β γ δ ζ. Transcendental β => Ord β => Ring β => Transcendental α => (Ord α, Ring α, Eq α)
+evalPoly :: forall α β γ δ ζ. DecidableZero β => Transcendental β => Ord β => Ring β => Transcendental α => (Ord α, Ring α, Eq α)
          => (Available α γ -> Available β δ)
          -> (α -> β)
-         -> (forall x. (Ring x, Ord x) => Available x δ -> Poly ζ x)
+         -> (forall x. (Ring x, Ord x, DecidableZero x) => Available x δ -> Poly ζ x)
          -> Poly γ α -> Poly ζ β
 evalPoly v fc f = eval fc (evalElem v fc f) 
 
-evalElem :: forall α β γ δ ζ. Transcendental β => Ord β => Ring β => Transcendental α => (Ord α, Ring α, Eq α)
+evalElem :: forall α β γ δ ζ. DecidableZero β => Transcendental β => Ord β => Ring β => Transcendental α => (Ord α, Ring α, Eq α)
          => (Available α γ -> Available β δ)
          -> (α -> β)
-         -> (forall x. (Ring x, Ord x) => Available x δ -> Poly ζ x)
+         -> (forall x. (Ring x, Ord x, DecidableZero x) => Available x δ -> Poly ζ x)
          -> Elem γ α -> Poly ζ β
 evalElem v fc f =
   let evP :: Poly γ α -> Poly ζ β
@@ -123,27 +123,27 @@ evalElem v fc f =
         (Vari x) -> f (v x)
         (Exp p) -> exponential (evP p)
 
-exponential :: Transcendental α => Ord α => Ring α => Poly γ α -> Poly γ α
+exponential :: DecidableZero α => Transcendental α => Ord α => Ring α => Poly γ α -> Poly γ α
 exponential p = case isConstant p of
   Just c -> constPoly (exp c)
   Nothing -> varP (Exp p)
   
-supremum :: (Additive α, Ord α, Multiplicative α) =>
+supremum :: DecidableZero α => (Additive α, Ord α, Multiplicative α) =>
             Dir -> [Polynomial (Elem γ α) α] -> Polynomial (Elem γ α) α
 supremum dir es = case traverse isConstant es of
                   Just cs -> constPoly ((case dir of Max -> maximum; Min -> minimum) cs)
                   Nothing -> varP (Supremum dir es)
 
-isPositive :: Expr γ Rat -> Cond γ
+isPositive :: Expr γ Rat -> Cond γ Rat
 isPositive e = isNegative (negate e)
 
-isNegative :: Expr γ Rat -> Cond γ
+isNegative :: Expr γ a -> Cond γ a
 isNegative e = IsNegative e
 
-lessThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
+lessThan :: DecidableZero a => Group a => Expr γ a -> Expr γ a -> Cond γ a
 t `lessThan` u = isNegative (t - u)
 
-greaterThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
+greaterThan :: Expr γ Rat -> Expr γ Rat -> Cond γ Rat
 t `greaterThan` u = u `lessThan` t
 
 data Available α γ where
@@ -153,7 +153,7 @@ deriving instance Eq (Available α γ)
 deriving instance Ord (Available α γ)
 deriving instance Show (Available α γ)
 
-instance (Ord α, Transcendental α) => Multiplicative (P γ α) where
+instance (Ord α, Transcendental α, DecidableZero α) => Multiplicative (P γ α) where
   one = Ret one
   (Integrate d p1) * p2 = Integrate d $ p1 * wkP p2
   p2 * (Integrate d p1) = Integrate d $ p1 * wkP p2
@@ -169,7 +169,7 @@ instance (Ord α, Transcendental α) => Multiplicative (P γ α) where
 instance (Ord a, Ring a, DecidableZero a) => AbelianAdditive (P γ a)
 instance (Transcendental a, Ord a, DecidableZero a) => Group (P γ a) where
   negate = (* (Ret (negate one)))
-instance (Transcendental a, Ord a) => Scalable (Poly γ a) (P γ a) where
+instance (Transcendental a, Ord a, DecidableZero a) => Scalable (Poly γ a) (P γ a) where
   p *^ q = retPoly p * q
 instance (Ord a, Ring a, DecidableZero a) => Additive (P γ a) where
   zero = Ret zero
@@ -189,10 +189,11 @@ wkSubst f = \case
   Here -> A.var Here 
   There x -> A.mapVars There (f x)
 
-substExpr :: Subst γ δ -> forall α. Ring α => Expr γ α -> Expr δ α
+substExpr :: Subst γ δ -> forall α. DecidableZero α => Ring α => Expr γ α -> Expr δ α
 substExpr = A.subst
 
-exprToPoly :: forall γ α. Ord α => (Eq α, Ring α) => Expr γ α -> Poly γ α
+exprToPoly :: forall γ α. DecidableZero α => Ord α => (Eq α, Ring α)
+           => Expr γ α -> Poly γ α
 exprToPoly = A.eval constPoly (monoPoly . varMono) 
 
 varMono :: Available α γ -> Mono γ α
@@ -201,30 +202,30 @@ varMono = varM . Vari
 varPoly :: Ring α => Available α γ -> Poly γ α
 varPoly = varP . Vari
 
-substElem :: Transcendental α => (Ord α, Ring α, Eq α)
+substElem :: DecidableZero α => Transcendental α => (Ord α, Ring α, Eq α)
           => Subst γ δ -> Elem γ α -> Poly δ α
 substElem f = substElem' (exprToPoly . f)
 
-substElem' :: Transcendental α => (Ord α, Ring α, Eq α)
-           => (forall x. (Ring x, Ord x) => Available x γ -> Poly δ x)
+substElem' :: DecidableZero α => Transcendental α => (Ord α, Ring α, Eq α)
+           => (forall x. (Ring x, Ord x, DecidableZero x) => Available x γ -> Poly δ x)
            -> Elem γ α -> Poly δ α
 substElem' f = evalElem id id f
 
-substRet :: (Ord f, Ord e, Ord c, Ring c)
+substRet :: DecidableZero c => (Ord f, Ord e, Ord c, Ring c)
          => Substitution e f c -> Dumb (Polynomial e c) -> Dumb (Polynomial f c)
 substRet f (x :/ y) = subst f x :/ subst f y
               
-substCond :: Subst γ δ -> Cond γ -> Cond δ
+substCond :: DecidableZero α => Ring α => Subst γ δ -> Cond γ α -> Cond δ α
 substCond f (IsNegative e) = IsNegative $ substExpr f e
 substCond f (IsZero e) = IsZero $ substExpr f e
 
-substDomain :: Ring α => Subst γ δ -> Domain γ α -> Domain δ α
+substDomain :: DecidableZero α => Ring α => Subst γ δ -> Domain γ α -> Domain δ α
 substDomain f (Domain c lo hi) = Domain
                                  (substCond (wkSubst f) <$> c)
                                  (substExpr f <$> lo)
                                  (substExpr f <$> hi)
 
-substP :: Ord x => Eq x => Transcendental x => Subst γ δ -> P γ x -> P δ x
+substP :: DecidableZero x => Ord x => Eq x => Transcendental x => Subst γ δ -> P γ x -> P δ x
 substP f p0 = case p0 of
   Ret e -> Ret (substRet (substElem f) e)
   Add (substP f -> p1) (substP f -> p2) -> Add p1 p2
@@ -232,18 +233,18 @@ substP f p0 = case p0 of
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p)
 
-wkP :: Transcendental x => Ord x => P γ x -> P (γ, α) x
+wkP :: DecidableZero x => Transcendental x => Ord x => P γ x -> P (γ, α) x
 wkP = substP $ \i -> A.var (There i) 
 
 -- | Restrict the bounds by moving the bounds. Also return conditions that
 -- ensure that the bounds are in the right order.
-restrictDomain :: α ~ Rat => Cond (γ, α) -> Domain γ α -> (Domain γ α, [Cond γ])
+restrictDomain :: α ~ Rat => Cond (γ, α) α -> Domain γ α -> (Domain γ α, [Cond γ α])
 restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
   (LT, e) -> (Domain cs los (e:his), [ lo `lessThan` e | lo <- los ])
   (GT, e) -> (Domain cs (e:los) his, [ e `lessThan` hi | hi <- his ])
   _ -> error "restrictDomain: cannot be called/(1) on equality condition"
 
-solveHere :: (Ord x, Field x) => A.Affine (Available x (γ, x)) x -> (Bool, Expr γ x)
+solveHere :: DecidableZero x => (Ord x, Field x) => A.Affine (Available x (γ, x)) x -> (Bool, Expr γ x)
 solveHere e0 = case A.solve Here e0 of
   Left _ -> error "solveHere: division by zero"
   Right (p,e1) -> case occurExpr e1 of
@@ -253,7 +254,7 @@ solveHere e0 = case A.solve Here e0 of
 type Solution γ d = (Ordering, Expr γ d)
   
 -- FIXME: detect always true and always false cases.
-solve' :: Cond (γ, Rat) -> Solution γ Rat
+solve' :: Cond (γ, Rat) Rat -> Solution γ Rat
 solve' c0 = case c0 of
     IsZero _ -> (EQ, e)
     IsNegative _ -> if positive then (LT, e) else (GT, e) 
@@ -282,7 +283,7 @@ minVar (SomeVar (There x)) (SomeVar (There y))
 minVar NoVar y = y
 minVar x NoVar = x
 
-deepest :: Cond γ -> SomeVar γ
+deepest :: Cond γ α -> SomeVar γ
 deepest c = case condExpr c of
    (A.Affine _ e) -> case LC.toList e of
      xs@(_:_) -> foldr1 minVar . map SomeVar . map fst $ xs
@@ -293,7 +294,7 @@ occurExpr = A.traverseVars $ \case
   Here -> Nothing
   There x -> Just x
 
-domainToConditions :: Ring α => Ord α => DecidableZero α => Expr γ Rat -> Domain γ Rat -> P γ α -> P γ α
+domainToConditions :: Ring α => Ord α => DecidableZero α => Expr γ α -> Domain γ α -> P γ α -> P γ α
 domainToConditions e0 = \case
   Domain [] [] [] -> id
   Domain (c:cs) los his ->
@@ -323,7 +324,7 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
 integrate d e = Integrate d e
 
-cond :: (DecidableZero a, Ord a, Ring a) => Cond γ -> P γ a -> P γ a
+cond :: (DecidableZero a, Ord a, Ring a) => Cond γ a -> P γ a -> P γ a
 cond _ (Ret z) | isZero z = Ret $ zero
 cond (IsNegative (A.Affine k0 vs)) e | k0 <= 0, vs == zero = e
 cond c (Cond c' e) | c == c' = cond c e
@@ -389,7 +390,7 @@ pattern NNCon x <- Neu (NeuCon (General (Incl (fromRational -> x))))
 evalP :: NF 'Unit 'R -> P () Rat
 evalP = evalP'
 
-retPoly :: Ord a => Ring a => Poly γ a -> P γ a
+retPoly :: DecidableZero a => Ord a => Ring a => Poly γ a -> P γ a
 retPoly = Ret . (:/ one)
 
 -- Domain without restriction
@@ -407,10 +408,11 @@ evalP' = \case
   InEqVars i j -> Cond (IsNegative $ A.var j - A.var i) $ one
   Equ (NNVar i) (NNCon x) -> Cond (IsZero $ A.constant x - A.var i) $ one
   InEq (NNVar i) (NNCon x) -> Cond (IsNegative $ A.constant x - A.var i) $ one
+  InEq (NNCon x) (NNVar i) -> Cond (IsNegative $ A.var i - A.constant x) $ one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> x * y
   Normal μ σ f -> Integrate full $ 
-      (retPoly $ constPoly (1 / (σ * sqrt (2 * pi))) * exponential (constPoly (-1/2) * (((1/σ^2) *^ (constPoly μ - varPoly Here)))))
+      (retPoly $ constPoly (1 / (σ * sqrt (2 * pi))) * exponential (constPoly (-1/2) * ((1/σ) *^ (constPoly μ - varPoly Here))^+2))
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Cauchy x0 γ f -> Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
     (retPoly $ (constPoly (pi * γ) * (one + ((one/γ) *^ (varPoly Here - constPoly x0)) ^+2)))
@@ -459,9 +461,19 @@ ratToC v = evalPoly v (Models.Field.eval @C) varPoly
 ratToC' :: (Available Rat γ -> Available C δ) -> Ret γ Rat -> Ret δ C
 ratToC' v (x :/ y) = ratToC v x :/ ratToC v y
 
-approximateIntegralsAny :: forall γ. IntegrableContext γ => Int -> P γ Rat -> Ret (Tgt γ) C
-approximateIntegralsAny n = approximateIntegrals n vRatToC
-  
+
+approximateIntegralsAny :: forall γ. IntegrableContext γ => Int -> P γ Rat -> P (Tgt γ) C
+approximateIntegralsAny n = approximateIntegralsConds n vRatToC
+
+substCond' :: (Available Rat γ -> Available C δ) -> Cond γ Rat -> Cond δ C
+substCond' f (IsNegative e) = IsNegative (A.mapVars f $ fmap (Models.Field.eval @C) e)
+substCond' f (IsZero e) = IsZero (A.mapVars f $ fmap (Models.Field.eval @C) e)
+
+approximateIntegralsConds :: forall γ δ. Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> P δ C
+approximateIntegralsConds n v (Cond c e) = Cond (substCond' v c) (approximateIntegralsConds n v e)
+approximateIntegralsConds n v (Div x y) = Div (approximateIntegralsConds n v x) (approximateIntegralsConds n v y)  
+approximateIntegralsConds n v e = Ret $ approximateIntegrals n v e
+
 approximateIntegrals :: forall γ δ. Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> Ret δ C
 approximateIntegrals n v =
   let r :: forall ξ ζ.  (Available Rat ξ -> Available C ζ) -> P ξ Rat -> Ret ζ C
@@ -506,10 +518,10 @@ instance ShowableContext γ => ShowableContext (γ,α) where
     There x -> varsForCtx fs x
   restOfVars = drop 1 . restOfVars @γ
 
-showProg :: forall γ. ShowableContext γ => ShowType -> P γ Rat -> String
+showProg :: forall γ a. Pretty a => ShowableContext γ => ShowType -> P γ a -> String
 showProg = flip (showP (restOfVars @γ freshes) (varsForCtx freshes))
 
-instance ShowableContext γ => Show (P γ Rat) where
+instance (Pretty a, ShowableContext γ) => Show (P γ a) where
   show = showProg Mathematica
 
 class (Eq a, Field a) => Pretty a where
@@ -550,7 +562,7 @@ type Vars γ  = forall v. Available v γ -> String
 f +! v = \case Here -> f
                There i -> v i
 
-showExpr :: Vars γ -> Expr γ Rat -> ShowType -> String
+showExpr :: DecidableZero a => Ord a => Pretty a => Vars γ -> Expr γ a -> ShowType -> String
 showExpr v = showPoly v . exprToPoly
   
 showExp :: Int -> String -> String
@@ -590,11 +602,11 @@ instance (Pretty a, ShowableContext γ) => Show (Dumb (Poly γ a)) where
 binOp :: [a] -> [a] -> [a] -> [a]
 binOp op x y = x ++ op ++ y
 
-showCond :: ShowType -> Vars γ -> Cond γ -> String
+showCond :: DecidableZero α => Pretty α => Ord α => ShowType -> Vars γ -> Cond γ α -> String
 showCond st v c0 = case c0 of
   (IsNegative c') -> case st of
       Mathematica -> "Boole" ++ (brackets $ showExpr v c' st ++ " ≤ 0")
-      Maxima -> "charfun" ++ (parens $ showExpr v c' st ++ " ≤ 0")
+      Maxima -> "charfun" ++ (parens $ showExpr v c' st ++ " <= 0")
       LaTeX -> "\\mathbb{1}" ++ (parens $ showExpr v c' st ++ " \\leq 0")
   (IsZero c') -> case st of
       LaTeX -> "\\delta" ++ (parens $ showExpr v c' st)
@@ -636,7 +648,7 @@ when :: [a] -> [Char] -> [Char]
 when [] _ = ""
 when _ x = x
 
-showP :: [String] -> Vars γ -> P γ Rat -> ShowType -> String
+showP :: Pretty a => [String] -> Vars γ -> P γ a -> ShowType -> String
 showP [] _ = error "showP: ran out of freshes"
 showP fs@(f:fsRest) v = \case
   Ret e -> showDumb v e
@@ -667,10 +679,10 @@ showP fs@(f:fsRest) v = \case
 mathematica :: ShowableContext γ => P γ Rat -> IO ()
 mathematica = putStrLn . showProg Mathematica  
 
-latex :: ShowableContext γ => P γ Rat -> IO ()
+latex :: Pretty a => ShowableContext γ => P γ a -> IO ()
 latex = putStrLn . showProg LaTeX
 
-maxima :: ShowableContext γ => P γ Rat -> IO ()
+maxima :: Pretty a => ShowableContext γ => P γ a -> IO ()
 maxima = putStrLn . showProg Maxima
 
 -----------------------------------------------------------
