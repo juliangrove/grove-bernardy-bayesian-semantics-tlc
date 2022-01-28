@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RebindableSyntax #-}
@@ -225,13 +226,14 @@ substDomain f (Domain c lo hi) = Domain
                                  (substExpr f <$> lo)
                                  (substExpr f <$> hi)
 
+-- | Normalising substitution
 substP :: DecidableZero x => Ord x => Eq x => Transcendental x => Subst γ δ -> P γ x -> P δ x
 substP f p0 = case p0 of
   Ret e -> Ret (substRet (substElem f) e)
-  Add (substP f -> p1) (substP f -> p2) -> Add p1 p2
-  Div (substP f -> p1) (substP f -> p2) -> Div p1 p2
-  Cond c p -> Cond (substCond f c) (substP f p)
-  Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p)
+  Add (substP f -> p1) (substP f -> p2) -> p1 + p2
+  Div (substP f -> p1) (substP f -> p2) -> p1 / p2
+  Cond c p -> cond (substCond f c) (substP f p)
+  Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p) -- integrations are never simplified by substitution
 
 wkP :: DecidableZero x => Transcendental x => Ord x => P γ x -> P (γ, α) x
 wkP = substP $ \i -> A.var (There i) 
@@ -294,15 +296,20 @@ occurExpr = A.traverseVars $ \case
   Here -> Nothing
   There x -> Just x
 
-domainToConditions :: Ring α => Ord α => DecidableZero α => Expr γ α -> Domain γ α -> P γ α -> P γ α
-domainToConditions e0 = \case
-  Domain [] [] [] -> id
-  Domain (c:cs) los his ->
-    cond (substCond (\Here -> e0) c) . domainToConditions e0 (Domain cs los his)
-  Domain cs (e:los) his ->
-    cond (e `lessThan` e0) . domainToConditions e0 (Domain cs los his)
-  Domain cs los (e:his) ->
-    cond (e0 `lessThan` e) . domainToConditions e0 (Domain cs los his)
+type RatLike α = (Ring α, Ord α, DecidableZero α)
+
+domainToConds :: RatLike α => Domain γ α -> [Cond (γ,α) α]
+domainToConds = \case
+  Domain [] [] [] -> []
+  Domain (c:cs) los his -> c : domainToConds (Domain cs los his)
+  Domain cs (e:los) his -> (wkExpr e `lessThan` A.var Here) : domainToConds (Domain cs los his)
+  Domain cs los (e:his) -> (A.var Here `lessThan` wkExpr e) : domainToConds (Domain cs los his)
+
+wkExpr :: RatLike α => Expr γ α -> Expr (γ, β) α
+wkExpr = substExpr (A.var . There) 
+
+conds_ :: RatLike a => [Cond γ a] -> P γ a -> P γ a
+conds_ cs e = foldr Cond e cs
 
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
 integrate _ (Ret z) | isZero z = Ret $ zero
@@ -317,8 +324,7 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     -- HOWEVER, due to the way we generate the equalities, my hunch is
     -- that we already take into account this coefficient. To be
     -- investigated.)
-    domainToConditions x0 d $ substP (\case { Here -> x0;
-                                              There i -> A.var i }) e
+    substP (\case { Here -> x0; There i -> A.var i }) $ conds_ (domainToConds d) e
     where (_,x0) = solveHere c'
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
@@ -333,6 +339,7 @@ cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
                      else Cond c' (cond c e)
 cond c e = Cond c e
 
+
 normalise :: P γ Rat -> P γ Rat
 normalise = \case
   Cond c (normalise -> e) -> cond c e
@@ -340,6 +347,18 @@ normalise = \case
   Add (normalise -> p1) (normalise -> p2) -> p1 + p2
   Div (normalise -> p1) (normalise -> p2) -> p1 / p2
   Ret e -> Ret e
+
+-- | Remove redundant conditions
+cleanConds :: (a ~ Rat) => [Cond γ a] -> P γ a -> P γ a
+cleanConds cs = \case
+  Ret x -> Ret x
+  Integrate d e -> Integrate d (cleanConds (domainToConds d ++ (map (substCond (A.var . There)) cs)) e)
+  Cond c e -> if any (== c) cs -- NOTE: this can be made stronger to "can prove c from the intersection of cs"
+              then cleanConds cs e
+              else Cond c $ cleanConds (c:cs) e
+  Div x y -> Div (cleanConds cs x) (cleanConds cs y)
+  Add x y -> Add (cleanConds cs x) (cleanConds cs y)
+  
 
 ------------------------------------------------------------------------------
 -- Conversion from lambda terms
@@ -697,7 +716,7 @@ maxima = putStrLn . showProg Maxima
 
 -- | Take typed descriptions of real numbers onto integrators 
 simplify :: (γ ⊢ 'R) -> P (Eval γ) Rat
-simplify = normalise . evalP' . normalForm . clean . evalβ
+simplify = cleanConds [] . normalise . evalP' . normalForm . clean . evalβ
 
 -- | Take typed descriptions of functions onto integrators with a free var
 simplifyFun :: 'Unit ⊢ ('R ⟶ 'R) -> P ((), Rat) Rat
