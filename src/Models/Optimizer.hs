@@ -563,8 +563,11 @@ type Solution γ d = (Ordering, Expr γ d)
 
 
 solveHere :: (Ord x, Field x) => A.Affine (Available x (γ, x)) x -> (Bool, Expr γ x)
-solveHere e0 = (p,e)
-  where Right (p,occurExpr -> Just e) = A.solve Here e0
+solveHere e0 = case A.solve Here e0 of
+  Left _ -> error "solveHere: division by zero"
+  Right (p,e1) -> case occurExpr e1 of
+    Nothing -> error "solveHere: panic: eliminated variable present in rest of expression"
+    Just e -> (p,e)
   
 -- FIXME: detect always true and always false cases.
 solve' :: Cond (γ, Rat) -> Solution γ Rat
@@ -773,11 +776,11 @@ example1 = Integrate full $ Integrate full $
 example2 :: P () Rat
 example2 = Integrate full $
            Integrate (Domain [] [A.constant 1 + A.var Here] []) $
-           Cond (IsZero (A.constant 4 + A.var (There Here) - A.var Here) ) $
+           Cond (IsZero (A.constant 4 + 2 *< A.var (There Here) - A.var Here) ) $
            retPoly $  varPoly Here
 
 -- >>> example2
--- Integrate[Integrate[DiracDelta[4 + (2 * x) + (-y)] * y, {y, 1 + x, Infinity}], {x, -Infinity, Infinity}]
+-- Integrate[Integrate[DiracDelta[4 + (-y) + (2 * x)] * (y)/(1), {y, 1 + x, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example2
 -- Integrate[(4 + 2*x)/(1), {x, -3, Infinity}]
@@ -790,10 +793,10 @@ example3 = Integrate full $
            retPoly $ constPoly 2 + sqr (varPoly Here) + 2 *< varPoly (There Here)
 
 -- >>> example3
--- Integrate[Integrate[Boole[3 + (-y) ≤ 0] * DiracDelta[4 + x + (-y)] * 2 + y^2 + 2*x, {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
+-- Integrate[Integrate[Boole[3 + (-y) ≤ 0] * DiracDelta[4 + (-y) + x] * (2 + y^2 + 2*x)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example3
--- Integrate[18 + 10*x + x^2, {x, -1, Infinity}]
+-- Integrate[(18 + 10*x + x^2)/(1), {x, -1, Infinity}]
 
 example4a :: P () Rat
 example4a = Integrate (Domain [] [zero] [A.constant 1]) $ one
