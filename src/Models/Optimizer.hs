@@ -488,7 +488,7 @@ approximateIntegrals n v =
     Add a b -> r0 a + r0 b
     Div a b -> r0 a / r0 b
     Ret x -> ratToC' v x
-    Cond {} -> error "approximateIntegrals: condition not eliminated ?"
+    Cond _ _ -> error ("approximateIntegrals: condition not eliminated")
     Integrate (Domain [] los his) e -> chebIntegral @C n lo hi (\x -> substP0 x (r v' e))
       where lo,hi :: Poly δ C
             lo = supremum Max $ map (ratToC v . exprToPoly) los
@@ -530,14 +530,18 @@ class (Eq a, Field a) => Pretty a where
 instance Pretty Rat where
   pretty = showRat
 
-showRat :: Rat -> ShowType -> String
-showRat (Con x) | numerator x == 0 = const "0"
-showRat (Con x) | denominator x == 1 = const $ show $ numerator x
-showRat (Con x) = \case
+showCon :: (Show a, Eq a, Ring a) => Ratio a -> ShowType -> [Char]
+showCon x  
+  | numerator x == 0 = const "0"
+  | denominator x == 1 = const $ show $ numerator x
+  | otherwise = \case
       LaTeX -> "\\frac{" ++ num ++ "}{" ++ den ++ "}"
       _ -> parens $ num ++ "/" ++ den
   where num = show $ numerator x
         den = show $ denominator x
+
+showRat :: Rat -> ShowType -> String
+showRat (Con x) = showCon x
 showRat Pi = \case
   LaTeX -> "\\pi"
   Maxima -> "%pi"
@@ -555,7 +559,7 @@ showRat (Op Times x y) = \st -> showRat x st ++ " * " ++ showRat y st
 showRat (Pow x n) = \st -> parens (showRat x st) ++ "^" ++
                            (if n < 0 then (case st of
                                              LaTeX -> braces
-                                             _ -> parens) else id) (show n)
+                                             _ -> parens) else id) (showCon n st)
 
 data ShowType = Maxima | Mathematica | LaTeX
 
