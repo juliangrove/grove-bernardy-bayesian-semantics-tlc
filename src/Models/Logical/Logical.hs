@@ -27,6 +27,12 @@ viewApp ρ = \case
 termToFol' :: ValueSubst -> γ ⊢ α -> FOL.Value
 termToFol' ρ t =
   case t of
+    Var i -> ρ i
+    True' -> FOL.VTru
+    False' -> FOL.VFal
+    And' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) -> FOL.VAnd φ ψ
+    Imp' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) -> FOL.VOr (FOL.VNot φ) ψ
+    Or' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) -> FOL.VOr φ ψ
     Forall' f -> FOL.VAll (\x -> termToFol' (\case
                                                 Get -> x
                                                 Weaken i -> ρ i)
@@ -37,17 +43,11 @@ termToFol' ρ t =
                             (evalβ $ App (wkn f) (Var Get)))
     _ -> case viewApp ρ t of
            Just (f, args) -> FOL.VApp f args
-           Nothing -> 
-             case t of
-               Var i -> ρ i
-               True' -> FOL.VTru
-               False' -> FOL.VFal
-               And' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) -> FOL.VAnd φ ψ
-               Imp' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) ->
-                 FOL.VOr (FOL.VNot φ) ψ
-               Or' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) -> FOL.VOr φ ψ
-               something ->
-                 error $ "termToFol': unsupported input " ++ show something
+           Nothing ->  error $ "termToFol': unsupported input " ++ show t
+
+
+-- >>> tryProve' $ termToFol False'
+-- Contradiction
 
 termToFol :: γ ⊢ α -> FOL.Value
 termToFol = termToFol' (\case)
@@ -62,8 +62,5 @@ tryProve' = tryProve 10 []
 -- >>> FOL.doQuote FOL.VFal
 -- ⊥
 
--- >>> FOL.doQuote $ termToFol False'
--- ⊥
-
--- >>> let x = termToFol False' in tryProve' x
--- Neutral
+-- >>> tryProve' $ termToFol (Con $ Logical Fal)
+-- Contradiction
