@@ -562,9 +562,6 @@ showProg = flip (showP (restOfVars @γ freshes) (varsForCtx freshes))
 instance ShowableContext γ => Show (P γ Rat) where
   show = showProg Mathematica
 
-instance Pretty a => Show (DD () a) where
-  show x = showDumb (\case) x Mathematica 
-
 class (Eq a, Field a) => Pretty a where
   pretty :: a -> ShowType -> String
 
@@ -636,6 +633,9 @@ showPoly v (P p) st
 
 showDumb :: Pretty a => Vars γ -> Dumb (Poly γ a) -> ShowType -> String
 showDumb v (x :/ y) st = parens (showPoly v x st) ++ "/" ++  parens (showPoly v y st)
+
+instance (Pretty a, ShowableContext γ) => Show (Dumb (Poly γ a)) where
+  show x = showDumb (varsForCtx freshes) x Mathematica
 
 binOp :: [a] -> [a] -> [a] -> [a]
 binOp op x y = x ++ op ++ y
@@ -828,7 +828,7 @@ example4a = Integrate (Domain [] [zero] [A.constant 1]) $ one
 -- >>> normalise example4a
 -- Integrate[(1)/(1), {x, 0, 1}]
 
--- >>> approximateIntegrals 4 noVarToC $ normalise example4a
+-- >>> approximateIntegralsAny 4 (normalise example4a)
 -- (1)/(1)
 
 
@@ -846,7 +846,7 @@ example4 = Integrate full $
 -- >>> normalise example4
 -- Integrate[(Exp[-2*x^2])/(1), {x, -3, 3}]
 
--- >>> approximateIntegrals 16 noVarToC $ normalise example4
+-- >>> approximateIntegralsAny 16 $ normalise example4
 -- (1.253346416637889)/(1)
 
 example5 :: P ((),Rat) Rat
@@ -855,13 +855,13 @@ example5 = Integrate full $
            Cond (IsNegative (A.constant (-3) + A.var Here)) $
            retPoly $ exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+2)
 
--- >>> putStrLn $ showProg example5 Maxima
--- integrate(charfun(-3 - y ≤ 0) * charfun(-3 + y ≤ 0) * (exp(-y^2 - x^2))/(1), y, -inf, inf)
+-- >>> example5
+-- Integrate[Boole[-3 - y ≤ 0] * Boole[-3 + y ≤ 0] * (Exp[-y^2 - x^2])/(1), {y, -Infinity, Infinity}]
 
--- >>> putStrLn $ showProg (normalise example5) Maxima
--- integrate((exp(-y^2 - x^2))/(1), y, -3, 3)
+-- >>> normalise example5
+-- Integrate[(Exp[-y^2 - x^2])/(1), {y, -3, 3}]
 
--- >>> putStrLn $ showDumb oneVar (approximateIntegrals 8 oneVarToC $ normalise example5) Mathematica
--- (9.523809523809527e-2*Exp[-9.0 - α^2] + 0.8773118952961091*Exp[-7.681980515339462 - α^2] + 0.8380952380952381*Exp[-4.499999999999999 - α^2] + 0.8380952380952381*Exp[-4.499999999999997 - α^2] + 1.0851535761614692*Exp[-1.318019484660537 - α^2] + 1.0851535761614692*Exp[-1.3180194846605355 - α^2] + 1.180952380952381*Exp[-4.930380657631324e-32 - α^2])/(1)
+-- >>> (approximateIntegralsAny 8 $ normalise example5) 
+-- (9.523809523809527e-2*Exp[-9.0 - x^2] + 0.8773118952961091*Exp[-7.681980515339462 - x^2] + 0.8380952380952381*Exp[-4.499999999999999 - x^2] + 0.8380952380952381*Exp[-4.499999999999997 - x^2] + 1.0851535761614692*Exp[-1.318019484660537 - x^2] + 1.0851535761614692*Exp[-1.3180194846605355 - x^2] + 1.180952380952381*Exp[-4.930380657631324e-32 - x^2])/(1)
 
 
