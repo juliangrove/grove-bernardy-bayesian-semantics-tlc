@@ -363,77 +363,41 @@ type family Eval γ where
 
 pattern NNVar :: Available (Eval α) (Eval γ) -> NF γ α
 pattern NNVar i <- Neu (NeuVar (evalVar -> i))
-pattern Equ :: forall (γ :: Type) (α :: Type).
-                 () =>
-                 forall (α1 :: Type) (α2 :: Type).
-                 ((α2 ⟶ (α1 ⟶ α)) ~ ('R ':-> ('R ⟶ 'R))) =>
-                 NF γ α2 -> NF γ α1 -> NF γ α
+pattern Equ :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Equ x y = Neu (NeuApp (NeuApp (NeuCon (General EqRl)) x) y)
-pattern EqVars :: 'R ∈ γ -> 'R ∈ γ -> NF γ 'R
-pattern EqVars i j = Neu (NeuApp (NeuApp (NeuCon (General EqRl))
-                                  (Neu (NeuVar i))) (Neu (NeuVar j)))
+pattern EqVars :: Available Rat (Eval γ) -> Available Rat (Eval γ)  -> NF γ 'R
+pattern EqVars i j <- Neu (NeuApp (NeuApp (NeuCon (General EqRl))
+                                  (NNVar i)) (NNVar j))
 pattern Mults :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Mults x y = Neu (NeuApp (NeuApp (NeuCon (General Mult)) x) y)
 pattern Adds :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Adds x y = Neu (NeuApp (NeuApp (NeuCon (General Addi)) x) y)
-pattern MultsVar :: NF γ 'R -> 'R ∈ γ -> NF γ 'R
-pattern MultsVar x j = Neu (NeuApp
-                            (NeuApp (NeuCon (General Mult)) x) (Neu (NeuVar j)))
-pattern InEqVars :: 'R ∈ γ -> 'R ∈ γ -> NF γ 'R
-pattern InEqVars i j = Neu (NeuApp (NeuCon (General Indi))
+pattern InEqVars :: Available Rat (Eval γ) -> Available Rat (Eval γ) -> NF γ 'R
+pattern InEqVars i j <- Neu (NeuApp (NeuCon (General Indi))
                             (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
-                                          (Neu (NeuVar i)))
-                                  (Neu (NeuVar j)))))
+                                           (NNVar i)) (NNVar j))))
 pattern InEq :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern InEq x y = Neu (NeuApp (NeuCon (General Indi))
                             (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
-                                          x)
-                                  y)))
-pattern Normal :: forall (γ :: Type) (α :: Type).
-                    () =>
-                    forall (α2 :: Type) (α3 :: Type) (α4 :: Type) (β :: Type).
-                    ((α3 ⟶ (α2 ⟶ α)) ~ (('R × 'R) ':-> (('R ⟶ 'R) ⟶ 'R)),
-                     α3 ~ (α4 ':× β), α4 ~ 'R, β ~ 'R) =>
-                    Rational -> Rational -> NF γ α2 -> NF γ α
-pattern Normal x y f = Neu (NeuApp (NeuApp (NeuCon (General Nml))
-                                    (NFPair (Neu (NeuCon (General (Incl x))))
-                                     (Neu (NeuCon (General (Incl y)))))) f)
-
-pattern Cauchy :: forall (γ :: Type) (α :: Type).
-                    () =>
-                    forall (α1 :: Type) (α2 :: Type) (α3 :: Type) (β :: Type).
-                    ((α2 ⟶ (α1 ⟶ α)) ~ (('R × 'R) ':-> (('R ⟶ 'R) ⟶ 'R)),
-                     α2 ~ (α3 ':× β), α3 ~ 'R, β ~ 'R) =>
-                    Rational -> Rational -> NF γ α1 -> NF γ α
-pattern Cauchy x y f = Neu (NeuApp (NeuApp (NeuCon (General Cau))
-                                    (NFPair (Neu (NeuCon (General (Incl x))))
-                                     (Neu (NeuCon (General (Incl y)))))) f)
-pattern Quartic :: forall (γ :: Type) (α :: Type).
-                     () =>
-                     forall (α2 :: Type) (α3 :: Type) (α4 :: Type) (β :: Type).
-                     ((α3 ⟶ (α2 ⟶ α)) ~ (('R × 'R) ':-> (('R ⟶ 'R) ⟶ 'R)),
-                      α3 ~ (α4 ':× β), α4 ~ 'R, β ~ 'R) =>
-                     Rational -> Rational -> NF γ α2 -> NF γ α
-pattern Quartic x y f = Neu (NeuApp (NeuApp (NeuCon (General Qua))
-                                    (NFPair (Neu (NeuCon (General (Incl x))))
-                                     (Neu (NeuCon (General (Incl y)))))) f)
-pattern Uniform :: forall (γ :: Type) (α :: Type).
-                     () =>
-                     forall (α2 :: Type) (α3 :: Type) (α4 :: Type) (β :: Type).
-                     ((α3 ⟶ (α2 ⟶ α)) ~ (('R × 'R) ':-> (('R ⟶ 'R) ⟶ 'R)),
-                      α3 ~ (α4 ':× β), α4 ~ 'R, β ~ 'R) =>
-                     Rational -> Rational -> NF γ α2 -> NF γ α
-pattern Uniform x y f = Neu (NeuApp (NeuApp (NeuCon (General Uni))
-                                     (NFPair (Neu (NeuCon (General (Incl x))))
-                                      (Neu (NeuCon (General (Incl y)))))) f)
+                                          x) y)))
+pattern Normal :: Field x=> x -> x -> NF γ ('R ⟶ 'R) -> NF γ 'R
+pattern Normal x y f <- Neu (NeuApp (NeuApp (NeuCon (General Nml))
+                                    (NFPair (NNCon x) (NNCon y))) f)
+pattern Cauchy :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
+pattern Cauchy x y f <- Neu (NeuApp (NeuApp (NeuCon (General Cau))
+                                    (NFPair (NNCon x) (NNCon y))) f)
+pattern Quartic :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
+pattern Quartic x y f <- Neu (NeuApp (NeuApp (NeuCon (General Qua))
+                                    (NFPair (NNCon x) (NNCon y))) f)
+pattern Uniform :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
+pattern Uniform x y f <- Neu (NeuApp (NeuApp (NeuCon (General Uni))
+                                     (NFPair (NNCon x) (NNCon y))) f)
 pattern Lesbegue :: NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Lesbegue f = Neu (NeuApp (NeuCon (General Les)) f)
 pattern Divide :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
-pattern NNCon :: forall (γ :: Type) (α :: Type).
-                   () =>
-                   (α ~ 'R) => Rational -> NF γ α
-pattern NNCon x = Neu (NeuCon (General (Incl x)))
+pattern NNCon :: Field x => x -> NF γ 'R
+pattern NNCon x <- Neu (NeuCon (General (Incl (fromRational -> x))))
 
 evalP :: NF 'Unit 'R -> P () Rat
 evalP = evalP'
@@ -452,35 +416,27 @@ evalP' = \case
   Neu (NeuApp (NeuApp (NeuCon (General EqRl))
                (Adds (NNVar i) (NNVar j))) (NNVar k)) ->
     Cond (IsZero $ A.var i + A.var j - A.var k) $ one
-  EqVars (evalVar -> i) (evalVar -> j) ->
-    Cond (IsZero $ A.var i - A.var j) $ one
-  InEqVars (evalVar -> i) (evalVar -> j) ->    
-    Cond (IsNegative $ A.var j - A.var i) $ one
-  Equ (NNVar i) (NNCon (fromRational -> x)) ->
-    Cond (IsZero $ A.constant x - A.var i) $ one
-  InEq (NNVar i) (NNCon (fromRational -> x)) ->
-    Cond (IsNegative $ A.constant x - A.var i) $ one
+  EqVars i j -> Cond (IsZero $ A.var i - A.var j) $ one
+  InEqVars i j -> Cond (IsNegative $ A.var j - A.var i) $ one
+  Equ (NNVar i) (NNCon x) -> Cond (IsZero $ A.constant x - A.var i) $ one
+  InEq (NNVar i) (NNCon x) -> Cond (IsNegative $ A.constant x - A.var i) $ one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> x * y
-  Normal (fromRational -> μ) (fromRational -> σ) f ->
-    Integrate full $ 
+  Normal μ σ f -> Integrate full $ 
       (retPoly $ constPoly (1 / (σ * sqrt (2 * pi))) * exponential (constPoly (-1/2) * (((1/σ^2) *^ (constPoly μ - varPoly Here)))))
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-  Cauchy (fromRational -> x0) (fromRational -> γ) f ->
-    Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
+  Cauchy x0 γ f -> Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
     (retPoly $ (constPoly (pi * γ) * (one + ((one/γ) *^ (varPoly Here - constPoly x0)) ^+2)))
-  Quartic (fromRational -> μ) (fromRational -> σ) f ->
-    Integrate (Domain [] [A.constant (μ - a)] [A.constant (μ + a)]) $
+  Quartic μ σ f -> Integrate (Domain [] [A.constant (μ - a)] [A.constant (μ + a)]) $
     (retPoly $ (constPoly ((15 / 16) / (a ^+ 5))) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2) *
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where a = sqrt 7 * σ
-  Uniform (fromRational -> x) (fromRational -> y) f ->
-    Integrate (Domain [] [A.constant x] [A.constant y]) $ 
+  Uniform x y f -> Integrate (Domain [] [A.constant x] [A.constant y]) $ 
     (retPoly $ constPoly (1 / (y - x))) *
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Lesbegue f -> Integrate (Domain [] [] []) $
                 (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-  Neu (NeuVar (evalVar -> i)) -> retPoly $ varPoly i
+  NNVar i -> retPoly $ varPoly i
   Divide x y -> Div (evalP' x) (evalP' y)
   t -> error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
 
