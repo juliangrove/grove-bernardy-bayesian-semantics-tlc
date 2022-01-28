@@ -495,18 +495,21 @@ evalVar = \case
 -------------------------------------------------
 -- Approximation of integrals
 
-class IntegrableContext γ δ where
-  vRatToC :: Available Rat γ -> Available C δ
+class IntegrableContext γ where
+  type Tgt γ 
+  vRatToC :: Available Rat γ -> Available C (Tgt γ)
 
-instance IntegrableContext () () where
+instance IntegrableContext () where
+  type Tgt () = ()
   vRatToC = \case
 
-instance IntegrableContext γ δ => IntegrableContext (γ,Rat) (δ,C) where
+instance IntegrableContext γ => IntegrableContext (γ,Rat) where
+  type Tgt (γ,Rat) = (Tgt γ,C)
   vRatToC = \case
      Here -> Here
      There x -> There (vRatToC x)
 
-approximateIntegralsAny :: IntegrableContext γ δ => Int -> P γ Rat -> Ret δ C
+approximateIntegralsAny :: forall γ. IntegrableContext γ => Int -> P γ Rat -> Ret (Tgt γ) C
 approximateIntegralsAny n = approximateIntegrals n vRatToC
   
 approximateIntegrals :: forall γ δ. Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> Ret δ C
