@@ -421,14 +421,7 @@ data ShowType = Maxima | Mathematica | LaTeX
 type Vars γ  = forall v. Available v γ -> String
 
 showExpr :: Vars γ -> Expr γ Rat -> ShowType -> String
-showExpr v (A.Affine k0 xs) st
-  = intercalate " + " $ (if k0 /= 0 || xs == zero then [showRat k0 st] else []) ++
-    [ (if c /= one then parens else id) $
-      let binOp' = case st of {LaTeX -> ""; _ -> " * "}
-      in (if (c /= one && c /= -1) || xs == zero
-          then showRat c st ++ binOp'
-          else "") ++
-         ((if c == -1 then ("-" ++) else id) (v x)) | (x,c) <- LC.toList xs ]
+showExpr v e st = showPoly v (exprToPoly e) st
   
 showExp :: Int -> String -> String
 showExp e
@@ -447,14 +440,17 @@ showElem vs (Exp p) st = (case st of
     
 showMono :: Pretty a => a -> Vars γ -> Mono γ a -> ShowType -> String
 showMono coef vs (M (Exponential p)) st
-  = (if coef == -1 then ("-" ++) else id) $ -- BUG, FIXME
+  = (if coef == -1 then ("-" ++) else id) $
     foldrAlt (binOp (case st of LaTeX -> ""; _ -> "*")) "1" $
     [ pretty coef st | coef /= 1 && coef /= -1 ] ++ 
     [ showExp e (showElem vs m st) | (m, e) <- LC.toList p, e /= zero ]
 
 showPoly :: Pretty x => Vars γ -> Poly γ x -> ShowType -> String
 showPoly v (P p) st
-  = foldrAlt  (binOp " + ") "0" [ showMono coef v m st | (m, coef) <- LC.toList p, coef /= zero ]
+  = foldrAlt plus "0" [ showMono coef v m st | (m, coef) <- LC.toList p, coef /= zero ]
+  where plus x y = case y of
+          ('-':y') -> x <> " - " <> y'
+          _ -> x <> " + " <> y
 
 showDumb :: Pretty a => Vars γ -> Dumb (Poly γ a) -> ShowType -> String
 showDumb v (x :/ y) st = parens (showPoly v x st) ++ "/" ++  parens (showPoly v y st)
@@ -752,15 +748,15 @@ exampleEq = Integrate full $
 
 example :: P () Rat
 example = Integrate full $ Integrate full $
-          Cond (IsNegative (3 *< A.var Here + 2 *< A.var Here)) $
-          Cond (IsNegative (A.constant 2 + A.var Here)) $
+          Cond (IsNegative (3 *< A.var (There Here) + 2 *< A.var (Here))) $
+          Cond (IsNegative (A.var (There Here))) $
           one
 
 -- >>> example
--- integrate(integrate(charfun[(3 * x) + (2 * y) ≤ 0] * charfun[x ≤ 0] * (1), y, -inf, inf), x, -inf, inf)
+-- Integrate[Integrate[Boole[2*y + 3*x ≤ 0] * Boole[x ≤ 0] * (1)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example
--- integrate(integrate((1), y, -inf, (-3/2 * x)), x, -inf, )
+-- Integrate[Integrate[(1)/(1), {y, -Infinity, (-3/2)*x}], {x, -Infinity, 0}]
 
 example1 :: P () Rat
 example1 = Integrate full $ Integrate full $
@@ -768,7 +764,7 @@ example1 = Integrate full $ Integrate full $
            one
 
 -- >>> example1
--- integrate(integrate(DiracDelta[4 + x + (-1 * y)] * (1), y, -inf, inf), x, -inf, inf)
+-- Integrate[Integrate[DiracDelta[4 - y + x] * (1)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example1
 -- integrate((1), x, -inf, inf)
@@ -780,7 +776,7 @@ example2 = Integrate full $
            retPoly $  varPoly Here
 
 -- >>> example2
--- Integrate[Integrate[DiracDelta[4 + (-y) + (2 * x)] * (y)/(1), {y, 1 + x, Infinity}], {x, -Infinity, Infinity}]
+-- Integrate[Integrate[DiracDelta[4 - y + 2*x] * (y)/(1), {y, 1 + x, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example2
 -- Integrate[(4 + 2*x)/(1), {x, -3, Infinity}]
@@ -793,7 +789,7 @@ example3 = Integrate full $
            retPoly $ constPoly 2 + sqr (varPoly Here) + 2 *< varPoly (There Here)
 
 -- >>> example3
--- Integrate[Integrate[Boole[3 + (-y) ≤ 0] * DiracDelta[4 + (-y) + x] * (2 + y^2 + 2*x)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
+-- Integrate[Integrate[Boole[3 - y ≤ 0] * DiracDelta[4 - y + x] * (2 + y^2 + 2*x)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example3
 -- Integrate[(18 + 10*x + x^2)/(1), {x, -1, Infinity}]
@@ -817,7 +813,7 @@ example4 = Integrate full $
            retPoly $ exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+2)
 
 -- >>> example4
--- Integrate[Integrate[Boole[-3 + (-y) ≤ 0] * Boole[-3 + y ≤ 0] * DiracDelta[(-y) + x] * (Exp[-y^2 + -x^2])/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
+-- Integrate[Integrate[Boole[-3 - y ≤ 0] * Boole[-3 + y ≤ 0] * DiracDelta[-y + x] * (Exp[-y^2 - x^2])/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> normalise example4
 -- Integrate[(Exp[-2*x^2])/(1), {x, -3, 3}]
@@ -832,7 +828,7 @@ example5 = Integrate full $
            retPoly $ exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+2)
 
 -- >>> putStrLn $ showProg1 example5 Maxima
--- integrate(charfun(-3 + (-x) ≤ 0) * charfun(-3 + x ≤ 0) * (exp(-x^2 + -α^2))/(1), x, -inf, inf)
+-- integrate(charfun(-3 - x ≤ 0) * charfun(-3 + x ≤ 0) * (exp(-x^2 - α^2))/(1), x, -inf, inf)
 
 -- >>> putStrLn $ showProg1 (normalise example5) Maxima
 -- integrate((exp(-x^2 + -α^2))/(1), x, -3, 3)
