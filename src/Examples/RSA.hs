@@ -132,18 +132,19 @@ utilityl1 = Lam (Lam (l1Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `
 
 -- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
--- >>> mathematicaFun' utilityl0
+-- >>> simplifyFun2 utilityl0
 -- \mathbb{1}(0 \leq 0) * \mathbb{1}(-1000 \leq 0) * \mathbb{1}((-x) + y \leq 0) * \frac{\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}x + \frac{-1}{18}x^2}}}{\int_{0}^{1000}\int_{y}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}u + \frac{-1}{18}u^2}}\,du\,dz}
 
 -- >>> displayVs $ evalβ $ s1
 -- (λx.(λy.(((((Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U1⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩ ≐ x)))) / Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U1⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * 1)))) * 1) * 1) * y(U1)) + (((((Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U2⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩ ≐ x)))) / Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U2⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * 1)))) * 1) * 1) * y(U2)) + ((((Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U3⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * (⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩ ≐ x)))) / Uniform(⟨0, 1000⟩)(λz.Normal(⟨68, 3⟩)(λu.(𝟙(⟦U3⟧(⟨⟨⟨⟨⟨⟨⟨⟨⋄, sel⟩, (∷)⟩, ε⟩, (≥)⟩, z⟩, human⟩, (λv.u)⟩, v⟩)) * 1)))) * 1) * 1) * y(U3))))))
 
-test1 = mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+test1 :: P ((), Rat) Rat
+test1 = simplifyFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
 
 -- >>> test1
 -- \mathbb{1}(65 + (-x) \leq 0) * \frac{\int_{0}^{1000}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}x + \frac{-1}{18}x^2}}\,dy}{\int_{0}^{1000}\int_{65}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}z + \frac{-1}{18}z^2}}\,dz\,dy}
         
--- >>> mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- >>> simplifyFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
 -- \mathbb{1}(65 + (-x) \leq 0) * \frac{\int_{0}^{1000}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}x + \frac{-1}{18}x^2}}\,dy}{\int_{0}^{1000}\int_{65}^{\infty}\frac{1}{1000} * (3\sqrt{2\pi})^{-1}{e^{\frac{-2312}{9} + \frac{68}{9}z + \frac{-1}{18}z^2}}\,dz\,dy}
 
 -- >>> displayVs $ clean $ evalβ $ subEq $ (Pair TT vlad) ≐ (Pair TT vlad)
@@ -152,17 +153,17 @@ test1 = mathematicaFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (
 -- >>> :set -XAllowAmbiguousTypes
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> maxima @'Unit $ expectedValue $ App l0 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
+-- >>> simplify @'Unit $ expectedValue $ App l0 (u 1) ⋆ Lam (η (App (hmorph (App height vlad)) (Var Get)))
 -- (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*y*Exp[(-34/9) + (1/18)*y])/(1), {y, x, Infinity}], {x, 0, 1000}]) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*y])/(1), {y, x, Infinity}], {x, 0, 1000}])
 
--- >>> mathematicaFun $ distr $ App l1 (u 1) ⋆ Lam (η (App (hmorph θ) (Var Get)))
+-- >>> simplifyFun $ distr $ App l1 (u 1) ⋆ Lam (η (App (hmorph θ) (Var Get)))
 -- Boole[-x ≤ 0] * Boole[-1000 + x ≤ 0] * Boole[-1000 + x ≤ 0] * Boole[-x ≤ 0] * (Integrate[((((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000) * (3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*y]^2)/(1)) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*u])/(1), {u, z, Infinity}], {z, 0, 1000}])) / ((Boole[-1000 + x ≤ 0] * Boole[-x ≤ 0] * Boole[-y ≤ 0] * Boole[-y + x ≤ 0] * (((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*y])/(1)) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*u])/(1), {u, z, Infinity}], {z, 0, 1000}])) + ((Boole[-1000 + x ≤ 0] * Boole[-x ≤ 0] * Boole[-1000 + y ≤ 0] * Boole[y - x ≤ 0] * (((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*y])/(1)) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*u])/(1), {u, -Infinity, z}], {z, 0, 1000}])) + (Boole[-1000 + x ≤ 0] * Boole[-x ≤ 0] * (((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*y])/(1)) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*u])/(1), {u, -Infinity, Infinity}], {z, 0, 1000}])))), {y, Max[0, x], Infinity}]) / (Integrate[Integrate[((((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000) * (3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*z]^2)/(1)) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*v])/(1), {v, u, Infinity}], {u, 0, 1000}])) / ((Boole[-y ≤ 0] * Boole[-1000 + y ≤ 0] * Boole[-z + y ≤ 0] * Boole[-z ≤ 0] * (((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*z])/(1)) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*v])/(1), {v, u, Infinity}], {u, 0, 1000}])) + ((Boole[-y ≤ 0] * Boole[-1000 + y ≤ 0] * Boole[z - y ≤ 0] * Boole[-1000 + z ≤ 0] * (((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*z])/(1)) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*v])/(1), {v, -Infinity, u}], {u, 0, 1000}])) + (Boole[-y ≤ 0] * Boole[-1000 + y ≤ 0] * (((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*z])/(1)) / (Integrate[Integrate[((3 * Sqrt[2 * pi])^((-1) % 1) * (1/1000)*Exp[(-34/9) + (1/18)*v])/(1), {v, -Infinity, Infinity}], {u, 0, 1000}])))), {z, Max[0, y], Infinity}], {y, 0, 1000}])
 
--- >>> mathematicaFun $ distr $ normal 0 10 ⋆ Lam (normal 0 10 ⋆ Lam (η ((Var Get) + (Var (Weaken Get)))))
+-- >>> simplifyFun $ distr $ normal 0 10 ⋆ Lam (normal 0 10 ⋆ Lam (η ((Var Get) + (Var (Weaken Get)))))
 -- (Integrate[((10 * Sqrt[2 * pi])^((-2) % 1)*Exp[(-1/200)*y + (1/200)*x]*Exp[(1/200)*y])/(1), {y, -Infinity, Infinity}]) / (Integrate[Integrate[((10 * Sqrt[2 * pi])^((-2) % 1)*Exp[(1/200)*z]*Exp[(1/200)*y])/(1), {z, -Infinity, Infinity}], {y, -Infinity, Infinity}])
 
 -- >>> :set -XAllowAmbiguousTypes
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> maxima @'Unit $ evalβ $ measure $ normal 68 3
+-- >>> simplify @'Unit $ evalβ $ measure $ normal 68 3
 -- Integrate[((3 * Sqrt[2 * pi])^((-1) % 1)*Exp[(-34/9) + (1/18)*x])/(1), {x, -Infinity, Infinity}]

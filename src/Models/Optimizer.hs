@@ -664,32 +664,29 @@ showP fs@(f:fsRest) v = \case
                         brackets (body ++ ", " ++ braces dom)
   Cond c e -> \st -> showCond st v c ++ " * " ++ showP fs v e st
 
-mathematica' :: ShowableContext γ => P γ Rat -> IO ()
-mathematica' = putStrLn . showProg Mathematica  
+mathematica :: ShowableContext γ => P γ Rat -> IO ()
+mathematica = putStrLn . showProg Mathematica  
 
-latex' :: ShowableContext γ => P γ Rat -> IO ()
-latex' = putStrLn . showProg LaTeX
+latex :: ShowableContext γ => P γ Rat -> IO ()
+latex = putStrLn . showProg LaTeX
+
+maxima :: ShowableContext γ => P γ Rat -> IO ()
+maxima = putStrLn . showProg Maxima
 
 -----------------------------------------------------------
 -- Top-level Entry points
 
 -- | Take typed descriptions of real numbers onto integrators 
-maxima :: (γ ⊢ 'R) -> P (Eval γ) Rat
-maxima = normalise . evalP' . normalForm . clean . evalβ
+simplify :: (γ ⊢ 'R) -> P (Eval γ) Rat
+simplify = normalise . evalP' . normalForm . clean . evalβ
 
--- | Take typed descriptions of real numbers onto Mathematica expressions
-mathematica :: 'Unit ⊢ 'R -> IO ()
-mathematica = mathematica' . maxima
+-- | Take typed descriptions of functions onto integrators with a free var
+simplifyFun :: 'Unit ⊢ ('R ⟶ 'R) -> P ((), Rat) Rat
+simplifyFun = simplify . absInversion
 
--- | Take typed descriptions of functions onto Mathematica expressions
-mathematicaFun :: 'Unit ⊢ ('R ⟶ 'R) -> IO ()
-mathematicaFun = mathematica' . maxima . absInversion
-
-latexFun :: 'Unit ⊢ ('R ⟶ 'R) -> IO ()
-latexFun = latex' . maxima . absInversion
-
-mathematicaFun2 :: 'Unit ⊢ ('R ⟶ ('R ⟶ 'R)) -> IO ()
-mathematicaFun2 = mathematica' . maxima . absInversion . absInversion
+-- | Take typed descriptions of functions onto integrators with two free vars
+simplifyFun2 :: 'Unit ⊢ ('R ⟶ ('R ⟶ 'R)) -> (P (((), Rat), Rat) Rat)
+simplifyFun2 = simplify . absInversion . absInversion
 
 
 ------------------------------------------------------------
