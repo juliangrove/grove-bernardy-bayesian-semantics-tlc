@@ -134,12 +134,6 @@ supremum dir es = case traverse isConstant es of
                   Just cs -> constPoly ((case dir of Max -> maximum; Min -> minimum) cs)
                   Nothing -> varP (Supremum dir es)
 
-ratToC :: (Available Rat γ -> Available C δ) -> Poly γ Rat -> Poly δ C
-ratToC v = evalPoly v (Models.Field.eval @C) varPoly
-
-ratToC' :: (Available Rat γ -> Available C δ) -> Ret γ Rat -> Ret δ C
-ratToC' v (x :/ y) = ratToC v x :/ ratToC v y
-
 isPositive :: Expr γ Rat -> Cond γ
 isPositive e = isNegative (negate e)
 
@@ -151,16 +145,6 @@ t `lessThan` u = isNegative (t - u)
 
 greaterThan :: Expr γ Rat -> Expr γ Rat -> Cond γ
 t `greaterThan` u = u `lessThan` t
-
-domainToConditions :: Expr γ Rat -> Domain γ Rat -> P γ α -> P γ α
-domainToConditions e0 = \case
-  Domain [] [] [] -> id
-  Domain (c:cs) los his ->
-    Cond (substCond (\Here -> e0) c) . domainToConditions e0 (Domain cs los his)
-  Domain cs (e:los) his ->
-    Cond (e `lessThan` e0) . domainToConditions e0 (Domain cs los his)
-  Domain cs los (e:his) ->
-    Cond (e0 `lessThan` e) . domainToConditions e0 (Domain cs los his)
 
 data Available α γ where
   Here :: Available α (γ, α)
@@ -259,14 +243,14 @@ restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
   (GT, e) -> (Domain cs (e:los) his, [ e `lessThan` hi | hi <- his ])
   _ -> error "restrictDomain: cannot be called/(1) on equality condition"
 
-type Solution γ d = (Ordering, Expr γ d)
-
 solveHere :: (Ord x, Field x) => A.Affine (Available x (γ, x)) x -> (Bool, Expr γ x)
 solveHere e0 = case A.solve Here e0 of
   Left _ -> error "solveHere: division by zero"
   Right (p,e1) -> case occurExpr e1 of
     Nothing -> error "solveHere: panic: eliminated variable present in rest of expression"
     Just e -> (p,e)
+
+type Solution γ d = (Ordering, Expr γ d)
   
 -- FIXME: detect always true and always false cases.
 solve' :: Cond (γ, Rat) -> Solution γ Rat
@@ -274,7 +258,6 @@ solve' c0 = case c0 of
     IsZero _ -> (EQ, e)
     IsNegative _ -> if positive then (LT, e) else (GT, e) 
   where (positive,e) = solveHere (condExpr c0)
-  
   
 shallower :: SomeVar γ -> SomeVar γ -> Bool
 SomeVar Here `shallower` _ = False
@@ -302,19 +285,23 @@ minVar x NoVar = x
 deepest :: Cond γ -> SomeVar γ
 deepest c = case condExpr c of
    (A.Affine _ e) -> case LC.toList e of
-                   xs@(_:_) -> foldr1 minVar . map SomeVar . map fst $ xs
-                   [] -> NoVar
-
-travExpr :: Additive t => Applicative f =>
-            (forall v. Available v γ -> f (Available v δ)) ->
-            Expr γ t -> f (Expr δ t)
-travExpr = A.traverseVars
+     xs@(_:_) -> foldr1 minVar . map SomeVar . map fst $ xs
+     [] -> NoVar
 
 occurExpr :: Additive t => Expr (γ, x) t -> Maybe (Expr γ t)
-occurExpr = travExpr $ \case
+occurExpr = A.traverseVars $ \case
   Here -> Nothing
   There x -> Just x
 
+domainToConditions :: Expr γ Rat -> Domain γ Rat -> P γ α -> P γ α
+domainToConditions e0 = \case
+  Domain [] [] [] -> id
+  Domain (c:cs) los his ->
+    Cond (substCond (\Here -> e0) c) . domainToConditions e0 (Domain cs los his)
+  Domain cs (e:los) his ->
+    Cond (e `lessThan` e0) . domainToConditions e0 (Domain cs los his)
+  Domain cs los (e:his) ->
+    Cond (e0 `lessThan` e) . domainToConditions e0 (Domain cs los his)
 
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
 integrate _ (Ret z) | isZero z = Ret $ zero
@@ -464,6 +451,13 @@ instance IntegrableContext γ => IntegrableContext (γ,Rat) where
   vRatToC = \case
      Here -> Here
      There x -> There (vRatToC x)
+
+
+ratToC :: (Available Rat γ -> Available C δ) -> Poly γ Rat -> Poly δ C
+ratToC v = evalPoly v (Models.Field.eval @C) varPoly
+
+ratToC' :: (Available Rat γ -> Available C δ) -> Ret γ Rat -> Ret δ C
+ratToC' v (x :/ y) = ratToC v x :/ ratToC v y
 
 approximateIntegralsAny :: forall γ. IntegrableContext γ => Int -> P γ Rat -> Ret (Tgt γ) C
 approximateIntegralsAny n = approximateIntegrals n vRatToC
@@ -679,15 +673,15 @@ latex' = putStrLn . showProg LaTeX
 -----------------------------------------------------------
 -- Top-level Entry points
 
--- | Take typed descriptions of real numbers onto Maxima programs. 
+-- | Take typed descriptions of real numbers onto integrators 
 maxima :: (γ ⊢ 'R) -> P (Eval γ) Rat
 maxima = normalise . evalP' . normalForm . clean . evalβ
 
--- | Take typed descriptions of real numbers onto Mathematica programs.
+-- | Take typed descriptions of real numbers onto Mathematica expressions
 mathematica :: 'Unit ⊢ 'R -> IO ()
 mathematica = mathematica' . maxima
 
--- | Take typed descriptions of real numbers onto Mathematica programs.
+-- | Take typed descriptions of functions onto Mathematica expressions
 mathematicaFun :: 'Unit ⊢ ('R ⟶ 'R) -> IO ()
 mathematicaFun = mathematica' . maxima . absInversion
 
