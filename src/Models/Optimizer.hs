@@ -43,7 +43,7 @@ type Rat = Fld
 
 data Dir = Min | Max deriving (Eq,Ord)
 type Expr γ α = A.Affine (Available α γ) α
-data Elem γ α = Vari (Available α γ) | Exp (Poly γ α) | MinMax Dir [Poly γ α] deriving (Eq,Ord)
+data Elem γ α = Vari (Available α γ) | Exp (Poly γ α) | Supremum Dir [Poly γ α] deriving (Eq,Ord)
 type Poly γ a = Polynomial (Elem γ a) a
 type Mono γ a = Monomial (Elem γ a)
 type DD γ a = Dumb (Poly γ a)
@@ -107,7 +107,7 @@ evalElem v fc f =
   let evP :: Poly γ α -> Poly ζ β
       evP = evalPoly v fc f
   in \case
-        MinMax dir es -> minMax dir (evP <$> es)
+        Supremum dir es -> supremum dir (evP <$> es)
         (Vari x) -> f (v x)
         (Exp p) -> exponential (evP p)
 
@@ -116,11 +116,11 @@ exponential p = case isConstant p of
   Just c -> constPoly (exp c)
   Nothing -> varP (Exp p)
   
-minMax :: (Additive α, Ord α, Multiplicative α) =>
+supremum :: (Additive α, Ord α, Multiplicative α) =>
             Dir -> [Polynomial (Elem γ α) α] -> Polynomial (Elem γ α) α
-minMax dir es = case traverse isConstant es of
+supremum dir es = case traverse isConstant es of
                   Just cs -> constPoly ((case dir of Max -> maximum; Min -> minimum) cs)
-                  Nothing -> varP (MinMax dir es)
+                  Nothing -> varP (Supremum dir es)
 
 collapseRat :: (Available Rat γ -> Available C δ) -> Poly γ Rat -> Poly δ C
 collapseRat v = evalPoly v (Models.Field.eval @C) varPoly
@@ -442,10 +442,7 @@ showExp e
 
                 
 showElem :: Pretty a => Vars γ -> Elem γ a -> ShowType -> String
-showElem vs (MinMax m es) st = foldrAlt op bnd [showPoly vs p st | p <- es]
-  where (op,bnd) = case m of
-          Min -> (binOp "⊓" ,"+∞")
-          Max -> (binOp "⊔", "-∞")
+showElem vs (Supremum m es) st = showSupremum m [showPoly vs p st | p <- es] st
 showElem vs (Vari v) _ = vs v
 showElem vs (Exp p) st = (case st of
                               Maxima -> ("exp"<>) . parens
@@ -496,35 +493,24 @@ foldrAlt :: (p -> p -> p) -> p -> [p] -> p
 foldrAlt _ k [] = k
 foldrAlt f _ xs = foldr1 f xs
 
-showBounds :: Vars γ -> Bool -> [Expr γ Rat] -> ShowType -> String
-showBounds v lo (nub -> xs) = \case
-  Maxima -> if lo
-            then foldrAlt
-                 (\x y -> "max(" ++ x ++ ", " ++ y ++ ")")
-                 "-inf" $
-                 map (flip (showExpr v) Maxima) xs
-            else foldrAlt
-                 (\x y -> "min(" ++ x ++ ", " ++ y ++ ")")
-                 "inf" $
-                 map (flip (showExpr v) Maxima) xs
-  Mathematica -> if lo
-                 then foldrAlt
-                      (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
-                      "-Infinity" $
-                      map (flip (showExpr v) Mathematica) xs
-                 else foldrAlt
-                      (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
-                      "Infinity" $
-                      map (flip (showExpr v) Mathematica) xs
-  LaTeX -> if lo
-           then foldrAlt
-                (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
-                "-\\infty" $
-                map (flip (showExpr v) LaTeX) xs
-           else foldrAlt
-                (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
-                "\\infty" $
-                map (flip (showExpr v) LaTeX) xs
+showSupremum :: Dir -> [String] -> ShowType -> String
+showSupremum dir xs st = foldrAlt op (sign <> extremum) xs
+  where
+    sign = case dir of Max -> "-"; Min -> ""
+    (extremum,op) = case st of
+      Mathematica -> ("Infinity",) $ case dir of
+        Min -> (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
+        Max -> (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
+      Maxima -> ("inf",) $ case dir of
+        Min -> (\x y -> "min(" ++ x ++ ", " ++ y ++ ")")
+        Max -> (\x y -> "max(" ++ x ++ ", " ++ y ++ ")")
+      LaTeX -> ("\\infty",) $ case dir of
+        Min -> binOp "⊓"
+        Max -> binOp "⊔"
+      
+showBounds :: Vars γ -> Dir -> [Expr γ Rat] -> ShowType -> String
+showBounds v lo (nub -> xs) st
+  = showSupremum lo (map (flip (showExpr v) st) xs) st
 
 when :: [a] -> [Char] -> [Char]
 when [] _ = ""
@@ -551,11 +537,11 @@ showP fs@(f:fsRest) v = \case
         dom = (when cs $ f ++ "∈" ++
                braces (intercalate "∧" $ map (showCond st (f +! v))
                        cs)) ++ f ++ ", " ++
-              showBounds v True los st ++ ", " ++
-              showBounds v False his st
+              showBounds v Max los st ++ ", " ++
+              showBounds v Min his st
     in case st of
-         LaTeX -> "\\int_{" ++ showBounds v True los LaTeX ++ "}^{" ++
-                  showBounds v False his LaTeX ++ "}" ++
+         LaTeX -> "\\int_{" ++ showBounds v Max los LaTeX ++ "}^{" ++
+                  showBounds v Min his LaTeX ++ "}" ++
                   showP fsRest (f +! v) e LaTeX ++
                   "\\,d" ++ f 
          Maxima -> "integrate" ++
@@ -692,8 +678,8 @@ approximateIntegrals n v =
     Cond {} -> error "approximateIntegrals: condition not eliminated ?"
     Integrate (Domain [] los his) e -> chebIntegral @C n lo hi (\x -> substP0 x (r v' e))
       where lo,hi :: Poly δ C
-            lo = minMax Max $ map (collapseRat v . exprToPoly) los
-            hi = minMax Min $ map (collapseRat v . exprToPoly) his
+            lo = supremum Max $ map (collapseRat v . exprToPoly) los
+            hi = supremum Min $ map (collapseRat v . exprToPoly) his
     Integrate {} -> error "approximateIntegrals: unbounded integral?"
 
 
