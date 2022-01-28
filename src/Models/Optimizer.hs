@@ -66,7 +66,7 @@ data Domain γ α = Domain { domainConditions :: [Cond (γ, α)]
 
 data P γ α where
   Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
-  Cond :: Cond γ -> P γ α -> P γ α
+  Cond :: (DecidableZero a, Ord a, Ring a) => Cond γ -> P γ a -> P γ a
   Add :: P γ α -> P γ α -> P γ α
   Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor" ? No, because we do integration in these factors as well.
   Ret :: Ret γ α -> P γ α
@@ -293,15 +293,15 @@ occurExpr = A.traverseVars $ \case
   Here -> Nothing
   There x -> Just x
 
-domainToConditions :: Expr γ Rat -> Domain γ Rat -> P γ α -> P γ α
+domainToConditions :: Ring α => Ord α => DecidableZero α => Expr γ Rat -> Domain γ Rat -> P γ α -> P γ α
 domainToConditions e0 = \case
   Domain [] [] [] -> id
   Domain (c:cs) los his ->
-    Cond (substCond (\Here -> e0) c) . domainToConditions e0 (Domain cs los his)
+    cond (substCond (\Here -> e0) c) . domainToConditions e0 (Domain cs los his)
   Domain cs (e:los) his ->
-    Cond (e `lessThan` e0) . domainToConditions e0 (Domain cs los his)
+    cond (e `lessThan` e0) . domainToConditions e0 (Domain cs los his)
   Domain cs los (e:his) ->
-    Cond (e0 `lessThan` e) . domainToConditions e0 (Domain cs los his)
+    cond (e0 `lessThan` e) . domainToConditions e0 (Domain cs los his)
 
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
 integrate _ (Ret z) | isZero z = Ret $ zero
@@ -323,14 +323,14 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
 integrate d e = Integrate d e
 
-cond :: Cond γ -> P γ Rat -> P γ Rat
+cond :: (DecidableZero a, Ord a, Ring a) => Cond γ -> P γ a -> P γ a
 cond _ (Ret z) | isZero z = Ret $ zero
 cond (IsNegative (A.Affine k0 vs)) e | k0 <= 0, vs == zero = e
 cond c (Cond c' e) | c == c' = cond c e
 cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
                      then Cond c (Cond c' e)
                      else Cond c' (cond c e)
-cond c (normalise -> e) = Cond c e
+cond c e = Cond c e
 
 normalise :: P γ Rat -> P γ Rat
 normalise = \case
