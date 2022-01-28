@@ -28,7 +28,7 @@ import Algebra.Morphism.Exponential
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt, exp)
 import TLC.Terms hiding ((>>), u, Con)
 import Algebra.Linear ((*<))
-import Models.Field (BinOp(..), Fld(..), half)
+import Models.Field (BinOp(..), Fld(..))
 import qualified Models.Field
 import Algebra.Linear.Chebyshev (chebIntegral)
 import Data.Complex
@@ -209,7 +209,16 @@ data P γ α where
 
 instance (Ord α, Transcendental α) => Multiplicative (P γ α) where
   one = Ret one
-  (*) = multP
+  (Integrate d p1) * p2 = Integrate d $ p1 * wkP p2
+  p2 * (Integrate d p1) = Integrate d $ p1 * wkP p2
+  (Cond c p1) * p2 = Cond c (p1 * p2)
+  p2 * (Cond c p1) = Cond c (p1 * p2)
+  (Add p1 p1') * p2 = Add (p1 * p2) (p1' * p2)
+  p1 * (Add p2 p2') = Add (p1 * p2) (p1 * p2')
+  (Div p1 p1') * p2 = Div (p1 * p2) p1'
+  p1 * (Div p2 p2') = Div (p1 * p2) p2'
+  -- (Div p1 p1') * (Div p2 p2') = Div ((*) p1 p1') ((*) p2 p2') -- no need to regroup normalisation factors
+  Ret e1 * Ret e2 = Ret (e1 * e2)
 
 instance (Ord a, Ring a, DecidableZero a) => AbelianAdditive (P γ a)
 instance (Transcendental a, Ord a, DecidableZero a) => Group (P γ a) where
@@ -222,18 +231,6 @@ instance (Ord a, Ring a, DecidableZero a) => Additive (P γ a) where
 instance (Ord a, Transcendental a, DecidableZero a) => Division (P γ a) where
   (/) = divide
 
-multP :: (Ord α, Transcendental α) => P γ α -> P γ α -> P γ α
-multP (Integrate d p1) (wkP -> p2) = Integrate d $ multP p1 p2
-multP (Cond c p1) p2 = Cond c $ multP p1 p2
-multP (Ret e) (Integrate d p) = Integrate d $ multP (wkP $ Ret e) p
-multP (Ret e) (Cond c p) = Cond c $ multP (Ret e) p
-multP (Ret e1) (Ret e2) = Ret $ e1 * e2
-multP (Add p1 p1') p2 = Add (multP p1 p2) (multP p1' p2)
-multP p1 (Add p2 p2') = Add (multP p1 p2) (multP p1 p2')
-multP (Div p1 p1') (Div p2 p2') = Div (multP p1 p1') (multP p2 p2')
-multP (Div p1 p1') p2 = Div (multP p1 p2) p1'
-multP p1 (Div p2 p2') = Div (multP p1 p2) p2'
-  
 type Subst γ δ = forall α. Ring α => Available α γ -> Expr δ α
 
 wkSubst :: Ring α => Subst γ δ -> Subst (γ, α) (δ, α)
@@ -388,24 +385,22 @@ evalP' = \case
   InEq (NNVar i) (NNCon (fromRational -> x)) ->
     Cond (IsNegative $ A.constant x - A.var i) $ one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
-  Mults (evalP' -> x) (evalP' -> y) -> multP x y
+  Mults (evalP' -> x) (evalP' -> y) -> x * y
   Normal (fromRational -> μ) (fromRational -> σ) f ->
-    Integrate full $ multP
-    (retPoly $ constPoly (one / (σ * sqrt2pi)) * exponential (constPoly (negate half) * (sqr ((recip σ) *^ (constPoly μ - varPoly Here)))))
-    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-    where sqrt2pi = sqrt (2 * pi)
+    Integrate full $ 
+      (retPoly $ constPoly (1 / (σ * sqrt (2 * pi))) * exponential (constPoly (-1/2) * (((1/σ^2) *^ (constPoly μ - varPoly Here)))))
+    * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Cauchy (fromRational -> x0) (fromRational -> γ) f ->
     Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
     (retPoly $ (constPoly (pi * γ) * (one + sqr ((one/γ) *^ (varPoly Here - constPoly x0)))))
   Quartic (fromRational -> μ) (fromRational -> σ) f ->
-    Integrate (Domain [] [A.constant (μ - a)] [A.constant (μ + a)]) $ multP
-    (retPoly $ (constPoly $ fromRational (15 % 16) / (a ^+ 5)) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
+    Integrate (Domain [] [A.constant (μ - a)] [A.constant (μ + a)]) $
+    (retPoly $ (constPoly ((15 / 16) / (a ^+ 5))) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2) *
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-    where sqrt7 = sqrt 7
-          a = sqrt7 * σ
+    where a = sqrt 7 * σ
   Uniform (fromRational -> x) (fromRational -> y) f ->
-    Integrate (Domain [] [A.constant x] [A.constant y]) $ multP
-    (retPoly $ constPoly (1 / (y - x)))
+    Integrate (Domain [] [A.constant x] [A.constant y]) $ 
+    (retPoly $ constPoly (1 / (y - x))) *
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Lesbegue f -> Integrate (Domain [] [] []) $
                 (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
