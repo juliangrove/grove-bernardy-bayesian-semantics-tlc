@@ -538,7 +538,10 @@ showRat (Con x) = \case
       _ -> parens $ num ++ "/" ++ den
   where num = show $ numerator x
         den = show $ denominator x
-showRat (Pi) = \_ -> "pi"
+showRat Pi = \case
+  LaTeX -> "\\pi"
+  Maxima -> "%pi"
+  Mathematica -> "Pi"
 showRat (Pow x 0.5) = \case
   Maxima -> "sqrt" ++ parens (showRat (x) Maxima)
   Mathematica -> "Sqrt" ++ brackets (showRat (x) Mathematica)
