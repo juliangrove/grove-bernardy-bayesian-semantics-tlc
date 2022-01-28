@@ -537,42 +537,36 @@ f +! v = \case Here -> f
 
 showP :: [String] -> Vars γ -> P γ Rat -> ShowType -> String
 showP [] _ = error "showP: ran out of freshes"
-showP freshes@(f:fs) v = \case
+showP fs@(f:fsRest) v = \case
   Ret e -> showDumb v e
-  Add p1 p2 -> \st -> "(" ++ showP freshes v p1 st ++ ") + (" ++
-                      showP freshes v p2 st ++ ")"
+  Add p1 p2 -> \st -> "(" ++ showP fs v p1 st ++ ") + (" ++
+                      showP fs v p2 st ++ ")"
   Div p1 p2 -> \st -> case st of
-                        LaTeX -> "\\frac{" ++ showP freshes v p1 LaTeX ++
-                                 "}{" ++ showP freshes v p2 LaTeX ++ "}"
-                        _ -> "(" ++ showP freshes v p1 st ++ ") / (" ++
-                             showP freshes v p2 st ++ ")"
-  Integrate (Domain cs los his) e ->
-    \st -> case st of
-             LaTeX -> "\\int_{" ++ showBounds v True los LaTeX ++ "}^{" ++
-                      showBounds v False his LaTeX ++ "}" ++
-                      showP fs (f +! v) e LaTeX ++
-                      "\\,d" ++ f 
-             _ -> (\(integrand,dom) ->
-                     case st of
-                       Maxima -> "integrate" ++
-                                 parens (integrand ++ ", " ++ dom)
-                       Mathematica -> "Integrate" ++
-                                      brackets
-                                      (integrand ++ ", " ++ braces dom)) $
-                  (showP fs (f +! v) e st,
-                  (when cs $ f ++ "∈" ++
-                   braces (intercalate "∧" $ map (showCond st (f +! v))
-                           cs)) ++ f ++ ", " ++
-                  showBounds v True los st ++ ", " ++
-                  showBounds v False his st)
-  Cond c e -> \st -> showCond st v c ++ " * " ++ showP freshes v e st
+                        LaTeX -> "\\frac{" ++ showP fs v p1 LaTeX ++
+                                 "}{" ++ showP fs v p2 LaTeX ++ "}"
+                        _ -> "(" ++ showP fs v p1 st ++ ") / (" ++
+                             showP fs v p2 st ++ ")"
+  Integrate (Domain cs los his) e -> \st -> 
+    let integrand = showP fsRest (f +! v) e st
+        dom = (when cs $ f ++ "∈" ++
+               braces (intercalate "∧" $ map (showCond st (f +! v))
+                       cs)) ++ f ++ ", " ++
+              showBounds v True los st ++ ", " ++
+              showBounds v False his st
+    in case st of
+         LaTeX -> "\\int_{" ++ showBounds v True los LaTeX ++ "}^{" ++
+                  showBounds v False his LaTeX ++ "}" ++
+                  showP fsRest (f +! v) e LaTeX ++
+                  "\\,d" ++ f 
+         Maxima -> "integrate" ++
+                   parens (integrand ++ ", " ++ dom)
+         Mathematica -> "Integrate" ++
+                        brackets
+                        (integrand ++ ", " ++ braces dom)
+  Cond c e -> \st -> showCond st v c ++ " * " ++ showP fs v e st
 
 showProg :: P () Rat -> ShowType -> String
 showProg = showP freshes (\case)
-
-
-printAs :: ShowType -> P γ Rat -> String
-printAs = flip $ showP freshes (\case)
 
 instance Show (P () Rat) where
   show = flip showProg Mathematica
@@ -858,7 +852,6 @@ example5 = Integrate full $
 
 -- >>> putStrLn $ showProg1 (normalise example5) Maxima
 -- integrate((exp(-x^2 + -α^2))/(1), x, -3, 3)
-
 
 -- >>> putStrLn $ showDumb oneVar (approximateIntegrals 8 oneVarToC $ normalise example5) Mathematica
 -- (9.523809523809527e-2*Exp[-9.0 + -α^2] + 0.8773118952961091*Exp[-7.681980515339462 + -α^2] + 0.8380952380952381*Exp[-4.499999999999999 + -α^2] + 0.8380952380952381*Exp[-4.499999999999997 + -α^2] + 1.0851535761614692*Exp[-1.318019484660537 + -α^2] + 1.0851535761614692*Exp[-1.3180194846605355 + -α^2] + 1.180952380952381*Exp[-4.930380657631324e-32 + -α^2])/(1)
