@@ -4,7 +4,6 @@
 
 module Examples.RSA where
 
-import Data.Ratio
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Optimizer
@@ -12,7 +11,7 @@ import TLC.Terms
 import TLC.Distributions
 
 
-k :: γ ⊢ ((Context ⟶ R) ⟶ R)
+k :: γ ⊢ ((Context ⟶ 'R) ⟶ 'R)
 k = uniform 0 1000
     ⋆ Lam (normal 68 3
            ⋆ Lam
@@ -32,18 +31,18 @@ k = uniform 0 1000
                 (Lam (Var (Weaken Get))))
                vlad)))
 
-makeUtts :: [γ ⊢ U] -> γ ⊢ ((U ⟶ R) ⟶ R)
+makeUtts :: [γ ⊢ 'U] -> γ ⊢ (('U ⟶ 'R) ⟶ 'R)
 makeUtts us = Lam $ foldr1 addi $ map (App (Var Get) . wkn) us
-  where addi :: γ ⊢ R -> γ ⊢ R -> γ ⊢ R
+  where addi :: γ ⊢ 'R -> γ ⊢ 'R -> γ ⊢ 'R
         addi x y = (Con $ General Addi) `App` x `App` y
 
-utts123 :: γ ⊢ ((U ⟶ R) ⟶ R)
+utts123 :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
 utts123 = makeUtts [u 1, u 2, u 3]
 
-utts'' :: γ ⊢ ((U ⟶ R) ⟶ R)
+utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
 utts'' = uniform 0 100 ⋆ Lam (η (u' (Var Get)))
 
-updctx :: γ ⊢ Context -> γ ⊢ (R ⟶ Context)
+updctx :: γ ⊢ Context -> γ ⊢ ('R ⟶ Context)
 updctx k = Lam (Pair
                 (Pair (Fst (Fst $ wkn k))
                  (Lam (Var (Weaken Get))))
@@ -57,7 +56,7 @@ updctx k = Lam (Pair
 
 
 -- | Pragmatic listener
-l1 :: γ ⊢ (U ⟶ ((Context ⟶ R) ⟶ R))
+l1 :: γ ⊢ ('U ⟶ ((Context ⟶ 'R) ⟶ 'R))
 l1 = Lam (k ⋆ Lam (
              factor' ((App (distr (App s1 (Var Get))) (Var (Weaken Get)))) >>
              η (Var Get)))
