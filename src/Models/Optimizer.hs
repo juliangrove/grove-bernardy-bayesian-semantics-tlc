@@ -141,10 +141,8 @@ isPositive e = isNegative (negate e)
 isNegative :: Expr γ a -> Cond γ a
 isNegative e = IsNegative e
 
-lessThan :: DecidableZero a => Group a => Expr γ a -> Expr γ a -> Cond γ a
+lessThan, greaterThan :: RatLike a => Expr γ a -> Expr γ a -> Cond γ a
 t `lessThan` u = isNegative (t - u)
-
-greaterThan :: Expr γ Rat -> Expr γ Rat -> Cond γ Rat
 t `greaterThan` u = u `lessThan` t
 
 data Available α γ where
