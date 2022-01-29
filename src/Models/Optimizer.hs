@@ -39,8 +39,8 @@ import Data.Complex
 -- Types
 
 type C = Complex Double
-deriving instance Ord C -- yikes
-instance (Field a, Ord a, Show a) => Pretty (Complex a) where
+deriving instance Ord a => Ord (Complex a) -- yikes
+instance (Show a, RealFloat a, RatLike a) => Pretty (Complex a) where
   pretty (a :+ b) _ | b < 10e-15 = show a
                     | otherwise = show a ++ "+" ++ show b ++ "i"
   
@@ -165,12 +165,12 @@ instance (Ord α, Transcendental α, DecidableZero α) => Multiplicative (P γ �
   -- (Div p1 p1') * (Div p2 p2') = Div ((*) p1 p1') ((*) p2 p2') -- no need to regroup normalisation factors
   Ret e1 * Ret e2 = Ret (e1 * e2)
 
-instance (Ord a, Ring a, DecidableZero a) => AbelianAdditive (P γ a)
-instance (Transcendental a, Ord a, DecidableZero a) => Group (P γ a) where
+instance RatLike a => AbelianAdditive (P γ a)
+instance RatLike a => Group (P γ a) where
   negate = (* (Ret (negate one)))
-instance (Transcendental a, Ord a, DecidableZero a) => Scalable (Poly γ a) (P γ a) where
+instance RatLike a => Scalable (Poly γ a) (P γ a) where
   p *^ q = retPoly p * q
-instance (Ord a, Ring a, DecidableZero a) => Additive (P γ a) where
+instance RatLike a => Additive (P γ a) where
   zero = Ret zero
   (Ret z) + x | isZero z = x
   x + (Ret z) | isZero z = x
@@ -182,6 +182,7 @@ instance (Ord a, Transcendental a, DecidableZero a) => Division (P γ a) where
   p1 / p2 = Div p1 p2
 
 type Subst γ δ = forall α. Ring α => Available α γ -> Expr δ α
+type SubstP γ δ = forall α. RatLike α => Available α γ -> Poly δ α
 
 wkSubst :: Ring α => Subst γ δ -> Subst (γ, α) (δ, α)
 wkSubst f = \case
@@ -294,7 +295,7 @@ occurExpr = A.traverseVars $ \case
   Here -> Nothing
   There x -> Just x
 
-type RatLike α = (Ring α, Ord α, DecidableZero α)
+type RatLike α = (Ring α, Ord α, DecidableZero α, Transcendental α)
 
 domainToConds :: RatLike α => Domain γ α -> [Cond (γ,α) α]
 domainToConds = \case
@@ -328,7 +329,7 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
 integrate d e = Integrate d e
 
-cond :: (DecidableZero a, Ord a, Ring a) => Cond γ a -> P γ a -> P γ a
+cond :: RatLike a => Cond γ a -> P γ a -> P γ a
 cond _ (Ret z) | isZero z = Ret $ zero
 cond (IsNegative (A.Affine k0 vs)) e | k0 <= 0, vs == zero = e
 cond c (Cond c' e) | c == c' = cond c e
@@ -423,7 +424,7 @@ pattern NNCon x <- Neu (NeuCon (General (Incl (fromRational -> x))))
 evalP :: NF 'Unit 'R -> P () Rat
 evalP = evalP'
 
-retPoly :: DecidableZero a => Ord a => Ring a => Poly γ a -> P γ a
+retPoly :: RatLike a => Poly γ a -> P γ a
 retPoly = Ret . (:/ one)
 
 -- Domain without restriction
@@ -557,7 +558,7 @@ showProg = flip (showP (restOfVars @γ freshes) (varsForCtx freshes))
 instance (Pretty a, ShowableContext γ) => Show (P γ a) where
   show = showProg Mathematica
 
-class (Eq a, Field a) => Pretty a where
+class RatLike a => Pretty a where
   pretty :: a -> ShowType -> String
 
 instance Pretty Rat where
