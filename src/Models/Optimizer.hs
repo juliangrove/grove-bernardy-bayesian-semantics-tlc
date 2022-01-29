@@ -129,8 +129,8 @@ exponential p = case isConstant p of
   Just c -> constPoly (exp c)
   Nothing -> varP (Exp p)
   
-supremum :: DecidableZero α => (Additive α, Ord α, Multiplicative α) =>
-            Dir -> [Polynomial (Elem γ α) α] -> Polynomial (Elem γ α) α
+supremum :: RatLike α => Dir -> [Poly γ α] -> Poly γ α
+supremum _ [e] = e
 supremum dir es = case traverse isConstant es of
                   Just cs -> constPoly ((case dir of Max -> maximum; Min -> minimum) cs)
                   Nothing -> varP (Supremum dir es)
