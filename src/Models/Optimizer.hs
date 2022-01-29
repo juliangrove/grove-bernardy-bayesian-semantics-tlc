@@ -348,14 +348,30 @@ normalise = \case
   Div (normalise -> p1) (normalise -> p2) -> p1 / p2
   Ret e -> Ret e
 
+entail :: RatLike a => [Cond γ a] -> Cond γ a -> Bool
+entail cs c = c `elem` cs -- NOTE: naive is enough for now
+
+focus :: [a] -> [(a,[a])]
+focus [] = []
+focus (x:xs) = (x,xs) : [(y,x:ys) | (y,ys) <- focus xs]
+
+cleanBounds :: RatLike a => [Cond γ a] -> Dir -> [Expr γ a] -> [Expr γ a]
+cleanBounds cs d xs = [x | (x,rest) <- focus xs, not (any (\y -> cs `entail` (x `cmp` y)) rest)]
+  where cmp = case d of Min -> greaterThan; Max -> lessThan
+
+cleanDomain :: RatLike a => [Cond γ a] -> Domain γ a -> Domain γ a
+cleanDomain cs (Domain c los his) = Domain c (cleanBounds cs Max los) (cleanBounds cs Max his)
+
 -- | Remove redundant conditions
 cleanConds :: (a ~ Rat) => [Cond γ a] -> P γ a -> P γ a
 cleanConds cs = \case
   Ret x -> Ret x
-  Integrate d e -> Integrate d (cleanConds (domainToConds d ++ (map (substCond (A.var . There)) cs)) e)
-  Cond c e -> if any (== c) cs -- NOTE: this can be made stronger to "can prove c from the intersection of cs"
+  Integrate d e -> Integrate (cleanDomain cs d) $
+                   cleanConds (domainToConds d ++ (map (substCond (A.var . There)) cs)) $
+                   e
+  Cond c e -> if cs `entail` c
               then cleanConds cs e
-              else Cond c $ cleanConds (c:cs) e
+              else cond c $ cleanConds (c:cs) e
   Div x y -> Div (cleanConds cs x) (cleanConds cs y)
   Add x y -> Add (cleanConds cs x) (cleanConds cs y)
   
