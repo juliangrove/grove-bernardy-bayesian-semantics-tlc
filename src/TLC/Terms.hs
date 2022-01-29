@@ -135,8 +135,7 @@ interp :: γ ⊢ U -> γ ⊢ T
 interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
 interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
 interp (Con (General (Utt 3))) = Con $ Logical Tru -- silence
-
--- interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
+interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
 
 subEq :: γ ⊢ α -> γ ⊢ α
 subEq = \case

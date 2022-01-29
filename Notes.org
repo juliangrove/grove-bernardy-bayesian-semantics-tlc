@@ -189,26 +189,54 @@ plot2d(G,[x,-1,1],[gnuplot_term,dumb]);
 
 
 #+begin_src maxima :results output
-  I1 : integrate (erf(x), x);
-  S : diff(erf(x),x);
-  I2 : integrate (1/(x+x^2+x^3), x);
-  print(I2);
-  print(float(integrate((exp(-x^2 + -α^2))/(1), x, -3, 3)));
   print(float(integrate(exp(-2*x^2), x, -3, 3)));
 #+end_src
 
 #+RESULTS:
-#+begin_example
-                           2 x + 1
-        2             atan(-------)
-   log(x  + x + 1)         sqrt(3)
-(- ---------------) - ------------- + log(x) 
-          2              sqrt(3)
- 1.772414696519042
-------------------- 
-                  2
-                 α
-2.718281828459045
-1.253314134842492 
-#+end_example
+: 1.253314134842492 
+
+
+
+#+name: 3d-maxima
+#+header: :file maxima-3d.png
+#+header: :exports results
+#+header: :results graphics
+#+begin_src maxima 
+  programmode: false;
+  plot3d(atan(-x^2+y^3/4),[x,-4,4],[y,-4,4],[grid,50,50],[gnuplot_pm3d,true]);
+#+end_src
+
+
+
+#+begin_src maxima
+set_plot_option ([gnuplot_term, png]);
+set_plot_option ([gnuplot_out_file, "maxima.png"]);
+
+plot3d(atan(-x^2+y^3/4),[x,-4,4],[y,-4,4],[grid,50,50],[gnuplot_pm3d,true]);
+#+end_src
+
+#+RESULTS:
+
+
+#+begin_src maxima  :results output
+set_plot_option ([gnuplot_term, svg]);
+set_plot_option ([gnuplot_out_file, "maxima.svg"]);
+F:  - 3.546153603568291e-2*exp(-175.99551054765925 + 5.337958951149179*max(50.0, y) - 4.0475188366292984e-2*max(50.0, y)^2)*max(50.0, y)
+    - 5.3192304053524354e-2*exp(-43.55555555555557 + 1.5555555555555554*max(50.0, y) - 1.3888888888888885e-2*max(50.0, y)^2)*max(50.0, y)
+    - 1.4870025084987265e-6*max(50.0, y);
+    - 4.432692004460364e-3*exp(-256.8888888888889 + 7.555555555555555*max(50.0, y) - 5.555555555555555e-2*max(50.0, y)^2)*max(50.0, y)
+F:  - 1.4870025084987265e-6
+    - 4.432692004460364e-3*exp(-256.8888888888889 + 7.555555555555555*max(50.0, y) - 5.555555555555555e-2*max(50.0, y)^2)
+    - 3.546153603568291e-2*exp(-175.99551054765925 + 5.337958951149179*max(50.0, y) - 4.0475188366292984e-2*max(50.0, y)^2)
+    - 5.3192304053524354e-2*exp(-43.55555555555557 + 1.5555555555555554*max(50.0, y) - 1.3888888888888885e-2*max(50.0, y)^2)
+plot3d(F,[y,50,75],[x,50,75],[grid,50,50],[gnuplot_pm3d,true]);
+#+end_src
+
+#+RESULTS:
+[z,0,0.0002],
+,[elevation,0],[azimuth,0],[zlabel,""],color_bar,noztics
+
+plot3d(F,[x,50,75],[y,50,75],[z,0,0.0025],[grid,50,50],[gnuplot_pm3d,true],[elevation,0],[azimuth,0],[zlabel,""],color_bar,noztics, [color_bar_tics,1]);
+
+
 
