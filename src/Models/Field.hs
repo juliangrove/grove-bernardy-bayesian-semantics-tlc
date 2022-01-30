@@ -32,7 +32,7 @@ data Fld = Con Rational
            | Pi
            deriving (Ord, Eq)
 
-eval :: Ord x => AlgebraicallyClosed x => Transcendental x => Fld -> x
+eval :: Transcendental x => Fld -> x
 eval = \case
   Con c -> fromRational c
   Pow x e -> eval x ^/ e
@@ -41,6 +41,8 @@ eval = \case
     case op of
       Times -> x * y
       Plus -> x + y
+
+
 
 pattern (:*) :: Fld -> Fld -> Fld
 pattern x :* y = Op Times x y

@@ -36,6 +36,7 @@ import Models.Field (BinOp(..), Fld(..))
 import qualified Models.Field
 import Algebra.Linear.Chebyshev (chebIntegral)
 import Data.Complex
+import Text.Pretty.Math
 
 -------------------------------------------------------
 -- Types
@@ -43,8 +44,12 @@ import Data.Complex
 type C = Complex Double
 deriving instance Ord a => Ord (Complex a) -- yikes
 instance (RealFloat a, RatLike a, Show a) => Pretty (Complex a) where
-  pretty (a :+ b) _ | b < 10e-15 = show a
-                    | otherwise = show a ++ "+" ++ show b ++ "i"
+  pretty (a :+ b) | b < 10e-15 = case show a of
+                      "1.0" -> one
+                      "0.0" -> zero
+                      "-1.0" -> negate one
+                      x -> text x
+                  | otherwise = text (show a ++ "+" ++ show b ++ "i")
   
 type Rat = Fld
 
@@ -232,9 +237,6 @@ exprToPoly = A.eval constPoly  (monoPoly . varMono)
 constCoef :: forall γ a. RatLike a => a -> Coef γ a
 constCoef x = Coef (x *^ LC.var zero)
 
--- >>> retPoly $ (constPoly $ fromRational 12) + (constPoly $ fromRational 11) + (varPoly Here) :: P ((), Rat) Rat
--- (23*1 + x)/(1)
-
 constPoly :: RatLike a => a -> Poly γ a
 constPoly = Multi.constPoly . constCoef
 
@@ -267,7 +269,6 @@ substDomain f (Domain c lo hi) = Domain
                                  (substCond (wkSubst f) <$> c)
                                  (substExpr f <$> lo)
                                  (substExpr f <$> hi)
-
 
 -- | Normalising substitution
 substP :: RatLike x => Subst γ δ -> P γ x -> P δ x
@@ -512,8 +513,6 @@ evalVar = \case
   Get -> Here
   Weaken (evalVar -> i) -> There i
 
------------------------------------------------------------
--- Show functions
 
 -------------------------------------------------
 -- Approximation of integrals
@@ -538,7 +537,6 @@ ratToC v = evalPoly v (Models.Field.eval @C) varPoly
 
 ratToC' :: (Available Rat γ -> Available C δ) -> Ret γ Rat -> Ret δ C
 ratToC' v (x :/ y) = ratToC v x :/ ratToC v y
-
 
 approximateIntegralsAny :: forall γ. IntegrableContext γ => Int -> P γ Rat -> P (Tgt γ) C
 approximateIntegralsAny n = approximateIntegralsConds n vRatToC
@@ -599,50 +597,17 @@ instance ShowableContext γ => ShowableContext (γ,α) where
     There x -> varsForCtx fs x
   restOfVars = drop 1 . restOfVars @γ
 
-showProg :: forall γ a. Pretty a => ShowableContext γ => ShowType -> P γ a -> String
-showProg = flip (showP (restOfVars @γ freshes) (varsForCtx freshes))
+showProg :: forall γ a. Pretty a => ShowableContext γ => P γ a -> Doc
+showProg = showP (restOfVars @γ freshes) (varsForCtx freshes)
 
 -- instance (Pretty a, ShowableContext γ) => Show (P γ a) where
 --   show = showProg Mathematica
 
 class RatLike a => Pretty a where
-  pretty :: a -> ShowType -> String
+  pretty :: a -> Doc
 
 instance Pretty Rat where
-  pretty = showRat
-
-showCon :: (Show a, Eq a, Ring a) => Ratio a -> ShowType -> [Char]
-showCon x  
-  | numerator x == 0 = const "0"
-  | denominator x == 1 = const $ show $ numerator x
-  | otherwise = \case
-      LaTeX -> "\\frac{" ++ num ++ "}{" ++ den ++ "}"
-      _ -> parens $ num ++ "/" ++ den
-  where num = show $ numerator x
-        den = show $ denominator x
-
-showRat :: Rat -> ShowType -> String
-showRat (Con x) = showCon x
-showRat Pi = \case
-  LaTeX -> "\\pi"
-  Maxima -> "%pi"
-  Mathematica -> "Pi"
-showRat (Pow x 0.5) = \case
-  Maxima -> "sqrt" ++ parens (showRat (x) Maxima)
-  Mathematica -> "Sqrt" ++ brackets (showRat (x) Mathematica)
-  LaTeX -> "\\sqrt" ++ braces (showRat (x) LaTeX)
-showRat (Op Plus x y) = \st -> showRat x st ++ " + " ++ showRat y st
--- showRat (Op Times x y@(Inject _)) = \st -> showRat x st ++
---                                             case st of
---                                               LaTeX -> showRat y st
---                                               _ -> " * " ++ showRat y st
-showRat (Op Times x y) = \st -> showRat x st ++ " * " ++ showRat y st
-showRat (Pow x n) = \st -> parens (showRat x st) ++ "^" ++
-                           (if n < 0 then (case st of
-                                             LaTeX -> braces
-                                             _ -> parens) else id) (showCon n st)
-
-data ShowType = Maxima | Mathematica | LaTeX
+  pretty = Models.Field.eval
 
 type Vars γ  = forall v. Available v γ -> String
 
@@ -653,144 +618,93 @@ f +! v = \case Here -> f
 -- instance (RatLike a, Pretty a, ShowableContext γ) => Show (Expr γ a) where
 --   show e = showExpr (varsForCtx freshes) e Maxima
 
-showExpr :: DecidableZero a => Ord a => Pretty a => Vars γ -> Expr γ a -> ShowType -> String
-showExpr v = showPoly v . exprToPoly
-  
-showPow :: Int -> String -> String
-showPow e x
-  | e == 1 = x
-  | otherwise = x ++ "^" ++ show e
+showExpr :: DecidableZero a => Ord a => Pretty a => Vars γ -> Expr γ a -> Doc
+showExpr v = A.eval pretty (text . v) 
 
-showExp :: [Char] -> ShowType -> [Char]
-showExp c st
-  | c == "0" = "1"
-  | otherwise = (case st of
-                              Maxima -> ("exp"<>) . parens
-                              Mathematica -> ("Exp"<>) . brackets
-                              LaTeX -> braces . ("e^"<>) . braces)
-                           c
-showTimes "1" x = x
-showTimes x "1" = x
-showTimes x y = x <> "*" <> y
+showElem :: Pretty a => Vars γ -> Elem γ a -> Doc
+showElem vs (Supremum m es) = showSupremum m [showPoly vs p | p <- es]
+showElem vs (Vari v) = text (vs v)
 
-showElem :: Pretty a => Vars γ -> Elem γ a -> ShowType -> String
-showElem vs (Supremum m es) st = showSupremum m [showPoly vs p st | p <- es] st
-showElem vs (Vari v) _ =  vs v
+showCoef :: forall γ a. Pretty a => Vars γ -> Coef γ a -> Doc
+showCoef v (Coef c) = LC.eval pretty (exp . showPoly v) c
 
-showCoef :: forall γ a. Pretty a => Vars γ -> Coef γ a -> ShowType -> String
-showCoef v (Coef c) st = foldrAlt plus "0" [ showTimes (parens (pretty coef st)) (showExp (showPoly v m st) st)
-                                           | (m, coef) <- LC.toList c, coef /= zero ] 
-  where plus x y = case y of
-          ('-':y') -> x <> " - " <> y'
-          _ -> x <> " + " <> y
+showPoly :: Pretty x => Vars γ -> Poly γ x -> Doc
+showPoly v = eval (showCoef v) (showElem v) 
 
-           
-showMono :: Pretty a => Coef γ a -> Vars γ -> Mono γ a -> ShowType -> String
-showMono coef vs (M (Exponential p)) st
-  = (if coef == -1 then ("-" ++) else id) $
-    foldrAlt (binOp (case st of LaTeX -> ""; _ -> "*")) "1" $
-    [ parens (showCoef vs coef st) | coef /= 1 && coef /= -1 ] ++
-    [ showPow e (showElem vs m st) | (m, e) <- LC.toList p, e /= zero ]
-
-
-showPoly :: Pretty x => Vars γ -> Poly γ x -> ShowType -> String
-showPoly v (P p) st
-  = foldrAlt plus "0" [ showMono coef v m st | (m, coef) <- LC.toList p{-, coef /= zero-} ]
-  where plus x y = case y of
-          ('-':y') -> x <> " - " <> y'
-          _ -> x <> " + " <> y
-
-showDumb :: Pretty a => Vars γ -> Dumb (Poly γ a) -> ShowType -> String
-showDumb v (x :/ y) st = parens (showPoly v x st) ++ "/" ++  parens (showPoly v y st)
+showDumb :: Pretty a => Vars γ -> Dumb (Poly γ a) -> Doc
+showDumb v (x :/ y)  = showPoly v x / showPoly v y
 
 -- instance (Pretty a, ShowableContext γ) => Show (Dumb (Poly γ a)) where
 --   show x = showDumb (varsForCtx freshes) x Mathematica
 
-binOp :: [a] -> [a] -> [a] -> [a]
-binOp op x y = x ++ op ++ y
+indicator :: [Doc] -> Doc
+indicator x = withStyle $ \case
+      Mathematica -> function' "Boole" x
+      Maxima -> function' "charfun"  x
+      LaTeX -> function' "mathbb{1}"  x
 
-showCond :: DecidableZero α => Pretty α => Ord α => ShowType -> Vars γ -> Cond γ α -> String
-showCond st v c0 = case c0 of
+showCond :: (Pretty α, RatLike α) => Vars γ -> Cond γ α -> Doc
+showCond v c0 = withStyle $ \st -> case c0 of
   (IsNegative c') -> case st of
-      Mathematica -> "Boole" ++ (brackets $ showExpr v c' st ++ " ≤ 0")
-      Maxima -> "charfun" ++ (parens $ showExpr v c' st ++ " <= 0")
-      LaTeX -> "\\mathbb{1}" ++ (parens $ showExpr v c' st ++ " \\leq 0")
+      Mathematica -> indicator [showExpr v c' <> text " ≤ 0"]
+      Maxima -> indicator [showExpr v c' <> text " <= 0"]
+      LaTeX -> indicator [showExpr v c' <> text " \\leq 0"]
   (IsZero c') -> case st of
-      LaTeX -> "\\delta" ++ (parens $ showExpr v c' st)
-      _ -> "DiracDelta" ++ (brackets $ showExpr v c' st)
+      LaTeX -> function "diracDelta" (showExpr v c')
+      _ -> function "DiracDelta" (showExpr v c')
 
-parens :: String -> String
-parens x = "(" ++ x ++ ")"
+foldrMonoid :: (p -> p -> p) -> p -> [p] -> p
+foldrMonoid _ k [] = k
+foldrMonoid f _ xs = foldr1 f xs
 
-brackets :: String -> String
-brackets x = "[" ++ x ++ "]"
-
-braces :: String -> String
-braces x = "{" ++ x ++ "}"
-
-foldrAlt :: (p -> p -> p) -> p -> [p] -> p
-foldrAlt _ k [] = k
-foldrAlt f _ xs = foldr1 f xs
-
-showSupremum :: Dir -> [String] -> ShowType -> String
-showSupremum dir xs st = foldrAlt op (sign <> extremum) xs
-  where
-    sign = case dir of Max -> "-"; Min -> ""
-    (extremum,op) = case st of
-      Mathematica -> ("Infinity",) $ case dir of
-        Min -> (\x y -> "Min[" ++ x ++ ", " ++ y ++ "]")
-        Max -> (\x y -> "Max[" ++ x ++ ", " ++ y ++ "]")
-      Maxima -> ("inf",) $ case dir of
-        Min -> (\x y -> "min(" ++ x ++ ", " ++ y ++ ")")
-        Max -> (\x y -> "max(" ++ x ++ ", " ++ y ++ ")")
-      LaTeX -> ("\\infty",) $ case dir of
-        Min -> binOp "⊓"
-        Max -> binOp "⊔"
+showSupremum :: Dir -> [Doc] -> Doc
+showSupremum dir xs = 
+  let extremum = withStyle $ \case
+        Mathematica -> text "Infinity"
+        Maxima -> text "inf"
+        LaTeX -> function' "infty" []
+      op = case dir of
+          Min -> (\x y -> function' "min" [x,y])
+          Max -> (\x y -> function' "max" [x,y])
+  in foldrMonoid op ((case dir of Max -> negate; Min -> id) extremum) xs
       
-showBounds :: Vars γ -> Dir -> [Expr γ Rat] -> ShowType -> String
-showBounds v lo (nub -> xs) st
-  = showSupremum lo (map (flip (showExpr v) st) xs) st
+showBounds :: Vars γ -> Dir -> [Expr γ Rat] -> Doc
+showBounds v lo (nub -> xs) = showSupremum lo (map (showExpr v) xs)
 
-when :: [a] -> [Char] -> [Char]
-when [] _ = ""
+when :: Monoid p => [a] -> p -> p
+when [] _ = mempty
 when _ x = x
 
-showP :: Pretty a => [String] -> Vars γ -> P γ a -> ShowType -> String
+showP :: Pretty a => [String] -> Vars γ -> P γ a -> Doc
 showP [] _ = error "showP: ran out of freshes"
 showP fs@(f:fsRest) v = \case
   Ret e -> showDumb v e
-  Add p1 p2 -> \st -> "(" ++ showP fs v p1 st ++ ") + (" ++
-                      showP fs v p2 st ++ ")"
-  Div p1 p2 -> \st -> case st of
-                        LaTeX -> "\\frac{" ++ showP fs v p1 LaTeX ++
-                                 "}{" ++ showP fs v p2 LaTeX ++ "}"
-                        _ -> "(" ++ showP fs v p1 st ++ ") / (" ++
-                             showP fs v p2 st ++ ")"
-  Integrate (Domain cs los his) e -> \st -> 
-    let body = showP fsRest (f +! v) e st
-        dom = (when cs $ f ++ "∈" ++
-               braces (intercalate "∧" $ map (showCond st (f +! v))
-                       cs)) ++ f ++ ", " ++
-              showBounds v Max los st ++ ", " ++
-              showBounds v Min his st
+  Add p1 p2 -> showP fs v p1 + showP fs v p2
+  Div p1 p2 -> showP fs v p1 / showP fs v p2
+  Integrate (Domain cs los his) e -> withStyle $ \st -> 
+    let body = showP fsRest (f +! v) e
+        dom :: Doc
+        dom =
+          (when cs $ indicator (map (showCond (f +! v)) cs) <> text ", ") <>
+          text f <> text ", " <>
+          showBounds v Max los <> text ", " <>
+          showBounds v Min his
     in case st of
-         LaTeX -> "\\int_{" ++ showBounds v Max los LaTeX ++ "}^{" ++
-                  showBounds v Min his LaTeX ++ "}" ++
-                  showP fsRest (f +! v) e LaTeX ++
-                  "\\,d" ++ f 
-         Maxima -> "integrate" ++ parens (body ++ ", " ++ dom)
-         Mathematica -> "Integrate" ++
-                        brackets (body ++ ", " ++ braces dom)
-  Cond c e -> \st -> showCond st v c ++ " * " ++ showP fs v e st
+         LaTeX -> text "\\int_{" <> showBounds v Max los <> text "}^{" <>
+                  showBounds v Min his <> text "}" <>
+                  showP fsRest (f +! v) e <>
+                  text "\\,d" <> text f 
+         _ -> function' "integrate" [body, (if st == Mathematica then braces else id) dom]
+  Cond c e -> showCond v c * showP fs v e
 
-mathematica :: ShowableContext γ => P γ Rat -> IO ()
-mathematica = putStrLn . showProg Mathematica  
+mathematica :: Pretty a => ShowableContext γ => P γ a -> IO ()
+mathematica = putStrLn . render Mathematica . showProg  
 
 latex :: Pretty a => ShowableContext γ => P γ a -> IO ()
-latex = putStrLn . showProg LaTeX
+latex = putStrLn . render LaTeX .showProg
 
 maxima :: Pretty a => ShowableContext γ => P γ a -> IO ()
-maxima = putStrLn . showProg Maxima
+maxima = putStrLn . render Maxima . showProg
 
 -----------------------------------------------------------
 -- Top-level Entry points
@@ -815,18 +729,18 @@ example0 :: P () Rat
 example0 = Integrate full $
            retPoly $  constPoly 10 + varPoly Here
 
--- >>> example0
--- integrate((10 + x), x, -inf, inf)
+-- >>> maxima $ example0
+-- integrate(10 + x, x, -inf, inf)
 
 exampleInEq :: P () Rat
 exampleInEq = Integrate full $
               Cond (IsNegative (A.constant 7 - A.var Here)) $
               retPoly $  constPoly 10 + varPoly Here
 
--- >>> exampleInEq
--- integrate(charfun[7 + (-1 * x) ≤ 0] * 10 + x, x, -inf, inf)
+-- >>> maxima $ exampleInEq
+-- integrate(charfun(7 - x <= 0)*(10 + x), x, -inf, inf)
 
--- >>> normalise exampleInEq
+-- >>> maxima $ normalise exampleInEq
 -- integrate(10 + x, x, 7, inf)
 
 exampleEq :: P () Rat
@@ -834,10 +748,10 @@ exampleEq = Integrate full $
             Cond (IsZero (A.constant 7 - A.var Here)) $
             retPoly $  constPoly 10 + varPoly Here
 
--- >>> exampleEq
--- integrate(DiracDelta[7 + (-1 * x)] * 10 + x, x, -inf, inf)
+-- >>> mathematica $ exampleEq
+-- Integrate[DiracDelta[7 - x]*(10 + x), {x, -Infinity, Infinity}]
 
--- >>> normalise exampleEq
+-- >>> mathematica $ normalise exampleEq
 -- 17
 
 example :: P () Rat
@@ -846,22 +760,22 @@ example = Integrate full $ Integrate full $
           Cond (IsNegative (A.var (There Here))) $
           one
 
--- >>> example
--- Integrate[Integrate[Boole[2*y + 3*x ≤ 0] * Boole[x ≤ 0] * (1)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
+-- >>> mathematica $ example
+-- Integrate[Integrate[Boole[2*y + 3*x ≤ 0]*Boole[x ≤ 0], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
--- >>> normalise example
--- Integrate[Integrate[(1)/(1), {y, -Infinity, (-3/2)*x}], {x, -Infinity, 0}]
+-- >>> mathematica $ normalise example
+-- Integrate[Integrate[1, {y, -Infinity, -3/2*x}], {x, -Infinity, 0}]
 
 example1 :: P () Rat
 example1 = Integrate full $ Integrate full $
            Cond (IsZero (A.constant 4 + A.var (There Here) - A.var Here)) $
            one
 
--- >>> example1
+-- >>> mathematica $ example1
 -- Integrate[Integrate[DiracDelta[4 - y + x] * (1)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
--- >>> normalise example1
--- integrate((1), x, -inf, inf)
+-- >>> maxima $ normalise example1
+-- integrate(1, x, -inf, inf)
 
 example2 :: P () Rat
 example2 = Integrate full $
@@ -869,11 +783,11 @@ example2 = Integrate full $
            Cond (IsZero (A.constant 4 + 2 *< A.var (There Here) - A.var Here) ) $
            retPoly $  varPoly Here
 
--- >>> example2
--- Integrate[Integrate[DiracDelta[4 - y + 2*x] * (y)/(1), {y, 1 + x, Infinity}], {x, -Infinity, Infinity}]
+-- >>> mathematica $ example2
+-- Integrate[Integrate[DiracDelta[4 - y + 2*x]*y, {y, 1 + x, Infinity}], {x, -Infinity, Infinity}]
 
--- >>> normalise example2
--- Integrate[(4 + 2*x)/(1), {x, -3, Infinity}]
+-- >>> mathematica $ normalise example2
+-- Integrate[4 + 2*x, {x, -3, Infinity}]
 
 example3 :: P () Rat
 example3 = Integrate full $
@@ -882,20 +796,20 @@ example3 = Integrate full $
            Cond (IsZero (A.constant 4 + A.var (There Here) - A.var Here)) $
            retPoly $ constPoly 2 + (varPoly Here) ^+ 2 + 2 *< varPoly (There Here)
 
--- >>> example3
--- Integrate[Integrate[Boole[3 - y ≤ 0] * DiracDelta[4 - y + x] * (2 + y^2 + 2*x)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
+-- >>> mathematica $ example3
+-- Integrate[Integrate[Boole[3 - y ≤ 0]*DiracDelta[4 - y + x]*(2 + y^2 + 2*x), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
--- >>> normalise example3
--- Integrate[(18 + 10*x + x^2)/(1), {x, -1, Infinity}]
+-- >>> mathematica $ normalise example3
+-- Integrate[18 + 10*x + x^2, {x, -1, Infinity}]
 
 example4a :: P () Rat
 example4a = Integrate (Domain [] [zero] [A.constant 1]) $ one
 
--- >>> normalise example4a
--- Integrate[(1)/(1), {x, 0, 1}]
+-- >>> mathematica $ normalise example4a
+-- Integrate[1, {x, 0, 1}]
 
--- >>> approximateIntegralsAny 4 (normalise example4a)
--- (1)/(1)
+-- >>> mathematica $ approximateIntegralsAny 4 (normalise example4a)
+-- 1.0/1.0
 
 
 example4 :: P () Rat
@@ -906,15 +820,14 @@ example4 = Integrate full $
            Cond (IsZero (A.var  (There Here) - A.var Here)) $
            retPoly $ exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+2)
 
--- >>> example4
--- Integrate[Integrate[Boole[-3 - y ≤ 0] * Boole[-3 + y ≤ 0] * DiracDelta[-y + x] * (Exp[-y^2 - x^2])/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
+-- >>> mathematica $ example4
+-- Integrate[Integrate[Boole[-3 - y ≤ 0]*Boole[-3 + y ≤ 0]*DiracDelta[-y + x]*Exp[-y^2 - x^2], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
--- >>> normalise example4
--- Integrate[(Exp[-2*x^2])/(1), {x, -3, 3}]
+-- >>> mathematica $ normalise example4
+-- Integrate[Exp[-2*x^2], {x, -3, 3}]
 
--- >>> approximateIntegralsAny 16 $ normalise example4
--- (1.253346416637889)/(1)
-
+-- >>> mathematica $ approximateIntegralsAny 16 $ normalise example4
+-- 1.253346416637889
 
 
 example5 :: P ((),Rat) Rat
@@ -924,23 +837,11 @@ example5 = Integrate full $
            retPoly $ exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+2)
 
 -- >>> mathematica example5
--- Integrate[Boole[-3 - y ≤ 0] * Boole[-3 + y ≤ 0] * (Exp[-y^2 - x^2])/(1), {y, -Infinity, Infinity}]
+-- Integrate[Boole[-3 - y ≤ 0]*Boole[-3 + y ≤ 0]*Exp[-y^2 - x^2], {y, -Infinity, Infinity}]
 
--- >>> normalise example5
--- Integrate[(Exp[-y^2 - x^2])/(1), {y, -3, 3}]
+-- >>> mathematica $ normalise example5
+-- Integrate[Exp[-y^2 - x^2], {y, -3, 3}]
 
--- >>> (approximateIntegralsAny 8 $ normalise example5) 
--- (9.523809523809527e-2*Exp[-9.0 - x^2] + 0.8773118952961091*Exp[-7.681980515339462 - x^2] + 0.8380952380952381*Exp[-4.499999999999999 - x^2] + 0.8380952380952381*Exp[-4.499999999999997 - x^2] + 1.0851535761614692*Exp[-1.318019484660537 - x^2] + 1.0851535761614692*Exp[-1.3180194846605355 - x^2] + 1.180952380952381*Exp[-4.930380657631324e-32 - x^2])/(1)
-
-
-
-
-tst :: RatLike a => DD (((),a),a) a
-tst =  ((exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+2)) * varPoly (Here)) :/ 1
-
-tst1 :: Ret ((), C) C
-tst1 = substP0 (constPoly pi) tst
-
--- >>> tst1
--- P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},(-9.869604401089358) :+ (-0.0))]})),(M (Exponential {fromExponential = LinComb {fromLinComb = fromList [(Vari Here,2)]}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},(-1.0) :+ (-0.0))]}))]}},3.141592653589793 :+ 0.0)]}))]}} :/ P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},1.0 :+ 0.0)]}))]}}
+-- >>> mathematica $ approximateIntegralsAny 8 $ normalise example5 
+-- 9.523809523809527e-2*Exp[-9.0 - x^2] + 0.8773118952961091*Exp[-7.681980515339462 - x^2] + 0.8380952380952381*Exp[-4.499999999999999 - x^2] + 0.8380952380952381*Exp[-4.499999999999997 - x^2] + 1.0851535761614692*Exp[-1.318019484660537 - x^2] + 1.0851535761614692*Exp[-1.3180194846605355 - x^2] + 1.180952380952381*Exp[-4.930380657631324e-32 - x^2]
 
