@@ -39,11 +39,8 @@ termToFol' ρ t =
                             (evalβ $ App (wkn f) (Var Get)))
     Exists' f -> FOL.VExi (\x -> termToFol' (\case
                                                 Get -> x
-                                                Weaken i -> ρ i)
-                            (evalβ $ App (wkn f) (Var Get)))
-    _ -> case viewApp ρ t of
-           Just (f, args) -> FOL.VApp f args
-           Nothing ->  error $ "termToFol': unsupported input " ++ show t
+                                                Weaken i -> ρ i) f)
+    _ ->  error $ "termToFol': unsupported input " ++ show t
 
 
 -- >>> tryProve' $ termToFol False'

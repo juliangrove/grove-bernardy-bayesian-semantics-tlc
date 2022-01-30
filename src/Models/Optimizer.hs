@@ -796,16 +796,16 @@ maxima = putStrLn . showProg Maxima
 -- Top-level Entry points
 
 -- | Take typed descriptions of real numbers onto integrators 
-simplify :: (γ ⊢ 'R) -> P (Eval γ) Rat
-simplify = cleanConds [] . normalise . evalP' . normalForm . clean . evalβ
+simplify :: Witness n -> (γ ⊢ 'R) -> P (Eval γ) Rat
+simplify n = cleanConds [] . normalise . evalP' . normalForm . clean n . evalβ
 
 -- | Take typed descriptions of functions onto integrators with a free var
-simplifyFun :: 'Unit ⊢ ('R ⟶ 'R) -> P ((), Rat) Rat
-simplifyFun = simplify . absInversion
+simplifyFun :: Witness n -> 'Unit ⊢ ('R ⟶ 'R) -> P ((), Rat) Rat
+simplifyFun n = simplify n . absInversion
 
 -- | Take typed descriptions of functions onto integrators with two free vars
-simplifyFun2 :: 'Unit ⊢ ('R ⟶ ('R ⟶ 'R)) -> (P (((), Rat), Rat) Rat)
-simplifyFun2 = simplify . absInversion . absInversion
+simplifyFun2 :: Witness n -> 'Unit ⊢ ('R ⟶ 'R ⟶ 'R) -> (P (((), Rat), Rat) Rat)
+simplifyFun2 n = simplify n . absInversion . absInversion
 
 
 ------------------------------------------------------------

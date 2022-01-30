@@ -137,18 +137,18 @@ interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad) -- 'Vlad i
 interp (Con (General (Utt 3))) = Con $ Logical Tru -- silence
 interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
 
-subEq :: γ ⊢ α -> γ ⊢ α
-subEq = \case
+subEq :: Witness n -> γ ⊢ α -> γ ⊢ α
+subEq n = \case
   App (App (Con (General EqGen)) m) n -> equals m n
-  App (Con (General Interp)) u -> hmorph (interp u)
+  App (Con (General (Interp n))) u -> hmorph n (interp u)
   Var i -> Var i
   Con c -> Con c
-  App (subEq -> m) (subEq -> n) -> App m n
-  Lam (subEq -> m) -> Lam m
-  Fst (subEq -> m) -> Fst m
-  Snd (subEq -> m) -> Snd m
+  App (subEq n -> m) (subEq n -> n) -> App m n
+  Lam (subEq n -> m) -> Lam m
+  Fst (subEq n -> m) -> Fst m
+  Snd (subEq n -> m) -> Snd m
   TT -> TT
-  Pair (subEq -> m) (subEq -> n) -> Pair m n
+  Pair (subEq n -> m) (subEq n -> n) -> Pair m n
 
 reduce1step :: γ ⊢ α -> γ ⊢ α
 reduce1step = \case
@@ -179,8 +179,8 @@ canReduce = \case
 reduce1s :: γ ⊢ α -> γ ⊢ α
 reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
 
-clean :: γ ⊢ α -> γ ⊢ α
-clean = reduce1s . subEq
+clean :: Witness n -> γ ⊢ α -> γ ⊢ α
+clean n = reduce1s . subEq n
 
 showR :: Rational -> String
 showR (\x -> (numerator x, denominator x) -> (num, den))
@@ -233,7 +233,7 @@ data General α where
   Nml :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Qua :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Uni :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Interp :: General ('U ⟶ (Context ⟶ 'T))
+  Interp :: Witness n -> General ('U ⟶ Context n ⟶ 'T)
 
 instance Additive (γ ⊢ 'R) where
   zero = Con (General (Incl 0))
@@ -261,7 +261,7 @@ instance Show (General α) where
   show EqRl = "(≐)"
   show (Utt i) = "U" ++ show i
   show Utt' = "U"
-  show Interp = "⟦⟧"
+  show (Interp n) = "⟦⟧"
 
 data Special α where
   Entity :: Int -> Special E
@@ -430,7 +430,7 @@ instance Show (γ ⊢ α) where
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
     App (App (Con (General EqRl)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-    App (Con (General Interp)) (show -> u) -> "⟦" ++ u ++ "⟧"
+    App (Con (General (Interp n))) (show -> u) -> "⟦" ++ u ++ "⟧"
     App (App (Con (Special GTE)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≥ " ++ n ++ ")"
     App (App (Con (Special Upd)) (show -> m)) (show -> n)
@@ -483,7 +483,7 @@ displayVs' fs ρ t =
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
   App (App (Con (General EqRl)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-  App (Con (General Interp)) (dd -> u) -> "⟦" ++ u ++ "⟧"
+  App (Con (General (Interp n))) (dd -> u) -> "⟦" ++ u ++ "⟧"
   App (App (Con (Special GTE)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≥ " ++ n ++ ")"
   App (App (Con (Special Upd)) (dd -> m)) (dd -> n)
@@ -514,20 +514,30 @@ lft f = \case
 π Get κ = Snd κ
 π (Weaken i) κ = π i (Fst κ)
 
-type Context
-  = Unit × (Γ ⟶ E) × (E ⟶ Γ ⟶ Γ) × Γ × (R ⟶ R ⟶ T) × R × (E ⟶ T) × (E ⟶ R) × E
+type Context0 = Unit × (R ⟶ R ⟶ T) × R × (E ⟶ T) × (E ⟶ R) × E
+type Context1 = Unit × Γ × (E ⟶ Γ ⟶ Γ) × (Γ ⟶ E) × E × E
 
-findC :: Special α -> α ∈ Context
+data Nat where
+  Zero :: Nat
+  Succ :: Nat -> Nat
+
+data Witness (n :: Nat) where
+  Z :: Witness 'Zero
+  S :: Witness n -> Witness ('Succ n)
+
+type family Context (n :: Nat) where
+  Context 'Zero = Context0
+  Context ('Succ 'Zero) = Context1
+
+findC :: Witness n -> Special α -> α ∈ Context n
 findC = \case
-  Vlad -> Get
-  Height -> Weaken Get
-  Human -> Weaken (Weaken Get)
-  Theta -> Weaken (Weaken (Weaken Get))
-  GTE -> Weaken (Weaken (Weaken (Weaken (Get))))
-  Empty -> Weaken (Weaken (Weaken (Weaken (Weaken Get))))
-  Upd -> Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))
-  Sel -> Weaken (Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get))))))
-                   
+  Z -> \case
+    Vlad -> Get
+    Height -> Weaken Get
+    Human -> Weaken (Weaken Get)
+    Theta -> Weaken (Weaken (Weaken Get))
+    GTE -> Weaken (Weaken (Weaken (Weaken (Get))))
+           
 rename :: (∀α. α ∈ γ -> α ∈ δ) -> γ ⊢ β -> δ ⊢ β
 rename f = \case
   Var i -> Var $ f i
@@ -568,19 +578,19 @@ contr = rename $ \case
   Get -> Get
   Weaken i -> i
 
-hmorph0 :: γ ⊢ α -> (γ × Context) ⊢ α
-hmorph0 = \case
+hmorph0 :: Witness n -> γ ⊢ α -> (γ × Context n) ⊢ α
+hmorph0 n = \case
   Var i -> Var $ Weaken i
-  Con (Special c) -> π (findC c) (Var Get)
+  Con (Special c) -> π (findC n c) (Var Get)
   Con c -> Con c
-  App (hmorph0 -> m) (hmorph0 -> n) -> App m n
-  Lam (hmorph0 -> m) -> Lam $ exch m
-  Fst (hmorph0 -> m) -> Fst m
-  Snd (hmorph0 -> m) -> Snd m
-  Pair (hmorph0 -> m) (hmorph0 -> n) -> Pair m n
+  App (hmorph0 n -> m) (hmorph0 n -> n) -> App m n
+  Lam (hmorph0 n -> m) -> Lam $ exch m
+  Fst (hmorph0 n -> m) -> Fst m
+  Snd (hmorph0 n -> m) -> Snd m
+  Pair (hmorph0 n -> m) (hmorph0 n -> n) -> Pair m n
 
-hmorph :: γ ⊢ α -> γ ⊢ (Context ⟶ α)
-hmorph (hmorph0 -> m) = Lam m
+hmorph :: Witness n -> γ ⊢ α -> γ ⊢ (Context n ⟶ α)
+hmorph n (hmorph0 n -> m) = Lam m
 
 η :: γ ⊢ α -> γ ⊢ ((α ⟶ R) ⟶ R)
 η m = Lam (App (Var Get) (wkn m))
