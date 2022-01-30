@@ -38,8 +38,9 @@ import Algebra.Linear.Chebyshev (chebIntegral)
 import Data.Complex
 import Text.Pretty.Math
 
--------------------------------------------------------
--- Types
+
+--------------------------------------------------------------------------------
+-- | Types
 
 type C = Complex Double
 deriving instance Ord a => Ord (Complex a) -- yikes
@@ -55,12 +56,15 @@ type Rat = Fld
 
 -- Map of exp(poly) to its coefficient.
 -- (A "regular" coefficient)
-newtype Coef γ α = Coef (LinComb (Poly γ α) α) deriving (Eq,Ord,Additive,Group,Show)
+newtype Coef γ α = Coef (LinComb (Poly γ α) α)
+  deriving (Eq, Ord, Additive, Group, Show)
 instance RatLike a => DecidableZero (Coef g a) where
   isZero (Coef c) = isZero c
 instance RatLike a => Multiplicative (Coef g a) where
   one = Coef (LC.var zero)
-  Coef p * Coef q = Coef (LC.fromList [(m1 + m2, coef1 * coef2) | (m1,coef1) <- LC.toList p, (m2,coef2) <- LC.toList q])
+  Coef p * Coef q = Coef (LC.fromList [ (m1 + m2, coef1 * coef2)
+                                      | (m1, coef1) <- LC.toList p
+                                      , (m2, coef2) <- LC.toList q ])
 instance RatLike a => Scalable (Coef g a) (Coef g a) where
   (*^) = (*)
 instance RatLike a => AbelianAdditive (Coef g a) 
@@ -69,7 +73,8 @@ instance RatLike a => Ring (Coef g a)
 data Dir = Min | Max deriving (Eq,Ord,Show)
 type Expr γ α = A.Affine (Available α γ) α
 deriving instance (RatLike α, Show α) => Show (Expr γ α)
-data Elem γ α = Vari (Available α γ) | Supremum Dir [Poly γ α] deriving (Eq,Ord,Show)
+data Elem γ α = Vari (Available α γ) | Supremum Dir [Poly γ α]
+  deriving (Eq, Ord, Show)
 type Poly γ a = Polynomial (Elem γ a) (Coef γ a)
 type Mono γ a = Monomial (Elem γ a)
 type DD γ a = Dumb (Poly γ a)
@@ -81,16 +86,17 @@ data Cond γ a = IsNegative { condExpr :: Expr γ a }
               | IsZero { condExpr :: Expr γ a }
               -- Meaning of this constructor: expression = 0
               -- Example: u = v is represented by @IsZero (u - v)@
-   deriving (Eq,Show)
+   deriving (Eq, Show)
 
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α) α]
-                         , domainLoBounds, domainHiBounds :: [Expr γ α] } deriving Show
+                         , domainLoBounds, domainHiBounds :: [Expr γ α] }
+                deriving Show
 
 data P γ α where
   Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
   Cond :: (DecidableZero a, Ord a, Ring a) => Cond γ a -> P γ a -> P γ a
   Add :: P γ α -> P γ α -> P γ α
-  Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor" ? No, because we do integration in these factors as well.
+  Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor"? No, because we do integration in these factors as well.
   Ret :: Ret γ α -> P γ α
   
 deriving instance (RatLike α, Show α) => Show (P γ α)
@@ -98,8 +104,8 @@ deriving instance (RatLike α, Show α) => Show (P γ α)
 data Dumb a = a :/ a deriving Show
 infixl 7 :/
 
--------------------------------------------
--- Evaluator and normaliser
+--------------------------------------------------------------------------------
+-- | Evaluator and normaliser
   
 instance (Ring a,DecidableZero a) => DecidableZero (Dumb a) where
   isZero (x :/ _) = isZero x
@@ -132,7 +138,8 @@ evalCoef :: forall α β γ δ ζ. RatLike β => RatLike α
          -> (α -> β)
          -> (forall x. RatLike x => Available x δ -> Poly ζ x)
          -> Coef γ α -> Poly ζ β
-evalCoef v fc f (Coef c) = LC.eval (constCoef @ζ . fc) (exponential . evalPoly v fc f) c
+evalCoef v fc f (Coef c)
+  = LC.eval (constCoef @ζ . fc) (exponential . evalPoly v fc f) c
 
 evalPoly :: forall α β γ δ ζ. RatLike β => RatLike α
          => (Available α γ -> Available β δ)
@@ -170,7 +177,10 @@ isConstPoly es = case isConstant es of
 supremum :: RatLike α => Dir -> [Poly γ α] -> Poly γ α
 supremum _ [e] = e
 supremum dir es = case traverse isConstPoly es of
-                  Just cs -> constPoly ((case dir of Max -> maximum; Min -> minimum) cs)
+                  Just cs -> constPoly ((case dir of
+                                           Max -> maximum
+                                           Min -> minimum)
+                                         cs)
                   Nothing -> varP (Supremum dir es)
 
 isPositive :: Expr γ Rat -> Cond γ Rat
@@ -190,7 +200,8 @@ deriving instance Eq (Available α γ)
 deriving instance Ord (Available α γ)
 deriving instance Show (Available α γ)
 
-instance (Ord α, Transcendental α, DecidableZero α) => Multiplicative (P γ α) where
+instance (Ord α, Transcendental α, DecidableZero α)
+      => Multiplicative (P γ α) where
   one = Ret one
   (Integrate d p1) * p2 = Integrate d $ p1 * wkP p2
   p2 * (Integrate d p1) = Integrate d $ p1 * wkP p2
@@ -216,7 +227,7 @@ instance RatLike a => Additive (P γ a) where
 
 instance (Ord a, Transcendental a, DecidableZero a) => Division (P γ a) where
   (Ret z) / _ | isZero z = Ret $ zero
-  (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrate function.
+  (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrated function.
   p1 / p2 = Div p1 p2
 
 type Subst γ δ = forall α. Ring α => Available α γ -> Expr δ α
@@ -227,10 +238,10 @@ wkSubst f = \case
   Here -> A.var Here 
   There x -> A.mapVars There (f x)
 
-substExpr :: Subst γ δ -> forall α. DecidableZero α => Ring α => Expr γ α -> Expr δ α
+substExpr :: (DecidableZero α, Ring α) => Subst γ δ ->  Expr γ α -> Expr δ α
 substExpr = A.subst
 
-exprToPoly :: forall γ α. RatLike α => Expr γ α -> Poly γ α
+exprToPoly :: RatLike α => Expr γ α -> Poly γ α
 exprToPoly = A.eval constPoly  (monoPoly . varMono) 
 
 
@@ -293,9 +304,11 @@ restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
 solveHere :: DecidableZero x => (Ord x, Field x) => A.Affine (Available x (γ, x)) x -> (Bool, Expr γ x)
 solveHere e0 = case A.solve Here e0 of
   Left _ -> error "solveHere: division by zero"
-  Right (p,e1) -> case occurExpr e1 of
-    Nothing -> error "solveHere: panic: eliminated variable present in rest of expression"
-    Just e -> (p,e)
+  Right (p, e1)
+    -> case occurExpr e1 of
+         Nothing ->
+           error "solveHere panic: eliminated variable present elsewhere"
+         Just e -> (p, e)
 
 type Solution γ d = (Ordering, Expr γ d)
   
@@ -346,8 +359,10 @@ domainToConds :: RatLike α => Domain γ α -> [Cond (γ,α) α]
 domainToConds = \case
   Domain [] [] [] -> []
   Domain (c:cs) los his -> c : domainToConds (Domain cs los his)
-  Domain cs (e:los) his -> (wkExpr e `lessThan` A.var Here) : domainToConds (Domain cs los his)
-  Domain cs los (e:his) -> (A.var Here `lessThan` wkExpr e) : domainToConds (Domain cs los his)
+  Domain cs (e:los) his ->
+    (wkExpr e `lessThan` A.var Here) : domainToConds (Domain cs los his)
+  Domain cs los (e:his) ->
+    (A.var Here `lessThan` wkExpr e) : domainToConds (Domain cs los his)
 
 wkExpr :: RatLike α => Expr γ α -> Expr (γ, β) α
 wkExpr = substExpr (A.var . There) 
@@ -368,8 +383,8 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     -- HOWEVER, due to the way we generate the equalities, my hunch is
     -- that we already take into account this coefficient. To be
     -- investigated.)
-    substP (\case { Here -> x0; There i -> A.var i }) $ conds_ (domainToConds d) e
-    where (_,x0) = solveHere c'
+    substP (\case Here -> x0; There i -> A.var i) $ conds_ (domainToConds d) e
+    where (_, x0) = solveHere c'
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
 integrate d e = Integrate d e
@@ -400,18 +415,22 @@ focus [] = []
 focus (x:xs) = (x,xs) : [(y,x:ys) | (y,ys) <- focus xs]
 
 cleanBounds :: RatLike a => [Cond γ a] -> Dir -> [Expr γ a] -> [Expr γ a]
-cleanBounds cs d xs = [x | (x,rest) <- focus xs, not (any (\y -> cs `entail` (x `cmp` y)) rest)]
+cleanBounds cs d xs = [ x
+                      | (x, rest) <- focus xs
+                      , not (any (\y -> cs `entail` (x `cmp` y)) rest) ]
   where cmp = case d of Min -> greaterThan; Max -> lessThan
 
 cleanDomain :: RatLike a => [Cond γ a] -> Domain γ a -> Domain γ a
-cleanDomain cs (Domain c los his) = Domain c (cleanBounds cs Max los) (cleanBounds cs Max his)
+cleanDomain cs (Domain c los his) =
+  Domain c (cleanBounds cs Max los) (cleanBounds cs Max his)
 
 -- | Remove redundant conditions
 cleanConds :: (a ~ Rat) => [Cond γ a] -> P γ a -> P γ a
 cleanConds cs = \case
   Ret x -> Ret x
   Integrate d e -> Integrate (cleanDomain cs d) $
-                   cleanConds (domainToConds d ++ (map (substCond (A.var . There)) cs)) $
+                   cleanConds (domainToConds d ++
+                               (map (substCond (A.var . There)) cs)) $
                    e
   Cond c e -> if cs `entail` c
               then cleanConds cs e
@@ -420,8 +439,8 @@ cleanConds cs = \case
   Add x y -> Add (cleanConds cs x) (cleanConds cs y)
   
 
-------------------------------------------------------------------------------
--- Conversion from lambda terms
+--------------------------------------------------------------------------------
+-- | Conversion from λ-terms
 
 type family Eval γ where
   Eval 'R = Rat
@@ -482,22 +501,30 @@ evalP' = \case
   Neu (NeuApp (NeuCon (General Indi)) (Neu (NeuCon (Logical Tru)))) -> one
   Neu (NeuApp (NeuApp (NeuCon (General EqRl))
                (Adds (NNVar i) (NNVar j))) (NNVar k)) ->
-    Cond (IsZero $ A.var i + A.var j - A.var k) $ one
-  EqVars i j -> Cond (IsZero $ A.var i - A.var j) $ one
-  InEqVars i j -> Cond (IsNegative $ A.var j - A.var i) $ one
+    Cond (IsZero $ A.var i + A.var j - A.var k) one
+  EqVars i j -> Cond (IsZero $ A.var i - A.var j) one
+  InEqVars i j -> Cond (IsNegative $ A.var j - A.var i) one
   Equ (NNVar i) (NNCon x) -> Cond (IsZero $ A.constant x - A.var i) $ one
-  InEq (NNVar i) (NNCon x) -> Cond (IsNegative $ A.constant x - A.var i) $ one
-  InEq (NNCon x) (NNVar i) -> Cond (IsNegative $ A.var i - A.constant x) $ one
+  InEq (NNVar i) (NNCon x) -> Cond (IsNegative $ A.constant x - A.var i) one
+  InEq (NNCon x) (NNVar i) -> Cond (IsNegative $ A.var i - A.constant x) one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> x * y
   Normal μ σ f -> Integrate full $ 
-      (retPoly $ constPoly (1 / (σ * sqrt (2 * pi))) * exponential (constPoly (-1/2) * (constPoly (1/σ) * (constPoly μ - varPoly Here))^+2))
+      (retPoly $ constPoly (1 / (σ * sqrt (2 * pi)))
+       * exponential (constPoly (-1/2)
+                       * (constPoly (1/σ) * (constPoly μ - varPoly Here)) ^+ 2))
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-  Cauchy x0 γ f -> Integrate full $ Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
-    (retPoly $ (constPoly (pi * γ) * (one + (constPoly (one/γ) * (varPoly Here - constPoly x0)) ^+2)))
-  Quartic μ σ f -> Integrate (Domain [] [A.constant (μ - a)] [A.constant (μ + a)]) $
-    (retPoly $ (constPoly ((15 / 16) / (a ^+ 5))) * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2 * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2) *
-    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+  Cauchy x0 γ f -> Integrate full $
+    Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
+    (retPoly $ (constPoly (pi * γ)
+                 * (one + (constPoly (one/γ)
+                            * (varPoly Here - constPoly x0)) ^+2)))
+  Quartic μ σ f -> Integrate (Domain [] [A.constant (μ - a)]
+                              [A.constant (μ + a)]) $
+    (retPoly $ (constPoly ((15 / 16) / (a ^+ 5)))
+     * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2
+     * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
+    * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where a = sqrt 7 * σ
   Uniform x y f -> Integrate (Domain [] [A.constant x] [A.constant y]) $ 
     (retPoly $ constPoly (1 / (y - x))) *
@@ -514,8 +541,8 @@ evalVar = \case
   Weaken (evalVar -> i) -> There i
 
 
--------------------------------------------------
--- Approximation of integrals
+--------------------------------------------------------------------------------
+-- | Approximation of integrals
 
 class IntegrableContext γ where
   type Tgt γ 
@@ -526,7 +553,7 @@ instance IntegrableContext () where
   vRatToC = \case
 
 instance IntegrableContext γ => IntegrableContext (γ,Rat) where
-  type Tgt (γ,Rat) = (Tgt γ,C)
+  type Tgt (γ, Rat) = (Tgt γ, C)
   vRatToC = \case
      Here -> Here
      There x -> There (vRatToC x)
@@ -538,19 +565,27 @@ ratToC v = evalPoly v (Models.Field.eval @C) varPoly
 ratToC' :: (Available Rat γ -> Available C δ) -> Ret γ Rat -> Ret δ C
 ratToC' v (x :/ y) = ratToC v x :/ ratToC v y
 
-approximateIntegralsAny :: forall γ. IntegrableContext γ => Int -> P γ Rat -> P (Tgt γ) C
+approximateIntegralsAny :: IntegrableContext γ => Int -> P γ Rat -> P (Tgt γ) C
 approximateIntegralsAny n = approximateIntegralsConds n vRatToC
 
 substCond' :: (Available Rat γ -> Available C δ) -> Cond γ Rat -> Cond δ C
-substCond' f (IsNegative e) = IsNegative (A.mapVars f $ fmap (Models.Field.eval @C) e)
+substCond' f (IsNegative e) =
+  IsNegative (A.mapVars f $ fmap (Models.Field.eval @C) e)
 substCond' f (IsZero e) = IsZero (A.mapVars f $ fmap (Models.Field.eval @C) e)
 
-approximateIntegralsConds :: forall γ δ. Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> P δ C
-approximateIntegralsConds n v (Cond c e) = Cond (substCond' v c) (approximateIntegralsConds n v e)
-approximateIntegralsConds n v (Div x y) = Div (approximateIntegralsConds n v x) (approximateIntegralsConds n v y)  
+approximateIntegralsConds :: Int
+                          -> (Available Rat γ -> Available C δ)
+                          -> P γ Rat -> P δ C
+approximateIntegralsConds n v (Cond c e) =
+  Cond (substCond' v c) (approximateIntegralsConds n v e)
+approximateIntegralsConds n v (Div x y) =
+  Div (approximateIntegralsConds n v x) (approximateIntegralsConds n v y)  
 approximateIntegralsConds n v e = Ret $ approximateIntegrals n v e
 
-approximateIntegrals :: forall γ δ. Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> Ret δ C
+approximateIntegrals :: forall γ δ.
+                        Int
+                     -> (Available Rat γ -> Available C δ)
+                     -> P γ Rat -> Ret δ C
 approximateIntegrals n v =
   let r :: forall ξ ζ.  (Available Rat ξ -> Available C ζ) -> P ξ Rat -> Ret ζ C
       r = approximateIntegrals n
@@ -565,8 +600,9 @@ approximateIntegrals n v =
     Div a b -> r0 a / r0 b
     Ret x -> ratToC' v x
     Cond _ _ -> error ("approximateIntegrals: condition not eliminated")
-    Integrate (Domain [] los his) e -> chebIntegral @C n lo hi (\x -> substP0 x (r v' e))
-      where lo,hi :: Poly δ C
+    Integrate (Domain [] los his) e ->
+      chebIntegral @C n lo hi (\x -> substP0 x (r v' e))
+      where lo, hi :: Poly δ C
             lo = supremum Max $ map (ratToC v . exprToPoly) los
             hi = supremum Min $ map (ratToC v . exprToPoly) his
     Integrate {} -> error "approximateIntegrals: unbounded integral?"
@@ -577,9 +613,9 @@ substP0 x = substRet (\case Here -> x; There v -> varPoly v)
 instance Scalable C (Poly γ C) where
   x *^ p = constCoef @γ x *^ p
 
----------------------------------------------
--- Showing stuff
-----------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | Showing stuff
 
 class ShowableContext γ where
   -- This stupidifying interface is dictated by lack of "impredicative polymorphism"
@@ -694,7 +730,8 @@ showP fs@(f:fsRest) v = \case
                   showBounds v Min his <> text "}" <>
                   showP fsRest (f +! v) e <>
                   text "\\,d" <> text f 
-         _ -> function' "integrate" [body, (if st == Mathematica then braces else id) dom]
+         _ -> function' "integrate"
+              [body, (if st == Mathematica then braces else id) dom]
   Cond c e -> showCond v c * showP fs v e
 
 mathematica :: Pretty a => ShowableContext γ => P γ a -> IO ()
@@ -706,11 +743,12 @@ latex = putStrLn . render LaTeX .showProg
 maxima :: Pretty a => ShowableContext γ => P γ a -> IO ()
 maxima = putStrLn . render Maxima . showProg
 
------------------------------------------------------------
--- Top-level Entry points
+
+--------------------------------------------------------------------------------
+-- | Top-level Entry points
 
 -- | Take typed descriptions of real numbers onto integrators 
-simplify :: Witness n -> (γ ⊢ 'R) -> P (Eval γ) Rat
+simplify :: Witness n -> γ ⊢ 'R -> P (Eval γ) Rat
 simplify n = cleanConds [] . normalise . evalP' . normalForm . clean n . evalβ
 
 -- | Take typed descriptions of functions onto integrators with a free var
@@ -722,12 +760,11 @@ simplifyFun2 :: Witness n -> 'Unit ⊢ ('R ⟶ 'R ⟶ 'R) -> (P (((), Rat), Rat)
 simplifyFun2 n = simplify n . absInversion . absInversion
 
 
-------------------------------------------------------------
--- Examples
+--------------------------------------------------------------------------------
+-- | Examples
 
 example0 :: P () Rat
-example0 = Integrate full $
-           retPoly $  constPoly 10 + varPoly Here
+example0 = Integrate full $ retPoly $ constPoly 10 + varPoly Here
 
 -- >>> maxima $ example0
 -- integrate(10 + x, x, -inf, inf)
@@ -757,8 +794,7 @@ exampleEq = Integrate full $
 example :: P () Rat
 example = Integrate full $ Integrate full $
           Cond (IsNegative (3 *< A.var (There Here) + 2 *< A.var (Here))) $
-          Cond (IsNegative (A.var (There Here))) $
-          one
+          Cond (IsNegative (A.var (There Here))) one
 
 -- >>> mathematica $ example
 -- Integrate[Integrate[Boole[2*y + 3*x ≤ 0]*Boole[x ≤ 0], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
@@ -768,8 +804,7 @@ example = Integrate full $ Integrate full $
 
 example1 :: P () Rat
 example1 = Integrate full $ Integrate full $
-           Cond (IsZero (A.constant 4 + A.var (There Here) - A.var Here)) $
-           one
+           Cond (IsZero (A.constant 4 + A.var (There Here) - A.var Here)) one
 
 -- >>> mathematica $ example1
 -- Integrate[Integrate[DiracDelta[4 - y + x] * (1)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
@@ -781,7 +816,7 @@ example2 :: P () Rat
 example2 = Integrate full $
            Integrate (Domain [] [A.constant 1 + A.var Here] []) $
            Cond (IsZero (A.constant 4 + 2 *< A.var (There Here) - A.var Here) ) $
-           retPoly $  varPoly Here
+           retPoly $ varPoly Here
 
 -- >>> mathematica $ example2
 -- Integrate[Integrate[DiracDelta[4 - y + 2*x]*y, {y, 1 + x, Infinity}], {x, -Infinity, Infinity}]
@@ -794,7 +829,8 @@ example3 = Integrate full $
            Integrate full $
            Cond (IsNegative (A.constant 3 - A.var Here)) $
            Cond (IsZero (A.constant 4 + A.var (There Here) - A.var Here)) $
-           retPoly $ constPoly 2 + (varPoly Here) ^+ 2 + 2 *< varPoly (There Here)
+           retPoly $
+           constPoly 2 + (varPoly Here) ^+ 2 + 2 *< varPoly (There Here)
 
 -- >>> mathematica $ example3
 -- Integrate[Integrate[Boole[3 - y ≤ 0]*DiracDelta[4 - y + x]*(2 + y^2 + 2*x), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
@@ -803,7 +839,7 @@ example3 = Integrate full $
 -- Integrate[18 + 10*x + x^2, {x, -1, Infinity}]
 
 example4a :: P () Rat
-example4a = Integrate (Domain [] [zero] [A.constant 1]) $ one
+example4a = Integrate (Domain [] [zero] [A.constant 1]) one
 
 -- >>> mathematica $ normalise example4a
 -- Integrate[1, {x, 0, 1}]
@@ -818,7 +854,8 @@ example4 = Integrate full $
            Cond (IsNegative (A.constant (-3) - A.var Here)) $
            Cond (IsNegative (A.constant (-3) + A.var Here)) $
            Cond (IsZero (A.var  (There Here) - A.var Here)) $
-           retPoly $ exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+2)
+           retPoly $
+           exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+ 2)
 
 -- >>> mathematica $ example4
 -- Integrate[Integrate[Boole[-3 - y ≤ 0]*Boole[-3 + y ≤ 0]*DiracDelta[-y + x]*Exp[-y^2 - x^2], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
@@ -834,7 +871,8 @@ example5 :: P ((),Rat) Rat
 example5 = Integrate full $
            Cond (IsNegative (A.constant (-3) - A.var Here)) $
            Cond (IsNegative (A.constant (-3) + A.var Here)) $
-           retPoly $ exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+2)
+           retPoly $
+           exponential $ negate $ varPoly Here ^+2 + (varPoly (There Here) ^+ 2)
 
 -- >>> mathematica example5
 -- Integrate[Boole[-3 - y ≤ 0]*Boole[-3 + y ≤ 0]*Exp[-y^2 - x^2], {y, -Infinity, Infinity}]
