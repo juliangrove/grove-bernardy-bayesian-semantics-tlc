@@ -7,7 +7,7 @@
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Terms.HOAS where
+module TLC.HOAS where
 
 import qualified TLC.Terms as F
 import TLC.Terms (type (⊢), type(∈)(..), type (×),  type (⟶))
@@ -29,6 +29,7 @@ newkey Empty = Key 0
 newkey (Entry (Key n) _) = Key (n+1)
 
 data Exp t where
+  TT  :: Exp 'F.Unit
   Con :: F.Con a -> Exp a
   App :: Exp (a ⟶ b) -> Exp a -> Exp b
   Var :: Key a -> Exp a
@@ -45,8 +46,9 @@ lk (Entry k ρ) k' = case compareKeys k k' of
                       Nothing -> F.Weaken (lk ρ k')
 lk Empty _ = error "fromHOAS: panic"
 
-fromHOAS :: Exp t -> Ctx γ -> (⊢)γ t
+fromHOAS :: Exp t -> Ctx γ -> γ ⊢ t
 fromHOAS t0 k = case t0 of
+  TT -> F.TT
   Con x -> F.Con x
   Var  i -> F.Var (lk k i)
   App  t u -> F.App (fromHOAS t k) (fromHOAS u k)
@@ -61,8 +63,33 @@ identity :: Exp (b ⟶ b)
 identity = Lam $ \x -> x
 
 twice :: Exp (b ⟶ ((b ⟶ b) ⟶ b))
-twice = Lam $ \x -> Lam $ \f -> App f (App f x)
+twice = Lam $ \x -> Lam $ \f -> f `App` (f `App` x)
 
+infixl `App`
+
+-- >>> displayVs $ fromHOAS twice Terms.HOAS.Empty
+-- (λx.(λy.y(y(x))))
+
+toHOAS' :: forall γ t. γ ⊢ t -> Exp γ -> Exp t
+toHOAS' e ρ =
+  let eval :: forall x. γ ⊢ x -> Exp x
+      eval t = toHOAS' t ρ
+  in case e of
+      F.TT -> TT
+      F.Con x -> Con x
+      F.Var v -> lk' v ρ
+      F.Lam t -> Lam (\a -> App (toHOAS t) (Pair ρ a))
+      F.App t u -> App (eval t) (eval u)
+      F.Pair t u -> Pair (eval t) (eval u)
+      F.Fst t -> Fst (eval t)
+      F.Snd t -> Snd (eval t)
+
+lk' :: x ∈ γ -> Exp γ -> Exp x
+lk' F.Get t = Snd t
+lk' (F.Weaken v) t = lk' v (Fst t)
+
+toHOAS :: γ ⊢ t -> Exp (γ ⟶ t)
+toHOAS e = Lam (toHOAS' e)
 
 
   
