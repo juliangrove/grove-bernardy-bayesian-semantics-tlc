@@ -113,20 +113,31 @@ lift' :: Applicative f => (forall v. Available v γ -> f (Available v δ)) -> (f
 lift' _ (Here) = pure Here
 lift' f (There x) = There <$> (f x)
 
-{-traverseCond :: Additive a => Applicative f => (forall x. Available x γ -> f (Available x δ)) -> Cond (γ,b) a -> f (Cond (δ,b) a)
-traverseCond f = traverse (A.traverseVars (lift' f))
-
 traverseDomain :: (RatLike a, Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Domain γ a -> f (Domain δ a)
-traverseDomain f (Domain conds los his) = Domain <$> traverse (traverseCond f) conds <*> traverse (A.traverseVars f) los <*> traverse (A.traverseVars f) his
+traverseDomain f (Domain conds los his)
+  = Domain <$> traverse (traverse (A.traverseVars (lift' f))) conds <*>
+               traverse (A.traverseVars f) los <*>
+               traverse (A.traverseVars f) his
 
-traverseP :: Applicative f => (forall x. Available x γ -> f (Available x δ)) -> P γ a -> f (P δ a)
+traverseElem :: Ord a => (Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Elem γ a -> f (Elem δ a)
+traverseElem f = \case
+     Vari x -> Vari <$> f x
+     Supremum d es -> Supremum d <$> traverse (traversePoly f) es
+  
+traversePoly :: Ord a => (Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Poly γ a -> f (Poly δ a)
+traversePoly f = bitraverse (traverseElem f) (traverseCoef f) 
+
+traverseCoef :: Ord a => (Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Coef γ a -> f (Coef δ a)
+traverseCoef f (Coef x) = Coef <$> LC.traverseVars (traversePoly f) x
+
+traverseP :: Ord a => Applicative f => (forall x. Available x γ -> f (Available x δ)) -> P γ a -> f (P δ a)
 traverseP f = \case
   Div x y -> Div <$> traverseP f x <*> traverseP f y
   Integrate d e -> Integrate <$> (traverseDomain f d) <*> (traverseP (lift' f) e)
   Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> traverseP f x
   Add x y  -> Add <$> traverseP f x <*> traverseP f y
-  Ret x -> _
--}
+  Ret x -> Ret <$> traversePoly f x
+
 
 deriving instance (RatLike α, Show α) => Show (P γ α)
 
@@ -380,7 +391,8 @@ conds_ cs e = foldr Cond e cs
 
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
 integrate _ (Ret z) | isZero z = Ret $ zero
--- integrate d e | Just e' <- occurP e = Div (recip (hi - lo)) e
+-- integrate d e | Just e' <- traverseP (\case Here -> Nothing; There x -> Just x) e
+--   = Div (recip (hi - lo)) e'
 --   -- ∫_lo^hi k dx = k*(hi-lo)
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> foldr cond (integrate d' e) cs
