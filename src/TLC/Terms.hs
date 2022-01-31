@@ -592,12 +592,11 @@ hmorph0 n = \case
 hmorph :: Witness n -> γ ⊢ α -> γ ⊢ (Context n ⟶ α)
 hmorph n (hmorph0 n -> m) = Lam m
 
-η :: γ ⊢ α -> γ ⊢ ((α ⟶ R) ⟶ R)
+η :: γ ⊢ α -> γ ⊢ ((α ⟶ 'R) ⟶ 'R)
 η m = Lam (App (Var Get) (wkn m))
 
-(⋆) :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ ((β ⟶ R) ⟶ R)) -> γ ⊢ ((β ⟶ R) ⟶ R)
-m ⋆ k = Lam (App (wkn m)
-               (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
+(⋆) :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ (α ⟶ ((β ⟶ 'R) ⟶ 'R)) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
+m ⋆ k = Lam (App (wkn m) (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
 
-(>>) :: γ ⊢ ((Unit ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R)
+(>>) :: γ ⊢ (('Unit ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
 m >> k = m ⋆ Lam (wkn k)
