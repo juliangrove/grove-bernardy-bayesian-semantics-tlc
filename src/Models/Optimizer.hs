@@ -104,6 +104,15 @@ data P γ α where
   -- Can Div be replaced by "factor"? No, because we do integration in
   -- these factors as well.
   Ret :: Poly γ α -> P γ α
+
+-- traverseP :: (forall x. Available x γ -> f (Available x δ)) -> P γ a -> f (P δ a)
+-- traverseP f = \case
+--   Div x y -> Div <$> traverseP f x <*> traverseP f y
+--   Integrate d e -> Integrate <$> (_ d) <*> (traverseP (\case Here -> pure Here; There i -> There <$> f i) e)
+--   Cond _ _ -> _
+--   Add _ _ -> _
+--   Ret _ -> _
+  
 deriving instance (RatLike α, Show α) => Show (P γ α)
 
 data Dumb a = a :/ a deriving Show
@@ -354,8 +363,11 @@ domainToConds = \case
 conds_ :: RatLike a => [Cond γ a] -> P γ a -> P γ a
 conds_ cs e = foldr Cond e cs
 
+
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
 integrate _ (Ret z) | isZero z = Ret $ zero
+-- integrate d e | Just e' <- occurP e = Div (recip (hi - lo)) e
+--   -- ∫_lo^hi k dx = k*(hi-lo)
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> foldr cond (integrate d' e) cs
     where (d', cs) = restrictDomain c d
