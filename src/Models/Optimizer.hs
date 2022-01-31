@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications #-}
@@ -85,13 +86,12 @@ type Mono γ a = Monomial (Elem γ a)
 type DD γ a = Dumb (Poly γ a)
 type Ret γ a = DD γ a 
 
-data Cond γ a = IsNegative { condExpr :: Expr γ a }
+type Cond γ a = Cond' (Expr γ a)
+data Cond' e = IsNegative { condExpr :: e }
               -- Meaning of this constructor: expression ≤ 0
-              -- Example: u ≤ v is represented by @IsNegative (u - v)@
-              | IsZero { condExpr :: Expr γ a }
+              | IsZero { condExpr :: e }
               -- Meaning of this constructor: expression = 0
-              -- Example: u = v is represented by @IsZero (u - v)@
-   deriving (Eq, Show)
+   deriving (Eq, Show, Functor)
 
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α) α]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
@@ -257,8 +257,7 @@ substExpr :: (DecidableZero α, Ring α) => SubstE γ δ ->  Expr γ α -> Expr 
 substExpr = A.subst
 
 substCond :: DecidableZero α => Ring α => SubstE γ δ -> Cond γ α -> Cond δ α
-substCond f (IsNegative e) = IsNegative $ substExpr f e
-substCond f (IsZero e) = IsZero $ substExpr f e
+substCond f = fmap (substExpr f)
 
 substDomain :: (DecidableZero α, Ring α)
             => SubstE γ δ -> Domain γ α -> Domain δ α
@@ -547,9 +546,7 @@ approxIntegrals :: IntegrableContext γ => Int -> P γ Rat -> P (Tgt γ) C
 approxIntegrals n = approxIntegralsConds n vRatToC
 
 renameCond :: (Available Rat γ -> Available C δ) -> Cond γ Rat -> Cond δ C
-renameCond f = \case
-  IsNegative e -> IsNegative (A.mapVars f $ fmap (Models.Field.eval @C) e)
-  IsZero e -> IsZero (A.mapVars f $ fmap (Models.Field.eval @C) e)
+renameCond f = fmap (A.mapVars f . fmap (Models.Field.eval @C))
 
 approxIntegralsConds
   :: Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> P δ C
