@@ -275,7 +275,8 @@ substCond :: DecidableZero α => Ring α => Subst γ δ -> Cond γ α -> Cond δ
 substCond f (IsNegative e) = IsNegative $ substExpr f e
 substCond f (IsZero e) = IsZero $ substExpr f e
 
-substDomain :: DecidableZero α => Ring α => Subst γ δ -> Domain γ α -> Domain δ α
+substDomain :: (DecidableZero α, Ring α)
+            => Subst γ δ -> Domain γ α -> Domain δ α
 substDomain f (Domain c lo hi) = Domain
                                  (substCond (wkSubst f) <$> c)
                                  (substExpr f <$> lo)
@@ -295,13 +296,15 @@ wkP = substP $ \i -> A.var (There i)
 
 -- | Restrict the bounds by moving the bounds. Also return conditions that
 -- ensure that the bounds are in the right order.
-restrictDomain :: α ~ Rat => Cond (γ, α) α -> Domain γ α -> (Domain γ α, [Cond γ α])
+restrictDomain :: α ~ Rat
+               => Cond (γ, α) α -> Domain γ α -> (Domain γ α, [Cond γ α])
 restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
   (LT, e) -> (Domain cs los (e:his), [ lo `lessThan` e | lo <- los ])
   (GT, e) -> (Domain cs (e:los) his, [ e `lessThan` hi | hi <- his ])
   _ -> error "restrictDomain: cannot be called/(1) on equality condition"
 
-solveHere :: DecidableZero x => (Ord x, Field x) => A.Affine (Available x (γ, x)) x -> (Bool, Expr γ x)
+solveHere :: (DecidableZero x, Ord x, Field x)
+          => A.Affine (Available x (γ, x)) x -> (Bool, Expr γ x)
 solveHere e0 = case A.solve Here e0 of
   Left _ -> error "solveHere: division by zero"
   Right (p, e1)
