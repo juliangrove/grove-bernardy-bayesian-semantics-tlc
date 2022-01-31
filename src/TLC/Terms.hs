@@ -137,7 +137,7 @@ interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad) -- 'Vlad i
 interp (Con (General (Utt 3))) = Con $ Logical Tru -- silence
 interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
 
-subEq :: Witness n -> γ ⊢ α -> γ ⊢ α
+subEq :: Witness n -> γ ⊢ α -> γ ⊢ α  -- TODO get rid of Witness parameter
 subEq n = \case
   App (App (Con (General EqGen)) m) n -> equals m n
   App (Con (General (Interp n))) u -> hmorph n (interp u)
