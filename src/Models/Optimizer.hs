@@ -37,7 +37,6 @@ import Algebra.Linear.Chebyshev (chebIntegral)
 import Data.Complex
 import Text.Pretty.Math
 
-
 --------------------------------------------------------------------------------
 -- | Types
 
@@ -95,7 +94,9 @@ data P γ α where
   Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
   Cond :: (DecidableZero a, Ord a, Ring a) => Cond γ a -> P γ a -> P γ a
   Add :: P γ α -> P γ α -> P γ α
-  Div :: P γ α -> P γ α -> P γ α -- Can this be replaced by "factor"? No, because we do integration in these factors as well.
+  Div :: P γ α -> P γ α -> P γ α
+  -- Can Div be replaced by "factor"? No, because we do integration in
+  -- these factors as well.
   Ret :: Ret γ α -> P γ α
   
 deriving instance (RatLike α, Show α) => Show (P γ α)
@@ -246,15 +247,7 @@ varPoly :: RatLike α => Available α γ -> Poly γ α
 varPoly = varP . Vari
 
 substPoly :: RatLike α => SubstP γ δ -> Poly γ α -> Poly δ α
-substPoly f = eval (substCoef f) (substElem f)
-
-substCoef :: RatLike α => SubstP γ δ -> Coef γ α -> Poly δ α
-substCoef f = evalCoef id id f
-
-substElem :: DecidableZero α => Transcendental α => (Ord α, Ring α, Eq α)
-           => (forall x. RatLike x => Available x γ -> Poly δ x)
-           -> Elem γ α -> Poly δ α
-substElem f = evalElem id id f
+substPoly f = evalPoly id id f
 
 substRet :: RatLike α => SubstP γ δ  -> Dumb (Poly γ α) -> Dumb (Poly δ α)
 substRet f (x :/ y) = substPoly f x :/ substPoly f y
@@ -282,8 +275,9 @@ substP f p0 = case p0 of
 wkP :: DecidableZero x => Transcendental x => Ord x => P γ x -> P (γ, α) x
 wkP = substP $ \i -> A.var (There i) 
 
--- | Restrict the bounds by moving the bounds. Also return conditions that
--- ensure that the bounds are in the right order.
+-- | Restrict the bounds in the domain according to some
+-- conditions. Also return conditions that ensure that the bounds are
+-- in the right order.
 restrictDomain :: α ~ Rat
                => Cond (γ, α) α -> Domain γ α -> (Domain γ α, [Cond γ α])
 restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
@@ -389,7 +383,6 @@ cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
                      else Cond c' (cond c e)
 cond c e = Cond c e
 
-
 normalise :: P γ Rat -> P γ Rat
 normalise = \case
   Cond c (normalise -> e) -> cond c e
@@ -428,7 +421,6 @@ cleanConds cs = \case
               else cond c $ cleanConds (c:cs) e
   Div x y -> Div (cleanConds cs x) (cleanConds cs y)
   Add x y -> Add (cleanConds cs x) (cleanConds cs y)
-  
 
 --------------------------------------------------------------------------------
 -- | Conversion from λ-terms
@@ -438,21 +430,20 @@ type family Eval γ where
   Eval 'Unit = ()
   Eval (γ × α) = (Eval γ, Eval α)
 
+pattern App2 :: Neutral γ (α3 ⟶ (α2 ⟶ α)) -> NF γ α3 -> NF γ α2 -> NF γ α
+pattern App2 f x y = Neu (NeuApp (NeuApp f x) y)
 pattern NNVar :: Available (Eval α) (Eval γ) -> NF γ α
 pattern NNVar i <- Neu (NeuVar (evalVar -> i))
 pattern Equ :: NF γ 'R -> NF γ 'R -> NF γ 'R
-pattern Equ x y = Neu (NeuApp (NeuApp (NeuCon (General EqRl)) x) y)
+pattern Equ x y = App2 (NeuCon (General EqRl)) x y
 pattern EqVars :: Available Rat (Eval γ) -> Available Rat (Eval γ)  -> NF γ 'R
-pattern EqVars i j <- Neu (NeuApp (NeuApp (NeuCon (General EqRl))
-                                  (NNVar i)) (NNVar j))
+pattern EqVars i j <- Equ (NNVar i) (NNVar j)
 pattern Mults :: NF γ 'R -> NF γ 'R -> NF γ 'R
-pattern Mults x y = Neu (NeuApp (NeuApp (NeuCon (General Mult)) x) y)
+pattern Mults x y = App2 (NeuCon (General Mult)) x y
 pattern Adds :: NF γ 'R -> NF γ 'R -> NF γ 'R
-pattern Adds x y = Neu (NeuApp (NeuApp (NeuCon (General Addi)) x) y)
+pattern Adds x y = App2 (NeuCon (General Addi)) x y
 pattern InEqVars :: Available Rat (Eval γ) -> Available Rat (Eval γ) -> NF γ 'R
-pattern InEqVars i j <- Neu (NeuApp (NeuCon (General Indi))
-                            (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
-                                           (NNVar i)) (NNVar j))))
+pattern InEqVars i j <- InEq (NNVar i) (NNVar j)
 pattern InEq :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern InEq x y = Neu (NeuApp (NeuCon (General Indi))
                             (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
