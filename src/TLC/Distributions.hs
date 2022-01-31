@@ -9,7 +9,7 @@ import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import TLC.Terms
 
-factor :: γ ⊢ (R ⟶ ((Unit ⟶ R) ⟶ R))
+factor :: γ ⊢ ('R ⟶ (('Unit ⟶ 'R) ⟶ 'R))
 factor
   = Lam (Lam (App (App (Con (General Mult)) (Var (Weaken Get))) (App (Var Get) TT)))
 factor' x = App factor x
@@ -28,11 +28,11 @@ quartic :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
 quartic x y = App (Con $ General Qua) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
 
 
-uniform :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
+uniform :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
 uniform x y
   = App (Con $ General Uni) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
 
-lesbegue :: γ ⊢ ((R ⟶ R) ⟶ R)
+lesbegue :: γ ⊢ (('R ⟶ 'R) ⟶ 'R)
 lesbegue = Con $ General Les
 
 -- Convert a probabilistic program into a distribution
@@ -47,5 +47,5 @@ normalize m = m ⋆ Lam (factor' (recip $ measure $ wkn m) >> η (Var Get))
 
 expectedValue :: γ ⊢ (('R ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
 expectedValue m = lower m / measure m where
-  lower :: γ ⊢ ((R ⟶ R) ⟶ R) -> γ ⊢ R
+  lower :: γ ⊢ (('R ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
   lower m = App m (Lam (Var Get))
