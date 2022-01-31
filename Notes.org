@@ -220,10 +220,15 @@ plot3d(atan(-x^2+y^3/4),[x,-4,4],[y,-4,4],[grid,50,50],[gnuplot_pm3d,true]);
 
 #+begin_src maxima  :results output
 set_plot_option ([gnuplot_term, svg]);
-set_plot_option ([gnuplot_out_file, "maxima.svg"]);
-F: charfun(50.0 - x <= 0)*charfun(-80.0 + x <= 0)*charfun(-x + y <= 0)*1.329807601338109e-4*exp(-256.8888888888889 + 7.555555555555555*x + -5.555555555555555e-2*x^2)/(charfun(-80.0 + y <= 0)*(5.948010033994905e-4 + 1.7730768017841454*exp(-256.8888888888889 + 7.555555555555555*max(50.0, y) + -5.555555555555555e-2*max(50.0, y)^2) + 7.092307207136581*exp(-43.55555555555557 + 1.5555555555555554*max(50.0, y) + -1.3888888888888885e-2*max(50.0, y)^2) + (-7.435012542493632e-6 + -2.216346002230182e-2*exp(-256.8888888888889 + 7.555555555555555*max(50.0, y) + -5.555555555555555e-2*max(50.0, y)^2) + -8.865384008920726e-2*exp(-43.55555555555557 + 1.5555555555555554*max(50.0, y) + -1.3888888888888885e-2*max(50.0, y)^2))*max(50.0, y)));
+set_plot_option ();
+L0N: charfun(50 - x <= 0)*charfun(-80 + x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*x - 1/18*x^2);
+L0D: charfun(-80 + y <= 0)*integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, max(y, 50), 80);
+L0: L0N/L0D;
 
-plot3d(F,[y,50,75],[x,50,75],[grid,50,50],[gnuplot_pm3d,true]);
+S1N: charfun(51 - y <= 0)*charfun(-81 + y <= 0)*charfun(-80 + x <= 0)*charfun(50 - x <= 0)*charfun(51 - x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/(charfun(-80 + y <= 0)*integrate(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, max(y, 50), 80), z, 0, 1));
+S1D: integrate((3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/(charfun(-80 + z <= 0)*integrate(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*v - 1/18*v^2), v, max(z, 50), 80), u, 0, 1)), z, 51, min(81, x));
+plot3d(L0,[y,55,75],[x,55,75],[grid,50,50],[gnuplot_pm3d,true],[elevation,20],[gnuplot_out_file, "l0.svg"]);
+plot3d(S1D,[y,55,75],[x,55,75],[grid,50,50],[gnuplot_pm3d,true],[elevation,20],[gnuplot_out_file, "s1.svg"]);
 #+end_src
 
 #+RESULTS:
