@@ -21,7 +21,7 @@
 module Models.Optimizer where
 
 import Data.List (nub)
-import Data.Ratio
+-- import Data.Ratio
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
 import qualified Algebra.Morphism.LinComb as LC
@@ -104,23 +104,18 @@ data P γ α where
   Div :: P γ α -> P γ α -> P γ α
   -- Can Div be replaced by "factor"? No, because we do integration in
   -- these factors as well.
-  Ret :: Ret γ α -> P γ α
-  
+  Ret :: Poly γ α -> P γ α
 deriving instance (RatLike α, Show α) => Show (P γ α)
 
 data Dumb a = a :/ a deriving Show
 infixl 7 :/
-  
 instance (Ring a,DecidableZero a) => DecidableZero (Dumb a) where
   isZero (x :/ _) = isZero x
-
 instance {-# OVERLAPPABLE #-} Scalable s a => Scalable s (Dumb a) where
   f *^ (x :/ y) = (f *^ x) :/ y
-
 instance Ring a => Additive (Dumb a) where
   zero = zero :/ one
   (x :/ y) + (x' :/ y') = (x * y' + x' * y) :/ (y * y')
-
 instance Ring a => AbelianAdditive (Dumb a)
 instance Multiplicative a => Multiplicative (Dumb a) where
   one = one :/ one
@@ -133,13 +128,16 @@ instance Ring a => Ring (Dumb a) where
   fromInteger x = fromInteger x :/ one
 instance Multiplicative a => Division (Dumb a) where
   recip (x :/ y) = y :/ x
-instance Ring a => Field (Dumb a) where
-  fromRational x = fromInteger (numerator x) :/ fromInteger (denominator x)
-
+instance Ring a => Field (Dumb a)
+evalDumb :: Division x => (a -> x) -> Dumb a -> x
+evalDumb f (x :/ y) = f x / f y
   
 ----------------------------------
 -- | Smart constructors
   
+-- Domain without restriction
+full :: Domain γ x
+full = Domain [] [] []
 
 isPositive,isNegative :: RatLike a => Expr γ a -> Cond γ a
 isPositive e = isNegative (negate e)
@@ -242,8 +240,8 @@ exprToPoly = A.eval constPoly  (monoPoly .  varM . Vari)
 substPoly :: RatLike α => SubstP γ δ -> Poly γ α -> Poly δ α
 substPoly f = evalPoly id id f
 
-substRet :: RatLike α => SubstP γ δ  -> Dumb (Poly γ α) -> Dumb (Poly δ α)
-substRet f (x :/ y) = substPoly f x :/ substPoly f y
+substDumb :: RatLike α => SubstP γ δ  -> Dumb (Poly γ α) -> Dumb (Poly δ α)
+substDumb f = evalDumb (dumb . substPoly f)
 
 ----------------------------------------------------------------
 -- Normalising substitutions of variables to affine expressions
@@ -271,7 +269,7 @@ substDomain f (Domain c lo hi) = Domain
 
 substP :: RatLike x => SubstE γ δ -> P γ x -> P δ x
 substP f p0 = case p0 of
-  Ret e -> Ret (substRet (exprToPoly . f) e)
+  Ret e -> Ret (substPoly (exprToPoly . f) e)
   Add (substP f -> p1) (substP f -> p2) -> p1 + p2
   Div (substP f -> p1) (substP f -> p2) -> p1 / p2
   Cond c p -> cond (substCond f c) (substP f p)
@@ -285,7 +283,6 @@ wkP = substP $ \i -> A.var (There i)
 
 ---------------------------------------------------------
 -- Normalisation of integrals 
-
 
 -- | Restrict the bounds in the domain according to some
 -- conditions. Also return conditions that ensure that the bounds are
@@ -471,15 +468,11 @@ pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
 pattern NNCon :: Field x => x -> NF γ 'R
 pattern NNCon x <- Neu (NeuCon (General (Incl (fromRational -> x))))
 
+retPoly :: RatLike a => Poly γ a -> P γ a
+retPoly = Ret 
+
 evalP :: NF 'Unit 'R -> P () Rat
 evalP = evalP'
-
-retPoly :: RatLike a => Poly γ a -> P γ a
-retPoly = Ret . (:/ one)
-
--- Domain without restriction
-full :: Domain γ x
-full = Domain [] [] []
 
 evalP' :: NF γ 'R -> P (Eval γ) Rat
 evalP' = \case
@@ -526,9 +519,8 @@ evalVar = \case
   Get -> Here
   Weaken (evalVar -> i) -> There i
 
-
 --------------------------------------------------------------------------------
--- | Approximation of integrals
+-- Approximation of integrals
 
 -- | Finite context of Rats
 class IntegrableContext γ where
@@ -548,54 +540,50 @@ instance IntegrableContext γ => IntegrableContext (γ,Rat) where
 ratToC :: (Available Rat γ -> Available C δ) -> Poly γ Rat -> Poly δ C
 ratToC v = evalPoly v (Models.Field.eval @C) varPoly
 
-ratToC' :: (Available Rat γ -> Available C δ) -> Ret γ Rat -> Ret δ C
-ratToC' v (x :/ y) = ratToC v x :/ ratToC v y
+dumb :: Multiplicative a => a -> Dumb a
+dumb x = x :/ one
 
-approximateIntegralsAny :: IntegrableContext γ => Int -> P γ Rat -> P (Tgt γ) C
-approximateIntegralsAny n = approximateIntegralsConds n vRatToC
+approxIntegrals :: IntegrableContext γ => Int -> P γ Rat -> P (Tgt γ) C
+approxIntegrals n = approxIntegralsConds n vRatToC
 
-substCond' :: (Available Rat γ -> Available C δ) -> Cond γ Rat -> Cond δ C
-substCond' f (IsNegative e) =
-  IsNegative (A.mapVars f $ fmap (Models.Field.eval @C) e)
-substCond' f (IsZero e) = IsZero (A.mapVars f $ fmap (Models.Field.eval @C) e)
+renameCond :: (Available Rat γ -> Available C δ) -> Cond γ Rat -> Cond δ C
+renameCond f = \case
+  IsNegative e -> IsNegative (A.mapVars f $ fmap (Models.Field.eval @C) e)
+  IsZero e -> IsZero (A.mapVars f $ fmap (Models.Field.eval @C) e)
 
-approximateIntegralsConds :: Int
-                          -> (Available Rat γ -> Available C δ)
-                          -> P γ Rat -> P δ C
-approximateIntegralsConds n v (Cond c e) =
-  Cond (substCond' v c) (approximateIntegralsConds n v e)
-approximateIntegralsConds n v (Div x y) =
-  Div (approximateIntegralsConds n v x) (approximateIntegralsConds n v y)  
-approximateIntegralsConds n v e = Ret $ approximateIntegrals n v e
+approxIntegralsConds
+  :: Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> P δ C
+approxIntegralsConds n v = \case
+  Cond c e -> Cond (renameCond v c) (approxIntegralsConds n v e)
+  Div x y -> Div (approxIntegralsConds n v x) (approxIntegralsConds n v y)  
+  e -> evalDumb retPoly (approxIntegralsW n v e)
 
-approximateIntegrals :: forall γ δ.
-                        Int
-                     -> (Available Rat γ -> Available C δ)
-                     -> P γ Rat -> Ret δ C
-approximateIntegrals n v =
+-- Main worker; can't deal with conditions.
+approxIntegralsW
+  :: forall γ δ. Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> DD δ C
+approxIntegralsW n v =
   let r0 :: P γ Rat -> Ret δ C
-      r0 = approximateIntegrals n v
+      r0 = approxIntegralsW n v
       v' :: Available Rat (γ,Rat) -> Available C (δ,C)
       v' = \case Here -> Here
                  There x -> There (v x)
   in \case
     Add a b -> r0 a + r0 b
     Div a b -> r0 a / r0 b
-    Ret x -> ratToC' v x
-    Cond _ _ -> error ("approximateIntegrals: condition not eliminated")
+    Ret x -> dumb (ratToC v x)
+    Cond _ _ -> error ("approxIntegrals: condition not eliminated")
     Integrate (Domain [] los his) e ->
-      chebIntegral @C n lo hi (\x -> substP0 x (approximateIntegrals n v' e))
+      chebIntegral @C n lo hi (\x -> substP0 x (approxIntegralsW n v' e))
       where lo, hi :: Poly δ C
             lo = supremum Max $ map (ratToC v . exprToPoly) los
             hi = supremum Min $ map (ratToC v . exprToPoly) his
-    Integrate {} -> error "approximateIntegrals: unbounded integral?"
+    Integrate {} -> error "approxIntegrals: unbounded integral?"
 
 substP0 :: Poly γ C -> Ret (γ,C) C -> Ret γ C
-substP0 x = substRet (\case Here -> x; There v -> varPoly v)
+substP0 x = substDumb (\case Here -> x; There v -> varPoly v)
 
 instance Scalable C (Poly γ C) where
   x *^ p = constCoef @γ x *^ p
-
 
 --------------------------------------------------------------------------------
 -- | Showing stuff
@@ -651,7 +639,7 @@ showPoly :: Pretty x => Vars γ -> Poly γ x -> Doc
 showPoly v = eval (showCoef v) (showElem v) 
 
 showDumb :: Pretty a => Vars γ -> Dumb (Poly γ a) -> Doc
-showDumb v (x :/ y)  = showPoly v x / showPoly v y
+showDumb v = evalDumb (showPoly v)
 
 -- instance (Pretty a, ShowableContext γ) => Show (Dumb (Poly γ a)) where
 --   show x = showDumb (varsForCtx freshes) x Mathematica
@@ -697,7 +685,7 @@ when _ x = x
 showP :: Pretty a => [String] -> Vars γ -> P γ a -> Doc
 showP [] _ = error "showP: ran out of freshes"
 showP fs@(f:fsRest) v = \case
-  Ret e -> showDumb v e
+  Ret e -> showPoly v e
   Add p1 p2 -> showP fs v p1 + showP fs v p2
   Div p1 p2 -> showP fs v p1 / showP fs v p2
   Integrate (Domain cs los his) e -> withStyle $ \st -> 
@@ -826,7 +814,7 @@ example4a = Integrate (Domain [] [zero] [A.constant 1]) one
 -- >>> mathematica $ normalise example4a
 -- Integrate[1, {x, 0, 1}]
 
--- >>> mathematica $ approximateIntegralsAny 4 (normalise example4a)
+-- >>> mathematica $ approxIntegrals 4 (normalise example4a)
 -- 1.0/1.0
 
 
@@ -845,7 +833,7 @@ example4 = Integrate full $
 -- >>> mathematica $ normalise example4
 -- Integrate[Exp[-2*x^2], {x, -3, 3}]
 
--- >>> mathematica $ approximateIntegralsAny 16 $ normalise example4
+-- >>> mathematica $ approxIntegrals 16 $ normalise example4
 -- 1.253346416637889
 
 
@@ -862,6 +850,6 @@ example5 = Integrate full $
 -- >>> mathematica $ normalise example5
 -- Integrate[Exp[-y^2 - x^2], {y, -3, 3}]
 
--- >>> mathematica $ approximateIntegralsAny 8 $ normalise example5 
+-- >>> mathematica $ approxIntegrals 8 $ normalise example5 
 -- 9.523809523809527e-2*Exp[-9.0 - x^2] + 0.8773118952961091*Exp[-7.681980515339462 - x^2] + 0.8380952380952381*Exp[-4.499999999999999 - x^2] + 0.8380952380952381*Exp[-4.499999999999997 - x^2] + 1.0851535761614692*Exp[-1.318019484660537 - x^2] + 1.0851535761614692*Exp[-1.3180194846605355 - x^2] + 1.180952380952381*Exp[-4.930380657631324e-32 - x^2]
 
