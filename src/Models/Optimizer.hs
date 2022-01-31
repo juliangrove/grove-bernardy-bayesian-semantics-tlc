@@ -530,6 +530,7 @@ evalVar = \case
 --------------------------------------------------------------------------------
 -- | Approximation of integrals
 
+-- | Finite context of Rats
 class IntegrableContext γ where
   type Tgt γ 
   vRatToC :: Available Rat γ -> Available C (Tgt γ)
@@ -543,7 +544,6 @@ instance IntegrableContext γ => IntegrableContext (γ,Rat) where
   vRatToC = \case
      Here -> Here
      There x -> There (vRatToC x)
-
 
 ratToC :: (Available Rat γ -> Available C δ) -> Poly γ Rat -> Poly δ C
 ratToC v = evalPoly v (Models.Field.eval @C) varPoly
@@ -573,21 +573,18 @@ approximateIntegrals :: forall γ δ.
                      -> (Available Rat γ -> Available C δ)
                      -> P γ Rat -> Ret δ C
 approximateIntegrals n v =
-  let r :: forall ξ ζ.  (Available Rat ξ -> Available C ζ) -> P ξ Rat -> Ret ζ C
-      r = approximateIntegrals n
-      r0 :: P γ Rat -> Ret δ C
-      r0 = r v
+  let r0 :: P γ Rat -> Ret δ C
+      r0 = approximateIntegrals n v
       v' :: Available Rat (γ,Rat) -> Available C (δ,C)
-      v' = \case
-        Here -> Here
-        There x -> There (v x)
+      v' = \case Here -> Here
+                 There x -> There (v x)
   in \case
     Add a b -> r0 a + r0 b
     Div a b -> r0 a / r0 b
     Ret x -> ratToC' v x
     Cond _ _ -> error ("approximateIntegrals: condition not eliminated")
     Integrate (Domain [] los his) e ->
-      chebIntegral @C n lo hi (\x -> substP0 x (r v' e))
+      chebIntegral @C n lo hi (\x -> substP0 x (approximateIntegrals n v' e))
       where lo, hi :: Poly δ C
             lo = supremum Max $ map (ratToC v . exprToPoly) los
             hi = supremum Min $ map (ratToC v . exprToPoly) his
