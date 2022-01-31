@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
@@ -43,6 +44,8 @@ import Text.Pretty.Math
 
 type C = Complex Double
 deriving instance Ord a => Ord (Complex a) -- yikes
+class RatLike a => Pretty a where
+  pretty :: a -> Doc
 instance (RealFloat a, RatLike a, Show a) => Pretty (Complex a) where
   pretty (a :+ b) | b < 10e-15 = case show a of
                       "1.0" -> one
@@ -82,6 +85,7 @@ data Elem γ α = Vari (Available α γ) | Supremum Dir [Poly γ α]
   deriving (Eq, Ord, Show)
 type Poly γ a = Polynomial (Elem γ a) (Coef γ a)
 type Mono γ a = Monomial (Elem γ a)
+data Dumb a = a :/ a deriving Show
 type DD γ a = Dumb (Poly γ a)
 type Ret γ a = DD γ a 
 
@@ -90,7 +94,7 @@ data Cond' e = IsNegative { condExpr :: e }
               -- Meaning of this constructor: expression ≤ 0
               | IsZero { condExpr :: e }
               -- Meaning of this constructor: expression = 0
-   deriving (Eq, Show, Functor)
+   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α) α]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
@@ -105,17 +109,27 @@ data P γ α where
   -- these factors as well.
   Ret :: Poly γ α -> P γ α
 
--- traverseP :: (forall x. Available x γ -> f (Available x δ)) -> P γ a -> f (P δ a)
--- traverseP f = \case
---   Div x y -> Div <$> traverseP f x <*> traverseP f y
---   Integrate d e -> Integrate <$> (_ d) <*> (traverseP (\case Here -> pure Here; There i -> There <$> f i) e)
---   Cond _ _ -> _
---   Add _ _ -> _
---   Ret _ -> _
-  
+lift' :: Applicative f => (forall v. Available v γ -> f (Available v δ)) -> (forall v. Available v (γ,x) -> f (Available v (δ,x)))
+lift' _ (Here) = pure Here
+lift' f (There x) = There <$> (f x)
+
+{-traverseCond :: Additive a => Applicative f => (forall x. Available x γ -> f (Available x δ)) -> Cond (γ,b) a -> f (Cond (δ,b) a)
+traverseCond f = traverse (A.traverseVars (lift' f))
+
+traverseDomain :: (RatLike a, Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Domain γ a -> f (Domain δ a)
+traverseDomain f (Domain conds los his) = Domain <$> traverse (traverseCond f) conds <*> traverse (A.traverseVars f) los <*> traverse (A.traverseVars f) his
+
+traverseP :: Applicative f => (forall x. Available x γ -> f (Available x δ)) -> P γ a -> f (P δ a)
+traverseP f = \case
+  Div x y -> Div <$> traverseP f x <*> traverseP f y
+  Integrate d e -> Integrate <$> (traverseDomain f d) <*> (traverseP (lift' f) e)
+  Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> traverseP f x
+  Add x y  -> Add <$> traverseP f x <*> traverseP f y
+  Ret x -> _
+-}
+
 deriving instance (RatLike α, Show α) => Show (P γ α)
 
-data Dumb a = a :/ a deriving Show
 infixl 7 :/
 instance (Ring a,DecidableZero a) => DecidableZero (Dumb a) where
   isZero (x :/ _) = isZero x
@@ -629,8 +643,6 @@ showProg = showP (restOfVars @γ freshes) (varsForCtx freshes)
 -- instance (Pretty a, ShowableContext γ) => Show (P γ a) where
 --   show = showProg Mathematica
 
-class RatLike a => Pretty a where
-  pretty :: a -> Doc
 
 instance Pretty Rat where
   pretty = Models.Field.eval
