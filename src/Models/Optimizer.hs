@@ -228,7 +228,7 @@ instance RatLike a => Additive (P γ a) where
 
 instance RatLike a => Division (P γ a) where
   (Ret z) / _ | isZero z = Ret $ zero
-  (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrated function.
+  (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrators
   p1 / p2 = Div p1 p2
 
 type SubstP γ δ = forall α. RatLike α => Available α γ -> Poly δ α
@@ -397,15 +397,26 @@ focus :: [a] -> [(a,[a])]
 focus [] = []
 focus (x:xs) = (x,xs) : [(y,x:ys) | (y,ys) <- focus xs]
 
-cleanBounds :: RatLike a => [Cond γ a] -> Dir -> [Expr γ a] -> [Expr γ a]
-cleanBounds cs d xs = [ x
-                      | (x, rest) <- focus xs
-                      , not (any (\y -> cs `entail` (x `cmp` y)) rest) ]
+
+redundant :: RatLike a => Dir -> [Cond γ a] -> Expr γ a -> [Expr γ a] -> Bool
+redundant d cs x ys = any (\bnd -> entail cs (bnd `cmp` x)) ys
   where cmp = case d of Min -> greaterThan; Max -> lessThan
+
+cleanBounds :: RatLike a => [Cond γ a] -> Dir -> [Expr γ a] -> [Expr γ a] -> [Expr γ a]
+cleanBounds cs d [] kept = kept
+cleanBounds cs d (x:xs) kept = if redundant d cs x kept
+                               then cleanBounds cs d xs kept
+                               else cleanBounds cs d xs (x:filter (\k -> not (redundant d cs k [x])) kept)
+ -- Example. We have kept z as bound (z ∈ kept).
+ -- Now we consider 80, under (z ≤ 80) ∈ cs.
+ -- We test the condition x ≤ 80, and find that it is entailed by cs.
+ -- And so we can discard 80.
+
+-- 80 comes first.
 
 cleanDomain :: RatLike a => [Cond γ a] -> Domain γ a -> Domain γ a
 cleanDomain cs (Domain c los his) =
-  Domain c (cleanBounds cs Max los) (cleanBounds cs Max his)
+  Domain c (cleanBounds cs Max los []) (cleanBounds cs Max his [])
 
 -- | Remove redundant conditions
 cleanConds :: (a ~ Rat) => [Cond γ a] -> P γ a -> P γ a
@@ -632,7 +643,7 @@ showCoef :: forall γ a. Pretty a => Vars γ -> Coef γ a -> Doc
 showCoef v (Coef c) = LC.eval pretty (exp . showPoly v) c
 
 showPoly :: Pretty x => Vars γ -> Poly γ x -> Doc
-showPoly v = eval (showCoef v) (showElem v) 
+showPoly v = eval (showCoef v) (showElem v)
 
 showDumb :: Pretty a => Vars γ -> Dumb (Poly γ a) -> Doc
 showDumb v = evalDumb (showPoly v)
