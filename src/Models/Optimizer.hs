@@ -134,24 +134,18 @@ instance Ring a => Field (Dumb a) where
 
 evalCoef :: forall α β γ δ ζ. RatLike β => RatLike α
          => (Available α γ -> Available β δ)
-         -> (α -> β)
-         -> (forall x. RatLike x => Available x δ -> Poly ζ x)
-         -> Coef γ α -> Poly ζ β
+         -> (α -> β) -> SubstP δ ζ -> Coef γ α -> Poly ζ β
 evalCoef v fc f (Coef c)
   = LC.eval (constCoef @ζ . fc) (exponential . evalPoly v fc f) c
 
 evalPoly :: forall α β γ δ ζ. RatLike β => RatLike α
          => (Available α γ -> Available β δ)
-         -> (α -> β)
-         -> (forall x. RatLike x => Available x δ -> Poly ζ x)
-         -> Poly γ α -> Poly ζ β
+         -> (α -> β) -> SubstP δ ζ -> Poly γ α -> Poly ζ β
 evalPoly v fc f = eval (evalCoef v fc f) (evalElem v fc f) 
 
 evalElem :: forall α β γ δ ζ. RatLike β => RatLike α
          => (Available α γ -> Available β δ)
-         -> (α -> β)
-         -> (forall x. RatLike x => Available x δ -> Poly ζ x)
-         -> Elem γ α -> Poly ζ β
+         -> (α -> β) -> SubstP δ ζ -> Elem γ α -> Poly ζ β
 evalElem v fc f =
   let evP :: Poly γ α -> Poly ζ β
       evP = evalPoly v fc f
@@ -199,8 +193,7 @@ deriving instance Eq (Available α γ)
 deriving instance Ord (Available α γ)
 deriving instance Show (Available α γ)
 
-instance (Ord α, Transcendental α, DecidableZero α)
-      => Multiplicative (P γ α) where
+instance RatLike α => Multiplicative (P γ α) where
   one = Ret one
   (Integrate d p1) * p2 = Integrate d $ p1 * wkP p2
   p2 * (Integrate d p1) = Integrate d $ p1 * wkP p2
@@ -241,17 +234,13 @@ substExpr :: (DecidableZero α, Ring α) => Subst γ δ ->  Expr γ α -> Expr �
 substExpr = A.subst
 
 exprToPoly :: RatLike α => Expr γ α -> Poly γ α
-exprToPoly = A.eval constPoly  (monoPoly . varMono) 
-
+exprToPoly = A.eval constPoly  (monoPoly .  varM . Vari) 
 
 constCoef :: forall γ a. RatLike a => a -> Coef γ a
-constCoef x = Coef (x *^ LC.var zero)
+constCoef x = Coef (x *^ LC.var zero) -- x * Exp 0
 
 constPoly :: RatLike a => a -> Poly γ a
 constPoly = Multi.constPoly . constCoef
-
-varMono :: Available α γ -> Mono γ α
-varMono = varM . Vari
 
 varPoly :: RatLike α => Available α γ -> Poly γ α
 varPoly = varP . Vari
