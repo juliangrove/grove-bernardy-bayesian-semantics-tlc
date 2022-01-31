@@ -78,7 +78,6 @@ deriving instance Eq (Available α γ)
 deriving instance Ord (Available α γ)
 deriving instance Show (Available α γ)
 type Expr γ α = A.Affine (Available α γ) α
-deriving instance (RatLike α, Show α) => Show (Expr γ α)
 data Elem γ α = Vari (Available α γ) | Supremum Dir [Poly γ α]
   deriving (Eq, Ord, Show)
 type Poly γ a = Polynomial (Elem γ a) (Coef γ a)
