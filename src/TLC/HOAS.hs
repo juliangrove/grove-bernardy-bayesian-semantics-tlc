@@ -69,9 +69,9 @@ infixl `App`
 
 -- >>> displayVs $ fromHOAS twice Terms.HOAS.Empty
 -- (λx.(λy.y(y(x))))
-
-toHOAS' :: forall γ t. γ ⊢ t -> Exp γ -> Exp t
-toHOAS' e ρ =
+{-
+toHOAS :: forall γ t. γ ⊢ t -> Exp γ -> Exp t
+toHOAS e ρ =
   let eval :: forall x. γ ⊢ x -> Exp x
       eval t = toHOAS' t ρ
   in case e of
@@ -88,9 +88,24 @@ lk' :: x ∈ γ -> Exp γ -> Exp x
 lk' F.Get t = Snd t
 lk' (F.Weaken v) t = lk' v (Fst t)
 
-toHOAS :: γ ⊢ t -> Exp (γ ⟶ t)
-toHOAS e = Lam (toHOAS' e)
+toHOAS'' :: γ ⊢ t -> Exp (γ ⟶ t)
+toHOAS'' e = Lam (toHOAS e)
+
+toHOAS' :: 'F.Unit ⊢ t -> Exp t
+toHOAS' e = (toHOAS'' e) `App` TT
 
 
-  
+η :: Exp α -> Exp ((α ⟶ r) ⟶ r)
+η m = Lam $ \f -> f `App` m
 
+(⋆) :: Exp ((α ⟶ r) ⟶ r) -> Exp (α ⟶ ((β ⟶ r) ⟶ r)) -> Exp ((β ⟶ r) ⟶ r)
+m ⋆ k = Lam $ \f -> m `App` (Lam $ \x -> k `App` x `App` f)
+
+(>>) :: Exp (('F.Unit ⟶ r) ⟶ r) -> Exp ((β ⟶ r) ⟶ r) -> Exp ((β ⟶ r) ⟶ r)
+m >> k = m ⋆ Lam  (\_ -> k) 
+
+
+-- distr :: F.Equality α => Exp ((α ⟶ 'F.R) ⟶ 'F.R) -> Exp (α ⟶ 'F.R)
+-- distr p = Lam $ \x -> -- (App (wkn p) (Lam ((Var Get) ≐ (Var (Weaken Get)))) / measure (wkn p))
+
+-}
