@@ -403,12 +403,18 @@ domainToConds = \case
 conds_ :: RatLike a => [Cond γ a] -> P γ a -> P γ a
 conds_ cs e = foldr Cond e cs
 
+noHere :: Available x (γ,a) -> Maybe (Available x γ)
+noHere = (\case Here -> Nothing; There x -> Just x)
 
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
 integrate _ (Ret z) | isZero z = Ret $ zero
--- integrate d e | Just e' <- traverseP (\case Here -> Nothing; There x -> Just x) e
---   = Div (recip (hi - lo)) e'
---   -- ∫_lo^hi k dx = k*(hi-lo)
+integrate d e | Just z' <- traverseP noHere e = z' / recip (Ret (hi-lo)) 
+  where (lo,hi) = mkSuprema d -- ∫_lo^hi k dx = k*(hi-lo)
+-- NOTE: the above causes many traversals to be made (making normalise
+-- quadratic). To do this efficiently, we'd need to compute the unused
+-- variables at every stage in this function, and record the result
+-- using a new constructor in P. This new constructor can the be used
+-- to check for free variables directly.
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> foldr cond (integrate d' e) cs
     where (d', cs) = restrictDomain c d
@@ -456,7 +462,7 @@ redundant d cs x ys = any (\bnd -> entail cs (bnd `cmp` x)) ys
   where cmp = case d of Min -> greaterThan; Max -> lessThan
 
 cleanBounds :: RatLike a => [Cond γ a] -> Dir -> [Expr γ a] -> [Expr γ a] -> [Expr γ a]
-cleanBounds cs d [] kept = kept
+cleanBounds _  _ [] kept = kept
 cleanBounds cs d (x:xs) kept = if redundant d cs x kept
                                then cleanBounds cs d xs kept
                                else cleanBounds cs d xs (x:filter (\k -> not (redundant d cs k [x])) kept)
@@ -618,6 +624,11 @@ approxIntegralsConds n v = \case
   Div x y -> Div (approxIntegralsConds n v x) (approxIntegralsConds n v y)  
   e -> evalDumb retPoly (approxIntegralsW n v e)
 
+mkSuprema :: RatLike α => Domain γ α -> (Poly γ α, Poly γ α)
+mkSuprema (Domain [] los his) = (supremum Max $ map exprToPoly los,
+                                 supremum Min $ map exprToPoly his)
+mkSuprema Domain {} = error "mkSuprema: cannot deal with implicit bounds"
+
 -- Main worker; can't deal with conditions.
 approxIntegralsW
   :: forall γ δ. Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> DD δ C
@@ -632,12 +643,8 @@ approxIntegralsW n v =
     Div a b -> r0 a / r0 b
     Ret x -> dumb (ratToC v x)
     Cond _ _ -> error ("approxIntegrals: condition not eliminated")
-    Integrate (Domain [] los his) e ->
+    Integrate (mkSuprema -> (ratToC v -> lo, ratToC v -> hi)) e ->
       chebIntegral @C n lo hi (\x -> substP0 x (approxIntegralsW n v' e))
-      where lo, hi :: Poly δ C
-            lo = supremum Max $ map (ratToC v . exprToPoly) los
-            hi = supremum Min $ map (ratToC v . exprToPoly) his
-    Integrate {} -> error "approxIntegrals: unbounded integral?"
 
 substP0 :: Poly γ C -> Ret (γ,C) C -> Ret γ C
 substP0 x = substDumb (\case Here -> x; There v -> varPoly v)
