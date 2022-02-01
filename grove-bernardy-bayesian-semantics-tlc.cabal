@@ -27,11 +27,11 @@ library
                , FOL.Unification
   hs-source-dirs: src
   build-depends: base
-               , gasp
-               , missing-math
                , containers
+               , gasp
                , logict
                , MissingH
+               , missing-math
                , mtl
                , pretty
   default-language: Haskell2010

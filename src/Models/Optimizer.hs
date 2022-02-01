@@ -30,7 +30,8 @@ import qualified Algebra.Morphism.LinComb as LC
 import Algebra.Morphism.LinComb (LinComb)
 import Algebra.Morphism.Polynomial.Multi hiding (constPoly)
 import qualified Algebra.Morphism.Polynomial.Multi as Multi
-import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt, exp)
+import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
+                      , exp)
 import TLC.Terms hiding ((>>), u, Con)
 import Algebra.Linear ((*<))
 import Models.Field (Fld(..))
@@ -38,6 +39,7 @@ import qualified Models.Field
 import Algebra.Linear.Chebyshev (chebIntegral)
 import Data.Complex
 import Text.Pretty.Math
+
 
 --------------------------------------------------------------------------------
 -- | Types
@@ -98,7 +100,7 @@ data Cond' e = IsNegative { condExpr :: e }
 
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α) α]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
-                deriving Show
+deriving instance Show (Domain γ α)
 
 data P γ α where
   Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
@@ -109,31 +111,49 @@ data P γ α where
   -- these factors as well.
   Ret :: Poly γ α -> P γ α
 
-lift' :: Applicative f => (forall v. Available v γ -> f (Available v δ)) -> (forall v. Available v (γ,x) -> f (Available v (δ,x)))
+lift' :: Applicative f
+  => (forall v. Available v γ -> f (Available v δ))
+  -> (forall v. Available v (γ, α) -> f (Available v (δ, α)))
 lift' _ (Here) = pure Here
 lift' f (There x) = There <$> (f x)
 
-traverseDomain :: (RatLike a, Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Domain γ a -> f (Domain δ a)
+traverseDomain :: (RatLike a, Applicative f)
+               => (forall x. Available x γ -> f (Available x δ))
+               -> Domain γ a -> f (Domain δ a)
 traverseDomain f (Domain conds los his)
   = Domain <$> traverse (traverse (A.traverseVars (lift' f))) conds <*>
                traverse (A.traverseVars f) los <*>
                traverse (A.traverseVars f) his
 
-traverseElem :: Ord a => (Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Elem γ a -> f (Elem δ a)
+traverseElem :: (Ord a, Applicative f)
+             => (forall x. Available x γ -> f (Available x δ))
+             -> Elem γ a -> f (Elem δ a)
 traverseElem f = \case
      Vari x -> Vari <$> f x
      Supremum d es -> Supremum d <$> traverse (traversePoly f) es
   
-traversePoly :: Ord a => (Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Poly γ a -> f (Poly δ a)
-traversePoly f = bitraverse (traverseElem f) (traverseCoef f) 
+traversePoly :: forall a f γ δ. (Ord a, Applicative f)
+             => (forall x. Available x γ -> f (Available x δ))
+             -> Poly γ a -> f (Poly δ a)
+traversePoly f = bitraverse (traverseElem @a f) (traverseCoef @a f)
 
-traverseCoef :: Ord a => (Applicative f) => (forall x. Available x γ -> f (Available x δ)) -> Coef γ a -> f (Coef δ a)
+-- bitraverse :: (Ord α, Applicative f)
+           -- => (Elem γ α -> f (Elem δ α)) -> (Coef γ α -> f (Coef δ α))
+           -- -> Poly γ α -> f (Poly γ α)
+bitraverse = _
+
+traverseCoef :: (Ord a, Applicative f)
+             => (forall x. Available x γ -> f (Available x δ))
+             -> Coef γ a -> f (Coef δ a)
 traverseCoef f (Coef x) = Coef <$> LC.traverseVars (traversePoly f) x
 
-traverseP :: Ord a => Applicative f => (forall x. Available x γ -> f (Available x δ)) -> P γ a -> f (P δ a)
+traverseP :: (Ord a, Applicative f)
+          => (forall x. Available x γ -> f (Available x δ))
+          -> P γ a -> f (P δ a)
 traverseP f = \case
   Div x y -> Div <$> traverseP f x <*> traverseP f y
-  Integrate d e -> Integrate <$> (traverseDomain f d) <*> (traverseP (lift' f) e)
+  Integrate d e ->
+    Integrate <$> (traverseDomain f d) <*> (traverseP (lift' f) e)
   Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> traverseP f x
   Add x y  -> Add <$> traverseP f x <*> traverseP f y
   Ret x -> Ret <$> traversePoly f x
