@@ -259,7 +259,7 @@ instance Show (General α) where
   show Cau = "Cauchy"
   show Les = "Lesbegue"
   show EqGen = "(≐)"
-  show EqRl = "(≐)"
+  show EqRl = "(≡)"
   show (Utt i) = "U" ++ show i
   show Utt' = "U"
   show (Interp n) = "⟦⟧"
