@@ -63,7 +63,7 @@ class Equality α where
 instance Equality E where
   equals (Con (Special (Entity m))) (Con (Special (Entity n))) =
     Con $ General $ Incl $ case m == n of True -> 1; False -> 0
-instance Equality R where
+instance Equality 'R where
   equals (Con (General (Incl x))) (Con (General (Incl y)))
     = case x == y of
         True -> Con $ General $ Incl 1
@@ -191,14 +191,14 @@ showR (\x -> (numerator x, denominator x) -> (num, den))
       (_, _) -> "(" ++ show num ++ " / " ++ show den ++ ")"
 
 data Logical α where
-  Tru :: Logical T
-  Fal :: Logical T
-  And :: Logical (T ⟶ T ⟶ T)
-  Or :: Logical (T ⟶ T ⟶ T)
-  Imp :: Logical (T ⟶ T ⟶ T)
-  Forall :: Logical ((α ⟶ T) ⟶ T)
-  Exists :: Logical ((α ⟶ T) ⟶ T)
-  Equals :: Logical (α ⟶ α ⟶ T)
+  Tru :: Logical 'T
+  Fal :: Logical 'T
+  And :: Logical ('T ⟶ 'T ⟶ 'T)
+  Or :: Logical ('T ⟶ 'T ⟶ 'T)
+  Imp :: Logical ('T ⟶ 'T ⟶ 'T)
+  Forall :: Logical ((α ⟶ 'T) ⟶ 'T)
+  Exists :: Logical ((α ⟶ 'T) ⟶ 'T)
+  Equals :: Logical (α ⟶ α ⟶ 'T)
 
 pattern True' = Con (Logical Tru)
 pattern False' = Con (Logical Fal)
