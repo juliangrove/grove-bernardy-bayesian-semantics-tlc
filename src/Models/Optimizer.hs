@@ -137,11 +137,6 @@ traversePoly :: forall a f γ δ. (Ord a, Applicative f)
              -> Poly γ a -> f (Poly δ a)
 traversePoly f = bitraverse (traverseElem @a f) (traverseCoef @a f)
 
-bitraverse :: (Ord α, Applicative f)
-           => (Elem γ α -> f (Elem δ α)) -> (Coef γ α -> f (Coef δ α))
-           -> Poly γ α -> f (Poly δ α)
-bitraverse = _
-
 traverseCoef :: (Ord a, Applicative f)
              => (forall x. Available x γ -> f (Available x δ))
              -> Coef γ a -> f (Coef δ a)
