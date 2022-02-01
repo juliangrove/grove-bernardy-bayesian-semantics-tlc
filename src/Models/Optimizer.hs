@@ -100,7 +100,7 @@ data Cond' e = IsNegative { condExpr :: e }
 
 data Domain γ α = Domain { domainConditions :: [Cond (γ, α) α]
                          , domainLoBounds, domainHiBounds :: [Expr γ α] }
-deriving instance Show (Domain γ α)
+  deriving Show
 
 data P γ α where
   Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
