@@ -203,11 +203,12 @@ exponential p = case isConstPoly p of
 supremum :: RatLike α => Dir -> [Poly γ α] -> Poly γ α
 supremum _ [e] = e
 supremum dir es = case traverse isConstPoly es of
-                  Just cs -> constPoly ((case dir of
-                                           Max -> maximum
-                                           Min -> minimum)
-                                         cs)
-                  Nothing -> varP (Supremum dir es)
+                  Just cs | not (null es) ->
+                     constPoly ((case dir of
+                                   Max -> maximum
+                                   Min -> minimum)
+                                 cs)
+                  _ -> varP (Supremum dir es)
 
 constCoef :: forall γ a. RatLike a => a -> Coef γ a
 constCoef x = Coef (x *^ LC.var zero) -- x * Exp 0
@@ -835,17 +836,17 @@ example = Integrate full $ Integrate full $
 -- Integrate[Integrate[Boole[2*y + 3*x ≤ 0]*Boole[x ≤ 0], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> mathematica $ normalise example
--- Integrate[Integrate[1, {y, -Infinity, -3/2*x}], {x, -Infinity, 0}]
+-- Integrate[1/(1/(-3/2*x + Infinity)), {x, -Infinity, 0}]
 
 example1 :: P () Rat
 example1 = Integrate full $ Integrate full $
            Cond (IsZero (A.constant 4 + A.var (There Here) - A.var Here)) one
 
 -- >>> mathematica $ example1
--- Integrate[Integrate[DiracDelta[4 - y + x] * (1)/(1), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
+-- Integrate[Integrate[DiracDelta[4 - y + x], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> maxima $ normalise example1
--- integrate(1, x, -inf, inf)
+-- 1/(1/(inf + inf))
 
 example2 :: P () Rat
 example2 = Integrate full $
@@ -877,10 +878,10 @@ example4a :: P () Rat
 example4a = Integrate (Domain [] [zero] [A.constant 1]) one
 
 -- >>> mathematica $ normalise example4a
--- Integrate[1, {x, 0, 1}]
+-- 1
 
 -- >>> mathematica $ approxIntegrals 4 (normalise example4a)
--- 1.0/1.0
+-- 1
 
 
 example4 :: P () Rat
