@@ -457,16 +457,16 @@ focus :: [a] -> [(a,[a])]
 focus [] = []
 focus (x:xs) = (x,xs) : [(y,x:ys) | (y,ys) <- focus xs]
 
-
-redundant :: RatLike a => Dir -> [Cond γ a] -> Expr γ a -> [Expr γ a] -> Bool
-redundant d cs x ys = any (\bnd -> entail cs (bnd `cmp` x)) ys
+dominated :: RatLike a => Dir -> [Cond γ a] -> Expr γ a -> [Expr γ a] -> Bool
+dominated d cs x ys = any (\bnd -> entail cs (x `cmp` bnd)) ys
   where cmp = case d of Min -> greaterThan; Max -> lessThan
 
 cleanBounds :: RatLike a => [Cond γ a] -> Dir -> [Expr γ a] -> [Expr γ a] -> [Expr γ a]
 cleanBounds _  _ [] kept = kept
-cleanBounds cs d (x:xs) kept = if redundant d cs x kept
-                               then cleanBounds cs d xs kept
-                               else cleanBounds cs d xs (x:filter (\k -> not (redundant d cs k [x])) kept)
+cleanBounds cs d (x:xs) kept =
+  if dominated d cs x kept
+  then cleanBounds cs d xs kept
+  else cleanBounds cs d xs (x:filter (\k -> not (dominated d cs k [x])) kept)
  -- Example. We have kept z as bound (z ∈ kept).
  -- Now we consider 80, under (z ≤ 80) ∈ cs.
  -- We test the condition x ≤ 80, and find that it is entailed by cs.
