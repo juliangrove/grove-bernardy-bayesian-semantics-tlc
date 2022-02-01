@@ -14,6 +14,7 @@
 {-# LANGUAGE UnicodeSyntax #-}
 {-# LANGUAGE ViewPatterns #-}
 
+
 module TLC.Terms where
 
 import Algebra.Classes
@@ -137,18 +138,18 @@ interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad) -- 'Vlad i
 interp (Con (General (Utt 3))) = Con $ Logical Tru -- silence
 interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
 
-subEq :: Witness n -> γ ⊢ α -> γ ⊢ α  -- TODO get rid of Witness parameter
-subEq n = \case
+subEq :: γ ⊢ α -> γ ⊢ α
+subEq = \case
   App (App (Con (General EqGen)) m) n -> equals m n
   App (Con (General (Interp n))) u -> hmorph n (interp u)
   Var i -> Var i
   Con c -> Con c
-  App (subEq n -> m) (subEq n -> n) -> App m n
-  Lam (subEq n -> m) -> Lam m
-  Fst (subEq n -> m) -> Fst m
-  Snd (subEq n -> m) -> Snd m
+  App (subEq -> m) (subEq -> n) -> App m n
+  Lam (subEq -> m) -> Lam m
+  Fst (subEq -> m) -> Fst m
+  Snd (subEq -> m) -> Snd m
   TT -> TT
-  Pair (subEq n -> m) (subEq n -> n) -> Pair m n
+  Pair (subEq -> m) (subEq -> n) -> Pair m n
 
 reduce1step :: γ ⊢ α -> γ ⊢ α
 reduce1step = \case
@@ -179,8 +180,8 @@ canReduce = \case
 reduce1s :: γ ⊢ α -> γ ⊢ α
 reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
 
-clean :: Witness n -> γ ⊢ α -> γ ⊢ α
-clean n = reduce1s . subEq n
+clean :: γ ⊢ α -> γ ⊢ α
+clean = reduce1s . subEq
 
 showR :: Rational -> String
 showR (\x -> (numerator x, denominator x) -> (num, den))

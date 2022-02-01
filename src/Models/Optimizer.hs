@@ -1,24 +1,24 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE RebindableSyntax #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RebindableSyntax #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Models.Optimizer where
 
@@ -783,16 +783,16 @@ maxima = putStrLn . render Maxima . showProg
 -- | Top-level Entry points
 
 -- | Take typed descriptions of real numbers onto integrators 
-simplify :: Witness n -> γ ⊢ 'R -> P (Eval γ) Rat
-simplify n = cleanConds [] . normalise . evalP' . normalForm . clean n . evalβ
+simplify :: γ ⊢ 'R -> P (Eval γ) Rat
+simplify = cleanConds [] . normalise . evalP' . normalForm . clean . evalβ
 
 -- | Take typed descriptions of functions onto integrators with a free var
-simplifyFun :: Witness n -> 'Unit ⊢ ('R ⟶ 'R) -> P ((), Rat) Rat
-simplifyFun n = simplify n . absInversion
+simplifyFun :: 'Unit ⊢ ('R ⟶ 'R) -> P ((), Rat) Rat
+simplifyFun = simplify . absInversion
 
 -- | Take typed descriptions of functions onto integrators with two free vars
-simplifyFun2 :: Witness n -> 'Unit ⊢ ('R ⟶ 'R ⟶ 'R) -> (P (((), Rat), Rat) Rat)
-simplifyFun2 n = simplify n . absInversion . absInversion
+simplifyFun2 :: 'Unit ⊢ ('R ⟶ 'R ⟶ 'R) -> (P (((), Rat), Rat) Rat)
+simplifyFun2 = simplify . absInversion . absInversion
 
 
 --------------------------------------------------------------------------------
