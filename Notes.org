@@ -224,7 +224,8 @@ set_plot_option ();
 L0N: charfun(50 - x <= 0)*charfun(-80 + x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*x - 1/18*x^2);
 L0D: charfun(-80 + y <= 0)*integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, max(y, 50), 80);
 L0: L0N/L0D;
-
+S1: charfun(51 - y <= 0)*charfun(-81 + y <= 0)*charfun(-80 + x <= 0)*charfun(50 - x <= 0)*charfun(51 - x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/(charfun(-80 + y <= 0)*integrate(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, max(y, 50), 80), z, 0, 1))/integrate((3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/(charfun(-80 + z <= 0)*integrate(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*v - 1/18*v^2), v, max(z, 50), 80), u, 0, 1)), z, 51, min(81, x));
+S1s: at(S1, [x=68]);
 S1N: charfun(51 - y <= 0)*charfun(-81 + y <= 0)*charfun(-80 + x <= 0)*charfun(50 - x <= 0)*charfun(51 - x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/(charfun(-80 + y <= 0)*integrate(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, max(y, 50), 80), z, 0, 1));
 S1D: integrate((3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/(charfun(-80 + z <= 0)*integrate(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*v - 1/18*v^2), v, max(z, 50), 80), u, 0, 1)), z, 51, min(81, x));
 plot3d(L0,[y,55,75],[x,55,75],[grid,50,50],[gnuplot_pm3d,true],[elevation,20],[gnuplot_out_file, "l0.svg"]);
@@ -237,3 +238,21 @@ plot3d(S1D,[y,55,75],[x,55,75],[grid,50,50],[gnuplot_pm3d,true],[elevation,20],[
 
 plot3d(F,[x,50,75],[y,50,75],[z,0,0.0025],[grid,50,50],[gnuplot_pm3d,true],[elevation,0],[azimuth,0],[zlabel,""],color_bar,noztics, [color_bar_tics,1]);
 
+
+
+#+begin_src maxima  :results output
+set_plot_option ([gnuplot_term, svg]);
+L0: charfun(50 - x <= 0)*charfun(-80 + x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*x - 1/18*x^2)/(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, max(y, 50), 80));
+S1: charfun(50 - y <= 0)*charfun(-80 + y <= 0)*charfun(-80 + x <= 0)*charfun(50 - x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, 50, 80)/integrate((3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, 50, 80), z, 50, x);
+print(S1);
+
+
+L0s: at(L0, [x=68]);
+S1s: at(S1, [x=68]);
+plot2d(L0s,[y,55,75],[gnuplot_out_file, "l0.svg"]);
+plot2d(S1s,[y,55,75],[gnuplot_out_file, "s1.svg"]);
+#+end_src
+
+#+RESULTS:
+: (charfun(50 - x <= 0) charfun(x - 80 <= 0) charfun(50 - y <= 0)
+:                             charfun(y - 80 <= 0) charfun(y - x <= 0))/(x - 50) 
