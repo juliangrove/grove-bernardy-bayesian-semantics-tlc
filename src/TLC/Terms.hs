@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -41,69 +42,67 @@ infixr ⟶
 infixr :->
 
 (≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ R
-m ≐ n = App (App (Con (General EqGen)) m) n
+m ≐ n = App (Con (General EqGen)) (Pair m n)
 
-equals' :: Int -> (γ1 ⊢ α) -> (γ2 ⊢ β) -> Bool
-equals' _ (Var Get) (Var Get) = True
-equals' n (Var Get) _ = n <= 0
-equals' n _ (Var Get) = n <= 0
-equals' n (Var (Weaken i)) (Var (Weaken j)) = equals' (n - 1) (Var i) (Var j)
-equals' n (Var (Weaken i)) m2 = equals' (n - 1) (Var i) m2
-equals' n m1 (Var (Weaken j)) = equals' (n - 1) m1 (Var j)
-equals' _ (Con c1) (Con c2) = case c1 of c2 -> True
-equals' n (App m1 n1) (App m2 n2) = equals' n m1 m2 && equals' n n1 n2
-equals' n (Lam m1) (Lam m2) = equals' (n + 1) m1 m2
-equals' n (Fst m1) (Fst m2) = equals' n m1 m2
-equals' n (Snd m1) (Snd m2) = equals' n m1 m2
-equals' n (Pair m1 n1) (Pair m2 n2) = equals' n m1 m2 && equals' n n1 n2
-equals' _ TT TT = True
+pattern One = NCon (General (Incl 1))
+instance Multiplicative (NF g 'R) where
+  one = One
+  One * x = x
+  x * One = x
+  x * y = Neu (NeuCon (General Mult) `NeuApp` x `NeuApp` y)
 
+noOccur :: (α ∈ (γ × x)) -> Maybe (α ∈ γ)
+noOccur = \case
+  Get -> Nothing
+  Weaken x -> Just x
+
+pattern NCon x = Neu (NeuCon x)
+pattern NVar x = Neu (NeuVar x)
 class Equality α where
-  equals :: (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ R
-instance Equality E where
-  equals (Con (Special (Entity m))) (Con (Special (Entity n))) =
-    Con $ General $ Incl $ case m == n of True -> 1; False -> 0
+  equals :: forall γ. NF γ α -> NF γ α -> NF γ 'R
+instance Equality 'E where
+  equals (NCon (Special (Entity m))) (NCon (Special (Entity n))) =
+    NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
 instance Equality 'R where
-  equals (Con (General (Incl x))) (Con (General (Incl y)))
+  equals (NCon (General (Incl x))) (NCon (General (Incl y)))
     = case x == y of
-        True -> Con $ General $ Incl 1
-        False -> Con $ General $ Incl 0
-  equals (Con (Special (Degree m))) (Con (Special (Degree n))) =
-          Con $ General $ Incl $ case m == n of True -> 1; False -> 0
-  equals x y = App (App (Con (General EqRl)) x) y
-instance Equality U where
-  equals (Con (General (Utt i))) (Con (General (Utt j))) = case i == j of
-                             True -> Con $ General $ Incl 1
-                             False -> Con $ General $ Incl 0
-  equals (App (Con (General Utt')) x) (App (Con (General Utt')) y)
-    = App (App (Con (General EqRl)) x) y
-  equals _ _ = Con $ General $ Incl 0
-instance Equality Unit where
-  equals TT TT = Con $ General $ Incl 1
+        True -> one
+        False -> NCon $ General $ Incl 0
+  equals (NCon (Special (Degree m))) (NCon (Special (Degree n))) =
+          NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
+  equals x y = Neu $ NeuCon (General EqRl) `NeuApp` x `NeuApp` y
+instance Equality 'U where
+  equals (NCon (General (Utt i))) (NCon (General (Utt j))) = case i == j of
+                             True -> one
+                             False -> NCon (General (Incl 0))
+  equals (Neu (NeuApp (NeuCon (General Utt')) x)) (Neu (NeuApp (NeuCon (General Utt')) y))
+    = Neu (NeuCon (General EqRl) `NeuApp` x `NeuApp` y)
+  equals _ _ = NCon $ General $ Incl 0
+instance Equality 'Unit where
+  equals _ _ = one
 instance (Equality α, Equality β) => Equality (α × β) where
-  equals (Pair m n) (Pair m' n') =
-    App (App (Con $ General $ Mult) (equals m m')) (equals n n')
-  equals m n = App (App (Con $ General $ EqGen) m) n
-instance Equality (E ⟶ R) where
-  equals (Con (Special (MeasureFun m))) (Con (Special (MeasureFun n))) =
-    Con $ General $ Incl $ case m == n of True -> 1; False -> 0
-  equals (Lam m) (Lam n) | equals' 0 (Lam m) (Lam n)
-    = case equals m n of
-        Con (General (Incl 1)) -> Con $ General $ Incl 1
-        Con (General (Incl 0)) -> Con $ General $ Incl 0
-        App (App (Con (General EqRl)) (Var (Weaken i))) (Var (Weaken j))
-          -> App (App (Con (General EqRl)) (Var i)) (Var j)
-instance Equality (E ⟶ T) where
-  equals (Con (Special (Property m))) (Con (Special (Property n))) =
-    Con $ General $ Incl $ case m == n of True -> 1; False -> 0
-instance Equality (R ⟶ R ⟶ T) where
-  equals (Con (Special GTE)) (Con (Special GTE)) = Con $ General $ Incl 1 
-instance Equality Γ where
-  equals (Con (Special Empty)) (Con (Special Empty)) = Con $ General $ Incl 1
-instance Equality (E ⟶ Γ ⟶ Γ) where
-  equals (Con (Special Upd)) (Con (Special Upd)) = Con $ General $ Incl 1
-instance Equality (Γ ⟶ E) where
-  equals (Con (Special Sel)) (Con (Special Sel)) = Con $ General $ Incl 1
+  equals (NFPair m n) (NFPair m' n') = equals m m' * equals n n'
+  equals m n = Neu $ (NeuCon $ General $ EqGen) `NeuApp` (NFPair m n)
+instance Equality ('E ⟶ 'R) where
+  equals :: forall γ. NF γ ('E ⟶ 'R) -> NF γ ('E ⟶ 'R) -> NF γ 'R
+  equals (NCon (Special (MeasureFun m))) (NCon (Special (MeasureFun n))) =
+    NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
+  equals (NFLam m) (NFLam n)
+    | Just x <- traverseNF noOccur (equals m n) = x
+  equals t u = Neu ((NeuCon $ General $ EqGen) `NeuApp` (NFPair t u))
+instance Equality ('E ⟶ 'T) where
+  equals (NCon (Special (Property m))) (NCon (Special (Property n))) =
+    NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
+instance Equality ('R ⟶ 'R ⟶ 'T) where
+  equals (NCon (Special GTE)) (NCon (Special GTE)) = one 
+instance Equality 'Γ where
+  equals (NCon (Special Empty)) (NCon (Special Empty)) = one
+instance Equality ('E ⟶ 'Γ ⟶ 'Γ) where
+  equals (NCon (Special Upd)) (NCon (Special Upd)) = one
+instance Equality ('Γ ⟶ 'E) where
+  equals (NCon (Special Sel)) (NCon (Special Sel)) = one
+
+
 
 u :: Int -> γ ⊢ 'U
 u i = Con $ General $ Utt i
@@ -131,25 +130,6 @@ p --> q = App (App (Con (Logical Imp)) p) q
 
 exists :: γ ⊢ (α ⟶ T) -> γ ⊢ T
 exists φ = App (Con (Logical Exists)) φ
-
-interp :: γ ⊢ U -> γ ⊢ T
-interp (Con (General (Utt 1))) = App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
-interp (Con (General (Utt 2))) = App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
-interp (Con (General (Utt 3))) = Con $ Logical Tru -- silence
-interp (App (Con (General Utt')) x) = App (App (≥) (App height vlad)) x
-
-subEq :: γ ⊢ α -> γ ⊢ α
-subEq = \case
-  App (App (Con (General EqGen)) m) n -> equals m n
-  App (Con (General (Interp n))) u -> hmorph n (interp u)
-  Var i -> Var i
-  Con c -> Con c
-  App (subEq -> m) (subEq -> n) -> App m n
-  Lam (subEq -> m) -> Lam m
-  Fst (subEq -> m) -> Fst m
-  Snd (subEq -> m) -> Snd m
-  TT -> TT
-  Pair (subEq -> m) (subEq -> n) -> Pair m n
 
 reduce1step :: γ ⊢ α -> γ ⊢ α
 reduce1step = \case
@@ -181,7 +161,7 @@ reduce1s :: γ ⊢ α -> γ ⊢ α
 reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
 
 clean :: γ ⊢ α -> γ ⊢ α
-clean = reduce1s . subEq
+clean = reduce1s . evalβ 
 
 showR :: Rational -> String
 showR (\x -> (numerator x, denominator x) -> (num, den))
@@ -225,7 +205,7 @@ data General α where
   Addi :: General ('R ⟶ 'R ⟶ 'R)
   Mult :: General ('R ⟶ 'R ⟶ 'R)
   Divi :: General ('R ⟶ 'R ⟶ 'R)
-  EqGen :: Equality α => General (α ⟶ α ⟶ 'R)
+  EqGen :: Equality α => General ((α × α) ⟶ 'R)
   EqRl :: General ('R ⟶ 'R ⟶ 'R)
   Utt :: Int -> General 'U
   Utt' :: General ('R ⟶ 'U)
@@ -335,6 +315,22 @@ data NF γ α where
   NFPair :: NF γ α -> NF γ β -> NF γ (α × β)
   Neu :: Neutral γ α -> NF γ α
 
+traverseNF :: Applicative f => (forall x. x ∈ γ -> f (x ∈ δ)) -> NF γ α -> f (NF δ α)
+traverseNF f = \case
+  NFLam x -> NFLam <$> traverseNF (lft' f) x
+  NFPair x y ->NFPair <$> traverseNF f x <*> traverseNF f y
+  Neu x -> Neu <$> traverseNeu f x
+
+traverseNeu :: Applicative f => (forall x. x ∈ γ -> f (x ∈ δ)) -> Neutral γ α -> f (Neutral δ α)
+traverseNeu f = \case
+  NeuVar x -> NeuVar <$> f x
+  NeuCon x -> pure (NeuCon x)
+  NeuApp t u -> NeuApp <$> traverseNeu f t <*> traverseNF f u 
+  NeuFst t -> NeuFst <$>  traverseNeu f t
+  NeuSnd t -> NeuSnd <$>  traverseNeu f t
+  NeuTT -> pure NeuTT 
+  
+
 absInversionNF :: NF γ ('R ⟶ α) -> NF (γ × 'R) α
 absInversionNF (NFLam f) = f
 absInversionNF (Neu t) = Neu (NeuApp (renameNeu Weaken t) (Neu (NeuVar Get)))
@@ -351,16 +347,10 @@ exchNF = renameNF $ \case
 substNeu :: Neutral γ α -> (forall β.β ∈ γ -> NF δ β) -> NF δ α
 substNeu (NeuVar i) f = f i
 substNeu (NeuCon c) _ = Neu $ NeuCon c
-substNeu (NeuApp m n) f = case substNeu m f of
-                            NFLam m' -> substNF0 m' (substNF n f)
-                            Neu m' -> Neu $ NeuApp m' (substNF n f)
-substNeu (NeuFst m) f = case substNeu m f of
-                          NFPair m' n' -> m'
-                          Neu m' -> Neu $ NeuFst m'
-substNeu (NeuSnd m) f = case substNeu m f of
-                          NFPair m' n' -> n'
-                          Neu m' -> Neu $ NeuSnd m'
-substNeu NeuTT f = Neu NeuTT
+substNeu (NeuApp m n) f = apply (substNeu m f) (substNF n f)
+substNeu (NeuFst m) f = fst' (substNeu m f)
+substNeu (NeuSnd m) f = snd' (substNeu m f)
+substNeu NeuTT _ = Neu NeuTT
                             
 substNF :: NF γ α -> (forall β.β ∈ γ -> NF δ β) -> NF δ α
 substNF (NFLam m) f = NFLam $ substNF m $ \case
@@ -374,22 +364,40 @@ substNF0 m t = substNF m $ \case
   Get -> t
   (Weaken i) -> Neu $ NeuVar i
 
+
+apply :: NF γ (α1 ⟶ α2) -> NF γ α1 -> NF γ α2
+apply t u = case t of
+    NFLam m' -> substNF0 m' u
+    Neu m' -> case m' of
+      (NeuCon (General EqGen)) -> equals (fst' u) (snd' u)
+      (NeuCon (General (Interp i))) -> case (nf_to_λ u) of
+         (Con (General (Utt 1))) -> morph $ App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
+         (Con (General (Utt 2))) -> morph $ App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
+         (Con (General (Utt 3))) -> morph $ Con $ Logical Tru -- silence
+         (App (Con (General Utt')) x) -> morph $ App (App (≥) (App height vlad)) x
+         _ -> deflt
+         where morph = normalForm . hmorph i
+      _ -> deflt
+      where deflt = Neu (NeuApp m' u)
+
 normalForm :: γ ⊢ α -> NF γ α
 normalForm = \case
   Var i -> Neu $ NeuVar i
   Con c -> Neu $ NeuCon c
-  App (normalForm -> m) (normalForm -> n) -> case m of
-                                               NFLam m' -> substNF0 m' n
-                                               Neu m' -> Neu $ NeuApp m' n
+  App (normalForm -> m) (normalForm -> n) -> apply m n 
   Lam (normalForm -> m) -> NFLam m
-  Fst (normalForm -> m) -> case m of
-                             NFPair m' n' -> m'
-                             Neu m' -> Neu $ NeuFst m'
-  Snd (normalForm -> m) -> case m of
-                             NFPair m' n' -> n'
-                             Neu m' -> Neu $ NeuSnd m'
+  Fst (normalForm -> m) -> fst' m
+  Snd (normalForm -> m) -> snd' m
   Pair (normalForm -> m) (normalForm -> n) -> NFPair m n
   TT -> Neu NeuTT
+
+fst' m = case m of
+           NFPair m' n' -> m'
+           Neu m' -> Neu $ NeuFst m'
+
+snd' m = case m of
+           NFPair m' n' -> n'
+           Neu m' -> Neu $ NeuSnd m'
 
 nf_to_λ :: NF γ α -> γ ⊢ α
 nf_to_λ = \case
@@ -506,6 +514,11 @@ displayVs' fs ρ t =
   TT -> "⋄"
   Pair (dd -> m) (dd -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
 
+lft' :: Applicative f => (forall v. v ∈ γ -> f (v ∈ δ)) -> (forall v. v ∈ (γ × α) -> f (v ∈ (δ × α)))
+lft' _ (Get) = pure Get
+lft' f (Weaken x) = Weaken <$> (f x)
+
+
 lft :: (α ∈ γ -> α ∈ δ) -> α ∈ (γ × β) -> α ∈ (δ × β)
 lft f = \case
   Get -> Get
@@ -589,6 +602,7 @@ hmorph0 n = \case
   Fst (hmorph0 n -> m) -> Fst m
   Snd (hmorph0 n -> m) -> Snd m
   Pair (hmorph0 n -> m) (hmorph0 n -> n) -> Pair m n
+  TT -> TT
 
 hmorph :: Witness n -> γ ⊢ α -> γ ⊢ (Context n ⟶ α)
 hmorph n (hmorph0 n -> m) = Lam m
