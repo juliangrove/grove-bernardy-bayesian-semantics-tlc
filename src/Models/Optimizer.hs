@@ -83,7 +83,7 @@ deriving instance Eq (Available α γ)
 deriving instance Ord (Available α γ)
 deriving instance Show (Available α γ)
 type Expr γ α = A.Affine (Available α γ) α
-data Elem γ α = Vari (Available α γ) | Supremum Dir [Poly γ α]
+data Elem γ α = Vari (Available α γ) | Supremum Dir [Poly γ α] | CharFun (Poly γ α)
   deriving (Eq, Ord, Show)
 type Poly γ a = Polynomial (Elem γ a) (Coef γ a)
 type Mono γ a = Monomial (Elem γ a)
@@ -130,6 +130,7 @@ traverseElem :: (Ord a, Applicative f)
              -> Elem γ a -> f (Elem δ a)
 traverseElem f = \case
      Vari x -> Vari <$> f x
+     CharFun c -> CharFun <$> (traversePoly f) c
      Supremum d es -> Supremum d <$> traverse (traversePoly f) es
   
 traversePoly :: forall a f γ δ. (Ord a, Applicative f)
@@ -200,6 +201,11 @@ exponential p = case isConstPoly p of
   Just c -> constPoly (exp c)
   Nothing -> Coef (LC.var p) *^ one
 
+charfun :: RatLike α => Poly γ α -> Poly γ α
+charfun e = case isConstPoly e of
+  Nothing -> varP (CharFun e)
+  Just x -> if x <= 0 then one else zero
+
 supremum :: RatLike α => Dir -> [Poly γ α] -> Poly γ α
 supremum _ [e] = e
 supremum dir es = case traverse isConstPoly es of
@@ -241,6 +247,7 @@ evalElem v fc f =
       evP = evalPoly v fc f
   in \case Supremum dir es -> supremum dir (evP <$> es)
            Vari x -> f (v x)
+           CharFun x -> charfun (evP x)
 
 isConstantCoef :: RatLike α => Coef γ α -> Maybe α
 isConstantCoef (Coef l) = case LC.toList l of
@@ -278,7 +285,7 @@ instance RatLike a => Additive (P γ a) where
 
 instance RatLike a => Division (P γ a) where
   (Ret z) / _ | isZero z = Ret $ zero
-  (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrators
+  (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrators in the denominator
   p1 / p2 = Div p1 p2
 
 type SubstP γ δ = forall α. RatLike α => Available α γ -> Poly δ α
@@ -613,24 +620,16 @@ dumb :: Multiplicative a => a -> Dumb a
 dumb x = x :/ one
 
 approxIntegrals :: IntegrableContext γ => Int -> P γ Rat -> P (Tgt γ) C
-approxIntegrals n = approxIntegralsConds n vRatToC
+approxIntegrals n e = evalDumb retPoly (approxIntegralsW n vRatToC e) 
 
 renameCond :: (Available Rat γ -> Available C δ) -> Cond γ Rat -> Cond δ C
 renameCond f = fmap (A.mapVars f . fmap (Models.Field.eval @C))
-
-approxIntegralsConds
-  :: Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> P δ C
-approxIntegralsConds n v = \case
-  Cond c e -> Cond (renameCond v c) (approxIntegralsConds n v e)
-  Div x y -> Div (approxIntegralsConds n v x) (approxIntegralsConds n v y)  
-  e -> evalDumb retPoly (approxIntegralsW n v e)
 
 mkSuprema :: RatLike α => Domain γ α -> (Poly γ α, Poly γ α)
 mkSuprema (Domain [] los his) = (supremum Max $ map exprToPoly los,
                                  supremum Min $ map exprToPoly his)
 mkSuprema Domain {} = error "mkSuprema: cannot deal with implicit bounds"
 
--- Main worker; can't deal with conditions.
 approxIntegralsW
   :: forall γ δ. Int -> (Available Rat γ -> Available C δ) -> P γ Rat -> DD δ C
 approxIntegralsW n v =
@@ -643,7 +642,8 @@ approxIntegralsW n v =
     Add a b -> r0 a + r0 b
     Div a b -> r0 a / r0 b
     Ret x -> dumb (ratToC v x)
-    Cond _ _ -> error ("approxIntegrals: condition not eliminated")
+    Cond (IsNegative c) a -> dumb (charfun (ratToC v (exprToPoly c))) * (r0 a)
+    Cond (IsZero _) _ -> error "approxIntegralsW: equality not eliminated?"
     Integrate (mkSuprema -> (ratToC v -> lo, ratToC v -> hi)) e ->
       chebIntegral @C n lo hi (\x -> substP0 x (approxIntegralsW n v' e))
 
@@ -697,6 +697,7 @@ showExpr v = A.eval pretty (text . v)
 showElem :: Pretty a => Vars γ -> Elem γ a -> Doc
 showElem vs (Supremum m es) = showSupremum m [showPoly vs p | p <- es]
 showElem vs (Vari v) = text (vs v)
+showElem vs (CharFun e) = showCond' (IsNegative (showPoly vs e))
 
 showCoef :: forall γ a. Pretty a => Vars γ -> Coef γ a -> Doc
 showCoef v (Coef c) = LC.eval pretty (exp . showPoly v) c
@@ -716,15 +717,18 @@ indicator x = withStyle $ \case
       Maxima -> function' "charfun"  x
       LaTeX -> function' "mathbb{1}"  x
 
-showCond :: (Pretty α, RatLike α) => Vars γ -> Cond γ α -> Doc
-showCond v c0 = withStyle $ \st -> case c0 of
+showCond' :: Cond' Doc -> Doc
+showCond' c0 = withStyle $ \st -> case c0 of
   (IsNegative c') -> case st of
-      Mathematica -> indicator [showExpr v c' <> text " ≤ 0"]
-      Maxima -> indicator [showExpr v c' <> text " <= 0"]
-      LaTeX -> indicator [showExpr v c' <> text " \\leq 0"]
+      Mathematica -> indicator [c' <> text " ≤ 0"]
+      Maxima -> indicator [c' <> text " <= 0"]
+      LaTeX -> indicator [c' <> text " \\leq 0"]
   (IsZero c') -> case st of
-      LaTeX -> function "diracDelta" (showExpr v c')
-      _ -> function "DiracDelta" (showExpr v c')
+      LaTeX -> function "diracDelta" c'
+      _ -> function "DiracDelta" c'
+
+showCond :: (Pretty α, RatLike α) => Vars γ -> Cond γ α -> Doc
+showCond v = showCond' . fmap (showExpr v)
 
 foldrMonoid :: (p -> p -> p) -> p -> [p] -> p
 foldrMonoid _ k [] = k
