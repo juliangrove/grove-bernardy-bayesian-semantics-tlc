@@ -37,6 +37,7 @@ import Algebra.Linear ((*<))
 import Models.Field (Fld(..))
 import qualified Models.Field
 import Algebra.Linear.Chebyshev (chebIntegral)
+import Algebra.Linear.FourierMotzkin (entailsStrict)
 import Data.Complex
 import Text.Pretty.Math
 
@@ -400,13 +401,9 @@ occurExpr = A.traverseVars $ \case
   There x -> Just x
 
 domainToConds :: RatLike α => Domain γ α -> [Cond (γ,α) α]
-domainToConds = \case
-  Domain [] [] [] -> []
-  Domain (c:cs) los his -> c : domainToConds (Domain cs los his)
-  Domain cs (e:los) his ->
-    (wkExpr e `lessThan` A.var Here) : domainToConds (Domain cs los his)
-  Domain cs los (e:his) ->
-    (A.var Here `lessThan` wkExpr e) : domainToConds (Domain cs los his)
+domainToConds (Domain cs los his)
+  = cs ++ [wkExpr e `lessThan` A.var Here | e <- los]
+       ++ [A.var Here `lessThan` wkExpr e | e <- his]
 
 conds_ :: RatLike a => [Cond γ a] -> P γ a -> P γ a
 conds_ cs e = foldr Cond e cs
@@ -457,18 +454,21 @@ normalise = \case
   Div (normalise -> p1) (normalise -> p2) -> p1 / p2
   Ret e -> Ret e
 
-entail :: RatLike a => [Cond γ a] -> Cond γ a -> Bool
-entail cs c = c `elem` cs -- NOTE: naive is enough for now
+type Negative γ a = Expr γ a 
+
+entail :: RatLike a => [Negative γ a] -> Negative γ a -> Bool
+entail cs c = entailsStrict (map negate cs) (negate c)
 
 focus :: [a] -> [(a,[a])]
 focus [] = []
 focus (x:xs) = (x,xs) : [(y,x:ys) | (y,ys) <- focus xs]
 
-dominated :: RatLike a => Dir -> [Cond γ a] -> Expr γ a -> [Expr γ a] -> Bool
+dominated :: RatLike a => Dir -> [Negative γ a] -> Expr γ a -> [Expr γ a] -> Bool
 dominated d cs x ys = any (\bnd -> entail cs (x `cmp` bnd)) ys
-  where cmp = case d of Min -> greaterThan; Max -> lessThan
+  where cmp = case d of Min -> flip (-); Max -> (-)
 
-cleanBounds :: RatLike a => [Cond γ a] -> Dir -> [Expr γ a] -> [Expr γ a] -> [Expr γ a]
+cleanBounds :: RatLike a
+  => [Negative γ a] -> Dir -> [Expr γ a] -> [Expr γ a] -> [Expr γ a]
 cleanBounds _  _ [] kept = kept
 cleanBounds cs d (x:xs) kept =
   if dominated d cs x kept
@@ -481,23 +481,25 @@ cleanBounds cs d (x:xs) kept =
 
 -- 80 comes first.
 
-cleanDomain :: RatLike a => [Cond γ a] -> Domain γ a -> Domain γ a
+cleanDomain :: RatLike a => [Negative γ a] -> Domain γ a -> Domain γ a
 cleanDomain cs (Domain c los his) =
   Domain c (cleanBounds cs Max los []) (cleanBounds cs Max his [])
 
 -- | Remove redundant conditions
-cleanConds :: (a ~ Rat) => [Cond γ a] -> P γ a -> P γ a
+cleanConds :: (a ~ Rat) => [Negative γ a] -> P γ a -> P γ a
 cleanConds cs = \case
   Ret x -> Ret x
   Integrate d e -> Integrate (cleanDomain cs d) $
-                   cleanConds (domainToConds d ++
-                               (map (substCond (A.var . There)) cs)) $
+                   cleanConds ((fromNegative <$> domainToConds d) ++
+                               (map (A.mapVars  There) cs)) $
                    e
-  Cond c e -> if cs `entail` c
+  Cond c e -> if cs `entail` fromNegative c
               then cleanConds cs e
-              else cond c $ cleanConds (c:cs) e
+              else cond c $ cleanConds (fromNegative c:cs) e
   Div x y -> Div (cleanConds cs x) (cleanConds cs y)
   Add x y -> Add (cleanConds cs x) (cleanConds cs y)
+ where fromNegative (IsNegative c) = c
+       fromNegative _ = error "cleanConds: equality condition remaining?"
 
 --------------------------------------------------------------------------------
 -- | Conversion from λ-terms
@@ -788,16 +790,16 @@ maxima = putStrLn . render Maxima . showProg
 -- | Top-level Entry points
 
 -- | Take typed descriptions of real numbers onto integrators 
-simplify :: γ ⊢ 'R -> P (Eval γ) Rat
-simplify = cleanConds [] . normalise . evalP' . normalForm . clean . evalβ
+simplify :: [Cond (Eval γ) Rat] -> (γ ⊢ 'R) -> P (Eval γ) Rat
+simplify cs = cleanConds [] . conds_ cs . normalise . evalP' . normalForm
 
 -- | Take typed descriptions of functions onto integrators with a free var
-simplifyFun :: 'Unit ⊢ ('R ⟶ 'R) -> P ((), Rat) Rat
-simplifyFun = simplify . absInversion
+simplifyFun :: [Cond ((), Rat) Rat] -> 'Unit ⊢ ('R ⟶ 'R) -> P ((), Rat) Rat
+simplifyFun cs = simplify cs . absInversion
 
 -- | Take typed descriptions of functions onto integrators with two free vars
-simplifyFun2 :: 'Unit ⊢ ('R ⟶ 'R ⟶ 'R) -> (P (((), Rat), Rat) Rat)
-simplifyFun2 = simplify . absInversion . absInversion
+simplifyFun2 :: [Cond (((), Rat), Rat) Rat] -> 'Unit ⊢ ('R ⟶ 'R ⟶ 'R) -> (P (((), Rat), Rat) Rat)
+simplifyFun2 cs = simplify cs . absInversion . absInversion
 
 
 --------------------------------------------------------------------------------
