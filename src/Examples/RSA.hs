@@ -12,12 +12,19 @@ import qualified TLC.HOAS as H
 import TLC.Distributions
 
 
+-- >>> maxima $ simplifyFun2 utilitys1
+--
+
+
+utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
+utts'' = uniform (68-5) (68+5) ⋆ Lam (η (u' (Var Get)))
+
 k :: γ ⊢ ((Context0 ⟶ 'R) ⟶ 'R)
 k = uniform 0 1
     ⋆ Lam (normal 68 3
             ⋆ Lam
-           (observe' ((≥) `App` Var Get `App`  (Con (General (Incl 50)))) >>
-           (observe' ((≥) `App` (Con (General (Incl 80))) `App`  Var Get) >>
+           (observe' ((≥) `App` Var Get `App`  (Con (General (Incl (68 - 10))))) >>
+           (observe' ((≥) `App` (Con (General (Incl (68 + 10)))) `App`  Var Get) >>
             (η (Pair
                  (Pair
                   (Pair
@@ -37,8 +44,6 @@ makeUtts us = Lam $ foldr1 addi $ map (App (Var Get) . wkn) us
 utts123 :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
 utts123 = makeUtts [u 1, u 2, u 3]
 
-utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
-utts'' = uniform 51 81 ⋆ Lam (η (u' (Var Get)))
 
 updctx :: γ ⊢ Context0 -> γ ⊢ ('R ⟶ Context0)
 updctx k = Lam (Pair
@@ -127,13 +132,10 @@ utilityl1 = Lam (Lam (l1Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `
 
 -- exp2 = Lam (App k $ Lam (App (utility 2) (App (updctx (Var Get)) (Var (Weaken Get)))))
 
--- >>> maxima $ simplifyFun2 Z utilitys1
--- integrate(DiracDelta(z - y)*integrate(integrate(charfun(50 - v <= 0)*charfun(-80 + v <= 0)*charfun(-v + z <= 0)*DiracDelta(-u)*DiracDelta(v - x)*(3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*v - 1/18*v^2), v, -inf, inf), u, 0, 1)/integrate(integrate(charfun(50 - v <= 0)*charfun(-80 + v <= 0)*charfun(-v + z <= 0)*(3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*v - 1/18*v^2), v, -inf, inf), u, 0, 1), z, 51, 81)/integrate(integrate(integrate(charfun(50 - v <= 0)*charfun(-80 + v <= 0)*charfun(-v + z <= 0)*DiracDelta(-u)*DiracDelta(v - x)*(3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*v - 1/18*v^2), v, -inf, inf), u, 0, 1)/integrate(integrate(charfun(50 - v <= 0)*charfun(-80 + v <= 0)*charfun(-v + z <= 0)*(3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*v - 1/18*v^2), v, -inf, inf), u, 0, 1), z, 51, 81)
+-- >>> displayVs $ evalβ utilitys1
+-- (λx.(λy.(Uniform(⟨51, 81⟩)(λz.((((Uniform(⟨0, 1⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙((v ≥ 50)) * (𝟙((80 ≥ v)) * (𝟙((v ≥ z)) * ((u ≐ 0) * (v ≐ y))))))) / Uniform(⟨0, 1⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙((v ≥ 50)) * (𝟙((80 ≥ v)) * (𝟙((v ≥ z)) * 1)))))) * 1) * 1) * 1)) / Uniform(⟨51, 81⟩)(λz.((((Uniform(⟨0, 1⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙((v ≥ 50)) * (𝟙((80 ≥ v)) * (𝟙((v ≥ z)) * ((u ≐ 0) * (v ≐ y))))))) / Uniform(⟨0, 1⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙((v ≥ 50)) * (𝟙((80 ≥ v)) * (𝟙((v ≥ z)) * 1)))))) * 1) * 1) * 1)))))
 
--- >>> maxima $ approxIntegrals 8 $ simplifyFun2 Z utilitys1
--- charfun(50.0 - y <= 0)*charfun(-80.0 + y <= 0)*charfun(-80.0 + x <= 0)*charfun(50.0 - x <= 0)*charfun(-x + y <= 0)*4.432692004460363e-6*exp(-256.8888888888889 + 7.555555555555555*x + -5.555555555555555e-2*x^2)/(2.8323857304737654e-5 + 8.443222865638789e-2*exp(-256.8888888888889 + 7.555555555555555*y + -5.555555555555555e-2*y^2) + 0.777770684739406*exp(-234.3986432096956 + 6.9425524352499135*y + -5.140711743910898e-2*y^2) + 1.4860072243524263*exp(-175.99551054765925 + 5.337958951149179*y + -4.0475188366292984e-2*y^2) + 1.924060632265006*exp(-104.1958590860313 + 3.3266854320608417*y + -2.6552964918568126e-2*y^2) + 2.093919270678419*exp(-43.55555555555557 + 1.5555555555555554*y + -1.3888888888888885e-2*y^2) + 1.924060632265006*exp(-8.95020480849783 + 0.43529949863571904*y + -5.292774231618703e-3*y^2) + 0.777770684739406*exp(-4.455292895775358 + -3.7870699279808295e-2*y + -8.04767440375035e-5*y^2) + 1.4860072243524263*exp(-4.4894523408061104e-3 + -4.625617815846139e-3*y + -1.1914783003736794e-3*y^2) + (-3.5404821630922066e-7 + -1.0554028582048488e-3*exp(-256.8888888888889 + 7.555555555555555*y + -5.555555555555555e-2*y^2) + -9.722133559242575e-3*exp(-234.3986432096956 + 6.9425524352499135*y + -5.140711743910898e-2*y^2) + -1.857509030440533e-2*exp(-175.99551054765925 + 5.337958951149179*y + -4.0475188366292984e-2*y^2) + -2.4050757903312573e-2*exp(-104.1958590860313 + 3.3266854320608417*y + -2.6552964918568126e-2*y^2) + -2.6173990883480238e-2*exp(-43.55555555555557 + 1.5555555555555554*y + -1.3888888888888885e-2*y^2) + -2.4050757903312573e-2*exp(-8.95020480849783 + 0.43529949863571904*y + -5.292774231618703e-3*y^2) + -9.722133559242575e-3*exp(-4.455292895775358 + -3.7870699279808295e-2*y + -8.04767440375035e-5*y^2) + -1.857509030440533e-2*exp(-4.4894523408061104e-3 + -4.625617815846139e-3*y + -1.1914783003736794e-3*y^2))*y)/0
-
--- >>> maxima $ simplifyFun2 Z utilitys1
+-- >>> maxima $ approxIntegrals 1 $ simplifyFun2 utilitys1
 -- charfun(50 - y <= 0)*charfun(-80 + y <= 0)*charfun(-80 + x <= 0)*charfun(50 - x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, 50, 80), z, 0, 1)/integrate((3*sqrt(2*%pi))^-(1)*1/30*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate(integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*v - 1/18*v^2), v, 50, 80), u, 0, 1), z, 50, x)
 
 --   charfun(((50.0)) - x <= 0) * charfun(((-80.0)) + x <= 0) * charfun(-x + y <= 0) * ((((1.329807601338109e-4)*exp(((-256.8888888888889)) + ((7.555555555555555))*x + ((-5.555555555555555e-2))*x^2)))/(1)) / (charfun(((-80.0)) + y <= 0) * (((5.948010033994905e-4) + (1.7730768017841454)*exp(((-256.8888888888889)) + ((7.555555555555555))*max(((50.0)), y) + ((-5.555555555555555e-2))*max(((50.0)), y)^2) + (7.092307207136581)*exp(((-43.55555555555557)) + ((1.5555555555555554))*max(((50.0)), y) + ((-1.3888888888888885e-2))*max(((50.0)), y)^2)) + ((-7.435012542493632e-6) + (-2.216346002230182e-2)*exp(((-256.8888888888889)) + ((7.555555555555555))*max(((50.0)), y) + ((-5.555555555555555e-2))*max(((50.0)), y)^2) + (-8.865384008920726e-2)*exp(((-43.55555555555557)) + ((1.5555555555555554))*max(((50.0)), y) + ((-1.3888888888888885e-2))*max(((50.0)), y)^2))*max(((50.0)), y))/(1));
@@ -148,7 +150,7 @@ utilityl1 = Lam (Lam (l1Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `
 -- (λx.(λy.Uniform(⟨50, 80⟩)(λz.((((Uniform(⟨0, 1000⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙((v ≥ 50)) * (𝟙((80 ≥ v)) * (𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⋄, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * (⟨⟨⟨⟨⟨⋄, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩ ≐ x)))))) / Uniform(⟨0, 1000⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙((v ≥ 50)) * (𝟙((80 ≥ v)) * (𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⋄, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * 1)))))) * 1) * 1) * y(U(z))))))
 
 test1 :: P ((), Rat) Rat
-test1 = simplifyFun Z $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph Z (App height vlad)) (Var Get)))
+test1 = simplifyFun $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph Z (App height vlad)) (Var Get)))
 
 -- >>> test1
 -- Cond (IsNegative {condExpr = Affine 50 (LinComb {fromLinComb = fromList [(Here,-1)]})}) (Cond (IsNegative {condExpr = Affine (-80) (LinComb {fromLinComb = fromList [(Here,1)]})}) (Cond (IsNegative {condExpr = Affine 65 (LinComb {fromLinComb = fromList [(Here,-1)]})}) (Div (Integrate (Domain {domainConditions = [], domainLoBounds = [Affine 0 (LinComb {fromLinComb = fromList []})], domainHiBounds = [Affine 1000 (LinComb {fromLinComb = fromList []})]}) (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-2312/9)]})),(M (Exponential {fromExponential = LinComb {fromLinComb = fromList [(Vari (There Here),1)]}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},68/9)]})),(M (Exponential {fromExponential = LinComb {fromLinComb = fromList [(Vari (There Here),2)]}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-1/18)]}))]}},(3*(2*pi)^(1 % 2))^((-1) % 1)*(1/1000))]}))]}} :/ P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},1)]}))]}}))) (Integrate (Domain {domainConditions = [], domainLoBounds = [Affine 0 (LinComb {fromLinComb = fromList []})], domainHiBounds = [Affine 1000 (LinComb {fromLinComb = fromList []})]}) (Integrate (Domain {domainConditions = [], domainLoBounds = [Affine 50 (LinComb {fromLinComb = fromList []}),Affine 65 (LinComb {fromLinComb = fromList []})], domainHiBounds = [Affine 80 (LinComb {fromLinComb = fromList []})]}) (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-2312/9)]})),(M (Exponential {fromExponential = LinComb {fromLinComb = fromList [(Vari Here,1)]}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},68/9)]})),(M (Exponential {fromExponential = LinComb {fromLinComb = fromList [(Vari Here,2)]}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-1/18)]}))]}},(3*(2*pi)^(1 % 2))^((-1) % 1)*(1/1000))]}))]}} :/ P {fromPoly = LinComb {fromLinComb = fromList [(M (Exponential {fromExponential = LinComb {fromLinComb = fromList []}}),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},1)]}))]}})))))))
