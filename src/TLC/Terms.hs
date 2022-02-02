@@ -19,7 +19,6 @@
 module TLC.Terms where
 
 import Algebra.Classes
-import Data.Functor.Identity
 import Data.Ratio
 import Data.String.Utils
 import Prelude hiding ((>>), Num(..))
@@ -76,8 +75,8 @@ instance Equality 'U where
                              True -> one
                              False -> NCon (General (Incl 0))
   equals (Neu (NeuApp (NeuCon (General Utt')) x)) (Neu (NeuApp (NeuCon (General Utt')) y))
-    = Neu (NeuCon (General EqRl) `NeuApp` x `NeuApp` y)
-  equals _ _ = NCon $ General $ Incl 0
+    = equals x y
+  equals m n = Neu $ (NeuCon $ General $ EqGen) `NeuApp` (NFPair m n)
 instance Equality 'Unit where
   equals _ _ = one
 instance (Equality α, Equality β) => Equality (α × β) where
@@ -391,12 +390,14 @@ normalForm = \case
   Pair (normalForm -> m) (normalForm -> n) -> NFPair m n
   TT -> Neu NeuTT
 
-fst' m = case m of
-           NFPair m' n' -> m'
+fst' :: NF γ (α × β) -> NF γ α
+fst' = \case
+           NFPair m' _ -> m'
            Neu m' -> Neu $ NeuFst m'
 
-snd' m = case m of
-           NFPair m' n' -> n'
+snd' :: NF γ (α1 × α2) -> NF γ α2
+snd' = \case
+           NFPair _ n' -> n'
            Neu m' -> Neu $ NeuSnd m'
 
 nf_to_λ :: NF γ α -> γ ⊢ α
@@ -417,6 +418,8 @@ neu_to_λ = \case
 evalβ :: γ ⊢ α -> γ ⊢ α
 evalβ = nf_to_λ . normalForm
 
+instance Show (NF γ α) where
+  show = show . nf_to_λ
 instance Show (γ ⊢ α) where
   show = replace "%" "/" . \case
     Var Get -> "x"
