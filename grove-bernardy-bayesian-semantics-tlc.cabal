@@ -14,7 +14,7 @@ library
   exposed-modules: Examples.RSA
                  , Models.Field
                  , Models.Logical.Logical
-                 , Models.Optimizer
+                 , Models.Integrals
                  , TLC.Distributions
                  , TLC.Terms
   other-modules: FOL.CNF
@@ -25,6 +25,10 @@ library
                , FOL.Solver
                , FOL.Tableau
                , FOL.Unification
+               , Models.Integrals.Show
+               , Models.Integrals.Optimizer
+               , Models.Integrals.Conversion
+               , Models.Integrals.Types
   hs-source-dirs: src
   build-depends: base
                , containers
