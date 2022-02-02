@@ -28,6 +28,7 @@ library
                , Models.Integrals.Show
                , Models.Integrals.Optimizer
                , Models.Integrals.Conversion
+               , Models.Integrals.Approximate
                , Models.Integrals.Types
   hs-source-dirs: src
   build-depends: base

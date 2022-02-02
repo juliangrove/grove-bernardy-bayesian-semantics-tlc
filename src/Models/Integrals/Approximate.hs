@@ -1,4 +1,23 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE LambdaCase #-}
 
+module Models.Integrals.Approximate (approxIntegrals) where
+
+import Algebra.Classes
+import qualified Algebra.Morphism.Affine as A
+import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
+                      , exp)
+import qualified Models.Field
+import Algebra.Linear.Chebyshev (chebIntegral)
+
+import Models.Integrals.Types
 
 --------------------------------------------------------------------------------
 -- Approximation of integrals
@@ -49,9 +68,6 @@ approxIntegralsW n v =
 
 substP0 :: Poly γ C -> Ret (γ,C) C -> Ret γ C
 substP0 x = substDumb (\case Here -> x; There v -> varPoly v)
-
-instance Scalable C (Poly γ C) where
-  x *^ p = constCoef @γ x *^ p
 
 substDumb :: RatLike α => SubstP γ δ  -> Dumb (Poly γ α) -> Dumb (Poly δ α)
 substDumb f = evalDumb (dumb . substPoly f)

@@ -234,6 +234,8 @@ exprToPoly = A.eval constPoly  (monoPoly .  varM . Vari)
 ----------------------------
 -- Instances
 
+instance Scalable C (Poly γ C) where
+  x *^ p = constCoef @γ x *^ p
 
 instance RatLike α => Multiplicative (P γ α) where
   one = Ret one

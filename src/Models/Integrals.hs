@@ -7,7 +7,8 @@ import Models.Integrals.Optimizer as Export
 import Models.Integrals.Conversion as Export
 import Models.Integrals.Show as Export
 import Models.Integrals.Types as Export (P, Cond, Rat, lessThan, greaterThan, Available(..))  
-import Models.Integrals.Types  
+import Models.Integrals.Types
+import Models.Integrals.Approximate as Export
 
 
 -- import Data.Ratio
