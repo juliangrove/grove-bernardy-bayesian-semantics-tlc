@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RebindableSyntax #-}
 
 module Examples.RSA where
 
@@ -10,11 +11,16 @@ import Models.Optimizer
 import TLC.Terms
 import qualified TLC.HOAS as H
 import TLC.Distributions
+import qualified Algebra.Morphism.Affine as A
 
 
--- >>> maxima $ simplifyFun2 utilitys1
+-- >>> maxima $ test2
+-- charfun(63 - y <= 0)*charfun(-73 + y <= 0)*charfun(-x + y <= 0)*charfun(63 - x <= 0)*charfun(-73 + x <= 0)*(3*sqrt(2*%pi))^-(1)*1/10*(3*sqrt(2*%pi))^-(1)*exp(-4624/9 + 136/9*x - 1/9*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, y, 78)/integrate((3*sqrt(2*%pi))^-(1)*1/10*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, z, 78), z, 63, 73)/integrate(integrate((3*sqrt(2*%pi))^-(1)*1/10*(3*sqrt(2*%pi))^-(1)*exp(-4624/9 + 136/9*u - 1/9*u^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*v - 1/18*v^2), v, y, 78)/integrate((3*sqrt(2*%pi))^-(1)*1/10*exp(-2312/9 + 68/9*u - 1/18*u^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*w - 1/18*w^2), w, v, 78), v, 63, min(73, u)), u, y, 78), z, 0, 1)
+
+test2 :: P (((), Rat), Rat) Rat
+test2 = simplifyFun2 [A.var Here `lessThan` A.constant 73] utilityl1
+-- charfun(-78 + x <= 0)*charfun(63 - x <= 0)*integrate((3*sqrt(2*%pi))^-(1)*1/10*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, z, 78), z, 63, min(73, x))/integrate((3*sqrt(2*%pi))^-(1)*1/10*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, z, 78), z, 63, min(73, x))
 --
-
 
 utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
 utts'' = uniform (68-5) (68+5) ⋆ Lam (η (u' (Var Get)))
