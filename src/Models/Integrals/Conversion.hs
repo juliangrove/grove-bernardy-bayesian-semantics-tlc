@@ -4,30 +4,15 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE RebindableSyntax #-}
 module Models.Integrals.Conversion where
 
-
-import Data.List (nub)
--- import Data.Ratio
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
-import qualified Algebra.Morphism.LinComb as LC
-import Algebra.Morphism.LinComb (LinComb)
-import Algebra.Morphism.Polynomial.Multi hiding (constPoly)
-import qualified Algebra.Morphism.Polynomial.Multi as Multi
-import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
-                      , exp)
+import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt , exp)
 import TLC.Terms hiding ((>>), u, Con)
-import Algebra.Linear ((*<))
-import Models.Field (Fld(..))
-import qualified Models.Field
-import Algebra.Linear.Chebyshev (chebIntegral)
-import Algebra.Linear.FourierMotzkin (entailsStrict)
-import Data.Complex
-import Text.Pretty.Math
 
 import Models.Integrals.Types
-
 
 --------------------------------------------------------------------------------
 -- | Conversion from λ-terms
