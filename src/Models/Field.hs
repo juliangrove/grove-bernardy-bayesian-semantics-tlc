@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -13,6 +14,7 @@ import Data.Ratio
 import Algebra.Classes
 import Prelude hiding (Num(..),Fractional(..),Floating(..),(^))
 import Text.Show ()
+import Data.Function
 
 instance DecidableZero Fld where
   isZero (Con 0) = True
@@ -30,7 +32,11 @@ data Fld = Con Rational
            | Op BinOp (Fld) (Fld)
            | Pow (Fld) Rational
            | Pi
-           deriving (Ord, Eq)
+
+instance Ord Fld where
+  compare = compare `on` eval @Double
+instance Eq Fld where
+  (==) = (==) `on` eval @Double
 
 eval :: Transcendental x => Fld -> x
 eval = \case
