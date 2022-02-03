@@ -143,7 +143,7 @@ cleanBounds cs d (x:xs) kept =
 
 cleanDomain :: RatLike a => [Negative γ a] -> Domain γ a -> Domain γ a
 cleanDomain cs (Domain los his) =
-  Domain (cleanBounds cs Max los []) (cleanBounds cs Max his [])
+  Domain (cleanBounds cs Max los []) (cleanBounds cs Min his [])
 
 -- | Remove redundant conditions
 cleanConds :: (a ~ Rat) => [Negative γ a] -> P γ a -> P γ a
