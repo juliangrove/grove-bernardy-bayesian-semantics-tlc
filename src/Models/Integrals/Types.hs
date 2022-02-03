@@ -101,42 +101,39 @@ lift' :: Applicative f
 lift' _ (Here) = pure Here
 lift' f (There x) = There <$> (f x)
 
-traverseDomain :: (RatLike a, Applicative f)
-               => (forall x. Available x γ -> f (Available x δ))
-               -> Domain γ a -> f (Domain δ a)
-traverseDomain f (Domain conds los his)
+class VarTraversable t where
+  varTraverse :: (Ord a, Applicative f)
+    => (forall x. Available x γ -> f (Available x δ))
+    -> t γ a -> f (t δ a)
+
+instance VarTraversable Domain where
+ varTraverse f (Domain conds los his)
   = Domain <$> traverse (traverse (A.traverseVars (lift' f))) conds <*>
                traverse (A.traverseVars f) los <*>
                traverse (A.traverseVars f) his
 
-traverseElem :: (Ord a, Applicative f)
-             => (forall x. Available x γ -> f (Available x δ))
-             -> Elem γ a -> f (Elem δ a)
-traverseElem f = \case
-     Vari x -> Vari <$> f x
-     CharFun c -> CharFun <$> (traversePoly f) c
-     Supremum d es -> Supremum d <$> traverse (traversePoly f) es
-  
+instance VarTraversable Elem where
+  varTraverse f = \case
+    Vari x -> Vari <$> f x
+    CharFun c -> CharFun <$> (traversePoly f) c
+    Supremum d es -> Supremum d <$> traverse (traversePoly f) es
+
 traversePoly :: forall a f γ δ. (Ord a, Applicative f)
              => (forall x. Available x γ -> f (Available x δ))
              -> Poly γ a -> f (Poly δ a)
-traversePoly f = bitraverse (traverseElem @a f) (traverseCoef @a f)
+traversePoly f = bitraverse (varTraverse f) (varTraverse f)
 
-traverseCoef :: (Ord a, Applicative f)
-             => (forall x. Available x γ -> f (Available x δ))
-             -> Coef γ a -> f (Coef δ a)
-traverseCoef f (Coef x) = Coef <$> LC.traverseVars (traversePoly f) x
+instance VarTraversable Coef where
+  varTraverse f (Coef x) = Coef <$> LC.traverseVars (traversePoly f) x
 
-traverseP :: (Ord a, Applicative f)
-          => (forall x. Available x γ -> f (Available x δ))
-          -> P γ a -> f (P δ a)
-traverseP f = \case
-  Div x y -> Div <$> traverseP f x <*> traverseP f y
-  Integrate d e ->
-    Integrate <$> (traverseDomain f d) <*> (traverseP (lift' f) e)
-  Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> traverseP f x
-  Add x y  -> Add <$> traverseP f x <*> traverseP f y
-  Ret x -> Ret <$> traversePoly f x
+instance VarTraversable P where
+  varTraverse f = \case
+    Div x y -> Div <$> varTraverse f x <*> varTraverse f y
+    Integrate d e ->
+      Integrate <$> (varTraverse f d) <*> (varTraverse (lift' f) e)
+    Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> varTraverse f x
+    Add x y  -> Add <$> varTraverse f x <*> varTraverse f y
+    Ret x -> Ret <$> traversePoly f x
 
 
 deriving instance (RatLike α, Show α) => Show (P γ α)
