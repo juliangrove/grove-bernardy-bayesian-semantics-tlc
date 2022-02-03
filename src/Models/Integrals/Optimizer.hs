@@ -22,24 +22,12 @@
 
 module Models.Integrals.Optimizer where
 
-import Data.List (nub)
 -- import Data.Ratio
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
-import qualified Algebra.Morphism.LinComb as LC
-import Algebra.Morphism.LinComb (LinComb)
-import Algebra.Morphism.Polynomial.Multi hiding (constPoly)
-import qualified Algebra.Morphism.Polynomial.Multi as Multi
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
-import TLC.Terms hiding ((>>), u, Con)
-import Algebra.Linear ((*<))
-import Models.Field (Fld(..))
-import qualified Models.Field
-import Algebra.Linear.Chebyshev (chebIntegral)
 import Algebra.Linear.FourierMotzkin (entailsStrict)
-import Data.Complex
-import Text.Pretty.Math
 
 import Models.Integrals.Types
   
@@ -92,10 +80,9 @@ noHere = (\case Here -> Nothing; There x -> Just x)
 
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
 integrate _ (Ret z) | isZero z = Ret $ zero
-integrate d e | Just z' <- traverseP noHere e = z' / recip (Ret (hi-lo)) 
+integrate d e | Just z' <- varTraverse noHere e = z' / recip (Ret (hi-lo)) 
   where (lo,hi) = mkSuprema d -- ∫_lo^hi k dx = k*(hi-lo)
--- NOTE: the above causes many traversals to be made (making normalise
--- quadratic). To do this efficiently, we'd need to compute the unused
+-- NOTE: the above causes many traver, we'd need to compute the unused
 -- variables at every stage in this function, and record the result
 -- using a new constructor in P. This new constructor can the be used
 -- to check for free variables directly.
@@ -164,5 +151,11 @@ cleanConds cs = \case
   Add x y -> Add (cleanConds cs x) (cleanConds cs y)
  where fromNegative (IsNegative c) = c
        fromNegative _ = error "cleanConds: equality condition remaining?"
+
+-- type a ∈ γ = Available a γ
+
+-- discontinuitiesFor :: (a ∈ γ) -> P γ a -> [Cond γ a]
+-- discontinuitiesFor v = \case
+--   Domain los e -> v `elems` los
 
 
