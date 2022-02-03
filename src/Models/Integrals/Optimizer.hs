@@ -40,9 +40,9 @@ import Models.Integrals.Types
 -- in the right order.
 restrictDomain :: α ~ Rat
                => Cond (γ, α) α -> Domain γ α -> (Domain γ α, [Cond γ α])
-restrictDomain c (Domain cs los his) = case solve' c of -- version with solver
-  (LT, e) -> (Domain cs los (e:his), [ lo `lessThan` e | lo <- los ])
-  (GT, e) -> (Domain cs (e:los) his, [ e `lessThan` hi | hi <- his ])
+restrictDomain c (Domain los his) = case solve' c of -- version with solver
+  (LT, e) -> (Domain los (e:his), [ lo `lessThan` e | lo <- los ])
+  (GT, e) -> (Domain (e:los) his, [ e `lessThan` hi | hi <- his ])
   _ -> error "restrictDomain: cannot be called/(1) on equality condition"
 
 solveHere :: RatLike x => A.Affine (Available x (γ, x)) x -> (Bool, Expr γ x)
@@ -68,9 +68,9 @@ occurExpr = A.traverseVars $ \case
   There x -> Just x
 
 domainToConds :: RatLike α => Domain γ α -> [Cond (γ,α) α]
-domainToConds (Domain cs los his)
-  = cs ++ [wkExpr e `lessThan` A.var Here | e <- los]
-       ++ [A.var Here `lessThan` wkExpr e | e <- his]
+domainToConds (Domain los his)
+  = [wkExpr e `lessThan` A.var Here | e <- los] ++
+    [A.var Here `lessThan` wkExpr e | e <- his]
 
 conds_ :: RatLike a => [Cond γ a] -> P γ a -> P γ a
 conds_ cs e = foldr Cond e cs
@@ -133,8 +133,8 @@ cleanBounds cs d (x:xs) kept =
  -- And so we can discard 80.
 
 cleanDomain :: RatLike a => [Negative γ a] -> Domain γ a -> Domain γ a
-cleanDomain cs (Domain c los his) =
-  Domain c (cleanBounds cs Max los []) (cleanBounds cs Max his [])
+cleanDomain cs (Domain los his) =
+  Domain (cleanBounds cs Max los []) (cleanBounds cs Max his [])
 
 -- | Remove redundant conditions
 cleanConds :: (a ~ Rat) => [Negative γ a] -> P γ a -> P γ a

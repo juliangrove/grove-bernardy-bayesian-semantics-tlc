@@ -18,6 +18,7 @@ import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
 import TLC.Terms hiding ((>>), u, Con)
 import qualified Models.Field
 import Text.Pretty.Math
+import Data.Complex
 
 import Models.Integrals.Types
 
@@ -46,6 +47,15 @@ showProg = showP (restOfVars @γ freshes) (varsForCtx freshes)
 -- instance (Pretty a, ShowableContext γ) => Show (P γ a) where
 --   show = showProg Mathematica
 
+class RatLike a => Pretty a where
+  pretty :: a -> Doc
+instance (RealFloat a, RatLike a, Show a) => Pretty (Complex a) where
+  pretty (a :+ b) | b < 10e-15 = case show a of
+                      "1.0" -> one
+                      "0.0" -> zero
+                      "-1.0" -> negate one
+                      x -> text x
+                  | otherwise = text (show a ++ "+" ++ show b ++ "i")
 
 instance Pretty Rat where
   pretty = Models.Field.eval
@@ -126,14 +136,11 @@ showP fs@(f:fsRest) v = \case
   Ret e -> showPoly v e
   Add p1 p2 -> showP fs v p1 + showP fs v p2
   Div p1 p2 -> showP fs v p1 / showP fs v p2
-  Integrate (Domain cs los his) e -> withStyle $ \st -> 
+  Integrate (Domain los his) e -> withStyle $ \st -> 
     let body = showP fsRest (f +! v) e
         dom :: Doc
-        dom =
-          (when cs $ indicator (map (showCond (f +! v)) cs) <> text ", ") <>
-          text f <> text ", " <>
-          showBounds v Max los <> text ", " <>
-          showBounds v Min his
+        dom = showBounds v Max los <> text ", " <>
+              showBounds v Min his
     in case st of
          LaTeX -> text "\\int_{" <> showBounds v Max los <> text "}^{" <>
                   showBounds v Min his <> text "}" <>

@@ -22,7 +22,6 @@ import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
 import Models.Field (Fld(..))
 import Data.Complex
-import Text.Pretty.Math
 
 
 --------------------------------------------------------------------------------
@@ -30,15 +29,6 @@ import Text.Pretty.Math
 
 type C = Complex Double
 deriving instance Ord a => Ord (Complex a) -- yikes
-class RatLike a => Pretty a where
-  pretty :: a -> Doc
-instance (RealFloat a, RatLike a, Show a) => Pretty (Complex a) where
-  pretty (a :+ b) | b < 10e-15 = case show a of
-                      "1.0" -> one
-                      "0.0" -> zero
-                      "-1.0" -> negate one
-                      x -> text x
-                  | otherwise = text (show a ++ "+" ++ show b ++ "i")
   
 type Rat = Fld
 type RatLike α = (Ring α, Ord α, DecidableZero α, Transcendental α)
@@ -82,8 +72,7 @@ data Cond' e = IsNegative { condExpr :: e }
               -- Meaning of this constructor: expression = 0
    deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data Domain γ α = Domain { domainConditions :: [Cond (γ, α) α]
-                         , domainLoBounds, domainHiBounds :: [Expr γ α] }
+data Domain γ α = Domain { domainLoBounds, domainHiBounds :: [Expr γ α] }
   deriving Show
 
 data P γ α where
@@ -107,9 +96,8 @@ class VarTraversable t where
     -> t γ a -> f (t δ a)
 
 instance VarTraversable Domain where
- varTraverse f (Domain conds los his)
-  = Domain <$> traverse (traverse (A.traverseVars (lift' f))) conds <*>
-               traverse (A.traverseVars f) los <*>
+ varTraverse f (Domain los his)
+  = Domain <$> traverse (A.traverseVars f) los <*>
                traverse (A.traverseVars f) his
 
 instance VarTraversable Elem where
@@ -184,7 +172,7 @@ isNegative e = IsNegative e
 
 -- Domain without restriction
 full :: Domain γ x
-full = Domain [] [] []
+full = Domain [] []
 
 lessThan, greaterThan :: RatLike a => Expr γ a -> Expr γ a -> Cond γ a
 t `lessThan` u = isNegative (t - u)
@@ -220,9 +208,8 @@ varPoly :: RatLike α => Available α γ -> Poly γ α
 varPoly = varP . Vari
 
 mkSuprema :: RatLike α => Domain γ α -> (Poly γ α, Poly γ α)
-mkSuprema (Domain [] los his) = (supremum Max $ map exprToPoly los,
+mkSuprema (Domain los his) = (supremum Max $ map exprToPoly los,
                                  supremum Min $ map exprToPoly his)
-mkSuprema Domain {} = error "mkSuprema: cannot deal with implicit bounds"
 
 
 exprToPoly :: RatLike α => Expr γ α -> Poly γ α
@@ -311,8 +298,7 @@ substCond f = fmap (substExpr f)
 
 substDomain :: (DecidableZero α, Ring α)
             => SubstE γ δ -> Domain γ α -> Domain δ α
-substDomain f (Domain c lo hi) = Domain
-                                 (substCond (wkSubst f) <$> c)
+substDomain f (Domain lo hi) = Domain
                                  (substExpr f <$> lo)
                                  (substExpr f <$> hi)
 
