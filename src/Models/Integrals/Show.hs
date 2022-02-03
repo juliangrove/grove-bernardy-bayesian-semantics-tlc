@@ -139,7 +139,8 @@ showP fs@(f:fsRest) v = \case
   Integrate (Domain los his) e -> withStyle $ \st -> 
     let body = showP fsRest (f +! v) e
         dom :: Doc
-        dom = showBounds v Max los <> text ", " <>
+        dom = text f <> text ", " <>
+              showBounds v Max los <> text ", " <>
               showBounds v Min his
     in case st of
          LaTeX -> text "\\int_{" <> showBounds v Max los <> text "}^{" <>
