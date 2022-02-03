@@ -13,8 +13,8 @@ build-type:          Simple
 library 
   exposed-modules: Examples.RSA
                  , Models.Field
-                 , Models.Logical.Logical
                  , Models.Integrals
+                 , Models.Logical.Logical
                  , TLC.Distributions
                  , TLC.Terms
   other-modules: FOL.CNF
@@ -25,10 +25,10 @@ library
                , FOL.Solver
                , FOL.Tableau
                , FOL.Unification
-               , Models.Integrals.Show
-               , Models.Integrals.Optimizer
-               , Models.Integrals.Conversion
                , Models.Integrals.Approximate
+               , Models.Integrals.Conversion
+               , Models.Integrals.Optimizer
+               , Models.Integrals.Show
                , Models.Integrals.Types
   hs-source-dirs: src
   build-depends: base

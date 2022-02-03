@@ -112,7 +112,7 @@ m ⋆ k = Lam $ \f -> m @@ (Lam $ \x -> k x @@ f)
 m >> k = m ⋆ (\_ -> k) 
 
 (≐) :: Equality α => Exp α -> Exp α -> Exp 'R
-m ≐ n = Con (General EqGen) @@ m @@ n
+m ≐ n = Con (General EqGen) @@ (Pair m n)
 
 infixl @@
 (@@) :: Exp (a ⟶ b) -> Exp a -> Exp b
