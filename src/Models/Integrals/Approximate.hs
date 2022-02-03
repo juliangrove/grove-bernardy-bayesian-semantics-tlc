@@ -15,7 +15,7 @@ import qualified Algebra.Morphism.Affine as A
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
 import qualified Models.Field
-import Algebra.Linear.Chebyshev (chebIntegral)
+import qualified Algebra.Linear.Chebyshev as Chebyshev
 
 import Models.Integrals.Types
 
@@ -64,7 +64,7 @@ approxIntegralsW n v =
     Cond (IsNegative c) a -> dumb (charfun (ratToC v (exprToPoly c))) * (r0 a)
     Cond (IsZero _) _ -> error "approxIntegralsW: equality not eliminated?"
     Integrate (mkSuprema -> (ratToC v -> lo, ratToC v -> hi)) e ->
-      chebIntegral @C n lo hi (\x -> substP0 x (approxIntegralsW n v' e))
+      Chebyshev.integral @C @C n lo hi (\x -> substP0 x (approxIntegralsW n v' e))
 
 substP0 :: Poly γ C -> Ret (γ,C) C -> Ret γ C
 substP0 x = substDumb (\case Here -> x; There v -> varPoly v)
