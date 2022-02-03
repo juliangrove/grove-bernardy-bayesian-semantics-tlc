@@ -154,6 +154,9 @@ evalDumb f (x :/ y) = f x / f y
 -- | Smart constructors
 
 
+conds_ :: RatLike a => [Cond γ a] -> P γ a -> P γ a
+conds_ cs e = foldr Cond e cs
+
 isConstantCoef :: RatLike α => Coef γ α -> Maybe α
 isConstantCoef (Coef l) = case LC.toList l of
   [(v,x)] | v == zero -> Just x

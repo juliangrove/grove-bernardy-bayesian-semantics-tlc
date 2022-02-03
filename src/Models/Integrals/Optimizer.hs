@@ -20,7 +20,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Models.Integrals.Optimizer where
+module Models.Integrals.Optimizer (cleanConds, normalise, conds_) where
 
 -- import Data.Ratio
 import Algebra.Classes
@@ -71,9 +71,6 @@ domainToConds :: RatLike α => Domain γ α -> [Cond (γ,α) α]
 domainToConds (Domain los his)
   = [wkExpr e `lessThan` A.var Here | e <- los] ++
     [A.var Here `lessThan` wkExpr e | e <- his]
-
-conds_ :: RatLike a => [Cond γ a] -> P γ a -> P γ a
-conds_ cs e = foldr Cond e cs
 
 noHere :: Available x (γ,a) -> Maybe (Available x γ)
 noHere = (\case Here -> Nothing; There x -> Just x)
@@ -164,10 +161,5 @@ cleanConds cs = \case
  where fromNegative (IsNegative c) = c
        fromNegative _ = error "cleanConds: equality condition remaining?"
 
--- type a ∈ γ = Available a γ
-
--- discontinuitiesFor :: (a ∈ γ) -> P γ a -> [Cond γ a]
--- discontinuitiesFor v = \case
---   Domain los e -> v `elems` los
 
 
