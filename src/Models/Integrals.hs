@@ -88,7 +88,7 @@ example1 = Integrate full $ Integrate full $
 
 example2 :: P () Rat
 example2 = Integrate full $
-           Integrate (Domain [] [A.constant 1 + A.var Here] []) $
+           Integrate (Domain [A.constant 1 + A.var Here] []) $
            Cond (IsZero (A.constant 4 + 2 *< A.var (There Here) - A.var Here) ) $
            retPoly $ varPoly Here
 
@@ -113,7 +113,7 @@ example3 = Integrate full $
 -- Integrate[18 + 10*x + x^2, {x, -1, Infinity}]
 
 example4a :: P () Rat
-example4a = Integrate (Domain [] [zero] [A.constant 1]) one
+example4a = Integrate (Domain [zero] [A.constant 1]) one
 
 -- >>> mathematica $ normalise example4a
 -- 1
