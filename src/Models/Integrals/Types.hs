@@ -338,6 +338,11 @@ _ `shallower` _ = False
 data SomeVar γ where
   SomeVar :: Available v γ -> SomeVar γ
   NoVar :: SomeVar γ
+instance Eq (SomeVar γ) where
+  SomeVar Here == SomeVar Here = True
+  SomeVar (There x) == SomeVar (There y) = SomeVar x == SomeVar y
+  NoVar == NoVar = True
+  _ == _ = False
 
 minVar :: SomeVar γ -> SomeVar γ -> SomeVar γ
 minVar (SomeVar Here) _ = SomeVar Here
