@@ -89,17 +89,17 @@ evalP' = \case
     (retPoly $ (constPoly (pi * γ)
                  * (one + (constPoly (one/γ)
                             * (varPoly Here - constPoly x0)) ^+2)))
-  Quartic μ σ f -> Integrate (Domain [] [A.constant (μ - a)]
+  Quartic μ σ f -> Integrate (Domain [A.constant (μ - a)]
                               [A.constant (μ + a)]) $
     (retPoly $ (constPoly ((15 / 16) / (a ^+ 5)))
      * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2
      * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where a = sqrt 7 * σ
-  Uniform x y f -> Integrate (Domain [] [A.constant x] [A.constant y]) $ 
+  Uniform x y f -> Integrate (Domain [A.constant x] [A.constant y]) $ 
     (retPoly $ constPoly (1 / (y - x))) *
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-  Lesbegue f -> Integrate (Domain [] [] []) $
+  Lesbegue f -> Integrate (Domain [] []) $
                 (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   NNVar i -> retPoly $ varPoly i
   Divide x y -> Div (evalP' x) (evalP' y)
