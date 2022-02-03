@@ -78,6 +78,18 @@ conds_ cs e = foldr Cond e cs
 noHere :: Available x (γ,a) -> Maybe (Available x γ)
 noHere = (\case Here -> Nothing; There x -> Just x)
 
+-- | Normalising condition, placing the shallowest conditions first,
+-- so that they can be exposed to integrals which are able to resolve them.
+cond :: RatLike a => Cond γ a -> P γ a -> P γ a
+cond (IsNegative (A.Affine k0 vs)) e | k0 <= zero, vs == zero = e
+cond _ (Ret z) | isZero z = Ret $ zero
+cond c (Cond c' e) | c == c' = cond c e
+cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
+                     then Cond c (Cond c' e)
+                     else Cond c' (cond c e)
+cond c e = Cond c e
+
+
 integrate :: d ~ Rat => Domain γ d -> P (γ, d) Rat -> P γ Rat
 integrate _ (Ret z) | isZero z = Ret $ zero
 integrate d e | Just z' <- varTraverse noHere e = z' / recip (Ret (hi-lo)) 

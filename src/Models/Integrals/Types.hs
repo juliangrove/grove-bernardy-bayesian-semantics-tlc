@@ -307,7 +307,7 @@ substP f p0 = case p0 of
   Ret e -> Ret (substPoly (exprToPoly . f) e)
   Add p1 p2 -> substP f p1 + substP f p2
   Div p1 p2 -> substP f p1 / substP f p2
-  Cond c p -> cond (substCond f c) (substP f p)
+  Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p) -- integrations are never simplified by substitution
 
 wkExpr :: RatLike α => Expr γ α -> Expr (γ, β) α
@@ -315,19 +315,6 @@ wkExpr = substExpr (A.var . There)
 
 wkP :: DecidableZero x => Transcendental x => Ord x => P γ x -> P (γ, α) x
 wkP = substP $ \i -> A.var (There i) 
-
-
--- | Normalising condition, placing the shallowest conditions first,
--- so that they can be exposed to integrals which are able to resolve them.
-cond :: RatLike a => Cond γ a -> P γ a -> P γ a
-cond (IsNegative (A.Affine k0 vs)) e | k0 <= zero, vs == zero = e
-cond _ (Ret z) | isZero z = Ret $ zero
-cond c (Cond c' e) | c == c' = cond c e
-cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
-                     then Cond c (Cond c' e)
-                     else Cond c' (cond c e)
-cond c e = Cond c e
-
 
 
 deepest :: Cond γ α -> SomeVar γ
