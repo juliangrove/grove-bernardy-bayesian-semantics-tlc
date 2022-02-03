@@ -20,16 +20,19 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Models.Integrals.Optimizer (cleanConds, normalise, conds_) where
+module Models.Integrals.Optimizer (cleanConds, normalise, splitDomains, conds_) where
 
 -- import Data.Ratio
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
-import Algebra.Linear.FourierMotzkin (entailsStrict)
+import Algebra.Linear.FourierMotzkin (entailsStrict, hasContradictionStrict)
 
 import Models.Integrals.Types
+import Control.Applicative (Const(..))
+import Data.List (partition)
+import Data.Maybe (catMaybes)
   
 
 ---------------------------------------------------------
@@ -131,7 +134,7 @@ dominated d cs x ys = any (\bnd -> entail cs (x `cmp` bnd)) ys
 
 cleanBounds :: RatLike a
   => [Negative γ a] -> Dir -> [Expr γ a] -> [Expr γ a] -> [Expr γ a]
-cleanBounds _  _ [] kept = kept
+cleanBounds _ _ [] kept = kept
 cleanBounds cs d (x:xs) kept =
   if dominated d cs x kept
   then cleanBounds cs d xs kept
@@ -150,16 +153,50 @@ cleanConds :: (a ~ Rat) => [Negative γ a] -> P γ a -> P γ a
 cleanConds cs = \case
   Ret x -> Ret x
   Integrate d e -> Integrate (cleanDomain cs d) $
-                   cleanConds ((fromNegative <$> domainToConds d) ++
+                   cleanConds' ((fromNegative <$> domainToConds d) ++
                                (map (A.mapVars  There) cs)) $
                    e
   Cond c e -> if cs `entail` fromNegative c
               then cleanConds cs e
-              else cond c $ cleanConds (fromNegative c:cs) e
+              else cond c $ cleanConds' (fromNegative c:cs) e
   Div x y -> Div (cleanConds cs x) (cleanConds cs y)
   Add x y -> Add (cleanConds cs x) (cleanConds cs y)
  where fromNegative (IsNegative c) = c
        fromNegative _ = error "cleanConds: equality condition remaining?"
 
+cleanConds' :: (a ~ Rat) => [Negative γ a] -> P γ a -> P γ a
+cleanConds' cs e = if hasContradictionStrict (map negate cs) then zero else cleanConds cs e
+
+type a ∈ γ = Available a γ
+
+getVars :: x ∈ γ -> Const [SomeVar γ] (x ∈ γ)
+getVars v = Const  [SomeVar v]
+
+freeVars :: forall a γ t. Ord a => VarTraversable t => t γ a -> [SomeVar γ]
+freeVars e = getConst (varTraverse getVars e)
+
+
+discontinuities :: forall a γ. a ~ Rat => P γ a -> [Expr γ a]
+discontinuities  = \case
+  Add a b -> discontinuities a <> discontinuities b
+  Div a b -> discontinuities a <> discontinuities b
+  Cond (IsNegative f) e -> f : discontinuities e
+  Cond _ _ -> error "discontinuities equality?"
+  Ret _ -> []
+  Integrate (Domain los his) e -> mkEqs los <> mkEqs his <> catMaybes (fmap (A.traverseVars noHere) (discontinuities e))
+    where mkEqs as = [a-b | a <- as, b <- as]
+
+splitDomainOn :: RatLike a => Domain γ Rat -> [Expr (γ, Rat) a] -> P (γ, Rat) a -> P γ a
+splitDomainOn d [] e = Integrate d e
+splitDomainOn d (f:fs) e = splitDomainOn d fs (Cond (isPositive f) e) + splitDomainOn d fs (Cond (isNegative f) e)
+
+splitDomains :: a ~ Rat => P γ a -> P γ a
+splitDomains = \case
+  Integrate d e -> splitDomainOn d fs e
+    where fs = filter ((SomeVar Here `elem`) . getConst . A.traverseVars getVars) (discontinuities e)
+  Cond c e -> Cond c (splitDomains e)
+  Add a b -> Add (splitDomains a) (splitDomains b) 
+  Div a b -> Div (splitDomains a) (splitDomains b) 
+  Ret x -> Ret x
 
 
