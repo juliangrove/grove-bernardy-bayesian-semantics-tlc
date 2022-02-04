@@ -24,7 +24,7 @@ import Data.String.Utils
 import Prelude hiding ((>>), Num(..))
 
 
-data Type = E | T | R | U | Γ
+data Type = E | 'T | R | U | 'Γ
           | Type :-> Type
           | Unit
           | Type :× Type
@@ -40,7 +40,7 @@ type α ⟶ β = α ':-> β
 infixr ⟶
 infixr :->
 
-(≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ R
+(≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ 'R
 m ≐ n = App (Con (General EqGen)) (Pair m n)
 
 pattern One = NCon (General (Incl 1))
@@ -77,7 +77,7 @@ instance Equality 'U where
   equals (Neu (NeuApp (NeuCon (General Utt')) x)) (Neu (NeuApp (NeuCon (General Utt')) y))
     = equals x y
   equals m n = Neu $ (NeuCon $ General $ EqGen) `NeuApp` (NFPair m n)
-instance Equality 'Unit where
+instance Equality Unit where
   equals _ _ = one
 instance (Equality α, Equality β) => Equality (α × β) where
   equals (NFPair m n) (NFPair m' n') = equals m m' * equals n n'
@@ -99,7 +99,10 @@ instance Equality 'Γ where
 instance Equality ('E ⟶ 'Γ ⟶ 'Γ) where
   equals (NCon (Special Upd)) (NCon (Special Upd)) = one
 instance Equality ('Γ ⟶ 'E) where
-  equals (NCon (Special Sel)) (NCon (Special Sel)) = one
+  equals (NCon (Special (Sel i))) (NCon (Special (Sel j))) =
+    case i == j of
+      True -> one
+      False -> NCon (General (Incl 0))
 
 
 
@@ -116,18 +119,18 @@ human = Con $ Special Human
 (≥) = Con $ Special GTE
 emp = Con $ Special Empty
 upd = Con $ Special Upd
-sel = Con $ Special Sel
+sel n = Con $ Special $ Sel n
 
-(/\) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
+(/\) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
 p /\ q = App (App (Con (Logical And)) p) q
 
-(\/) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
+(\/) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
 p \/ q = App (App (Con (Logical Or)) p) q
 
-(-->) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
+(-->) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
 p --> q = App (App (Con (Logical Imp)) p) q
 
-exists :: γ ⊢ (α ⟶ T) -> γ ⊢ T
+exists :: γ ⊢ (α ⟶ 'T) -> γ ⊢ 'T
 exists φ = App (Con (Logical Exists)) φ
 
 reduce1step :: γ ⊢ α -> γ ⊢ α
@@ -143,27 +146,27 @@ reduce1step = \case
   TT -> TT
   Pair (reduce1step -> m) (reduce1step -> n) -> Pair m n
 
-canReduce :: γ ⊢ α -> Bool
-canReduce = \case
+can'Reduce :: γ ⊢ α -> Bool
+can'Reduce = \case
   App (Con (General Mult)) (Con (General (Incl 1))) -> True
   App (App (Con (General Mult)) x) (Con (General (Incl 1))) -> True
   Var i -> False
   Con c -> False
-  App (canReduce -> m) (canReduce -> n) -> m || n
-  Lam m -> canReduce m
-  Fst m -> canReduce m
-  Snd m -> canReduce m
+  App (can'Reduce -> m) (can'Reduce -> n) -> m || n
+  Lam m -> can'Reduce m
+  Fst m -> can'Reduce m
+  Snd m -> can'Reduce m
   TT -> False
-  Pair (canReduce -> m) (canReduce -> n) -> m || n
+  Pair (can'Reduce -> m) (can'Reduce -> n) -> m || n
 
 reduce1s :: γ ⊢ α -> γ ⊢ α
-reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
+reduce1s m = if can'Reduce m then reduce1s (reduce1step m) else m
 
 clean :: γ ⊢ α -> γ ⊢ α
 clean = reduce1s . evalβ 
 
-showR :: Rational -> String
-showR (\x -> (numerator x, denominator x) -> (num, den))
+show'R :: Rational -> String
+show'R (\x -> (numerator x, denominator x) -> (num, den))
   = case (num, den) of
       (0, _) -> "0"
       (_, 1) -> show num
@@ -199,7 +202,7 @@ instance Show (Logical α) where
   show Equals = "(=)"
  
 data General α where
-  Incl :: Rational -> General R
+  Incl :: Rational -> General 'R
   Indi :: General ('T ⟶ 'R)
   Addi :: General ('R ⟶ 'R ⟶ 'R)
   Mult :: General ('R ⟶ 'R ⟶ 'R)
@@ -228,7 +231,7 @@ instance Division (γ ⊢ 'R) where
   x / y  = Con (General Divi) `App` x `App` y
 
 instance Show (General α) where
-  show (Incl x) = showR x
+  show (Incl x) = show'R x
   show Indi = "𝟙"
   show Addi = "(+)"
   show Mult = "(*)"
@@ -239,19 +242,20 @@ instance Show (General α) where
   show Les = "Lesbegue"
   show EqGen = "(≐)"
   show EqRl = "(≡)"
-  show (Utt i) = "U" ++ show i
-  show Utt' = "U"
+  show (Utt i) = "'U" ++ show i
+  show Utt' = "'U"
   show (Interp n) = "⟦⟧"
 
 data Special α where
-  Entity :: Int -> Special E
-  MeasureFun :: Int -> Special (E ⟶ R)
-  Property :: Int -> Special (E ⟶ T)
-  Degree :: Int -> Special R
-  GTE :: Special (R ⟶ R ⟶ T)
-  Empty :: Special Γ
-  Upd :: Special (E ⟶ Γ ⟶ Γ)
-  Sel :: Special (Γ ⟶ E)
+  Entity :: Int -> Special 'E
+  MeasureFun :: Int -> Special ('E ⟶ 'R)
+  Property :: Int -> Special ('E ⟶ 'T)
+  Relation :: Int -> Special ('E ⟶ 'E ⟶ 'T)
+  Degree :: Int -> Special 'R
+  GTE :: Special ('R ⟶ 'R ⟶ 'T)
+  Empty :: Special 'Γ
+  Upd :: Special ('E ⟶ 'Γ ⟶ 'Γ)
+  Sel :: Int -> Special ('Γ ⟶ 'E)
 
 pattern Vlad = Entity 1
 pattern Height = MeasureFun 1
@@ -270,7 +274,7 @@ instance Show (Special α) where
   show GTE = "(≥)"
   show Empty = "ε"
   show Upd = "(∷)"
-  show Sel = "sel"
+  show (Sel n) = "sel" ++ show n
 
 data Con α where
   Logical :: Logical α -> Con α
@@ -290,7 +294,7 @@ data γ ⊢ α where
   Lam :: (γ × α) ⊢ β -> γ ⊢ (α ⟶ β)
   Fst :: γ ⊢ (α × β) -> γ ⊢ α
   Snd :: γ ⊢ (α × β) -> γ ⊢ β
-  TT :: γ ⊢ 'Unit
+  TT :: γ ⊢ Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 
 infixl `App`
@@ -306,7 +310,7 @@ data Neutral γ α where
   NeuApp :: Neutral γ (α ⟶ β) -> NF γ α -> Neutral γ β
   NeuFst :: Neutral γ (α × β) -> Neutral γ α
   NeuSnd :: Neutral γ (α × β) -> Neutral γ β
-  NeuTT :: Neutral γ 'Unit
+  NeuTT :: Neutral γ Unit
 
 -- Terms in normal form.
 data NF γ α where
@@ -438,7 +442,7 @@ instance Show (γ ⊢ α) where
       -> "(" ++ m ++ " * " ++ n ++ ")"
     App (App (Con (General Divi)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " / " ++ n ++ ")"
-    App (App (Con (General EqGen)) (show -> m)) (show -> n)
+    App (Con (General EqGen)) (Pair (show -> m) (show -> n))
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
     App (App (Con (General EqRl)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
@@ -458,14 +462,14 @@ instance Show (γ ⊢ α) where
 displayDB :: γ ⊢ α -> IO ()
 displayDB t = putStrLn $ show t
 
-displayVs :: 'Unit ⊢ α -> IO ()
+displayVs :: Unit ⊢ α -> IO ()
 displayVs t = putStrLn $ replace "%" "/" $ displayVs' freshes (\case) t
 
 freshes :: [String]
 freshes = "" : map show ints >>= \i -> map (:i) ['x', 'y', 'z', 'u', 'v', 'w']
   where ints = 1 : map succ ints
 
-displayVs1 :: ('Unit × β)  ⊢ α -> String
+displayVs1 :: (Unit × β)  ⊢ α -> String
 displayVs1 t = case freshes of
   [] -> error "displayVs1: panic"
   f:fs -> displayVs' fs (\case Get -> f; Weaken _ -> "γ") t
@@ -491,7 +495,7 @@ displayVs' fs ρ t =
     -> "(" ++ m ++ " * " ++ n ++ ")"
   App (App (Con (General Divi)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " / " ++ n ++ ")"
-  App (App (Con (General EqGen)) (dd -> m)) (dd -> n)
+  App (Con (General EqGen)) (Pair (dd -> m) (dd -> n))
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
   App (App (Con (General EqRl)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
@@ -531,8 +535,8 @@ lft f = \case
 π Get κ = Snd κ
 π (Weaken i) κ = π i (Fst κ)
 
-type Context0 = Unit × (R ⟶ R ⟶ T) × R × (E ⟶ T) × (E ⟶ R) × E
-type Context1 = Unit × Γ × (E ⟶ Γ ⟶ Γ) × (Γ ⟶ E) × E × E
+type Context0 = Unit × ('R ⟶ 'R ⟶ 'T) × 'R × ('E ⟶ 'T) × ('E ⟶ 'R) × 'E
+type Context1 = Unit × ('Γ ⟶ 'E) × ('Γ ⟶ 'E) × ('E ⟶ 'E ⟶ 'T) × 'E × 'E
 
 data Nat where
   Zero :: Nat
@@ -588,7 +592,7 @@ exch :: ((γ × α) × β) ⊢ ω -> ((γ × β) × α) ⊢ ω
 exch = rename $ \case
   Get -> Weaken Get
   Weaken Get -> Get
-  (Weaken (Weaken i)) -> Weaken (Weaken i)
+  Weaken (Weaken i) -> Weaken (Weaken i)
 
 contr :: (γ × α × α) ⊢ β -> (γ × α) ⊢ β
 contr = rename $ \case
@@ -616,5 +620,5 @@ hmorph n (hmorph0 n -> m) = Lam m
 (⋆) :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ (α ⟶ ((β ⟶ 'R) ⟶ 'R)) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
 m ⋆ k = Lam (App (wkn m) (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
 
-(>>) :: γ ⊢ (('Unit ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
+(>>) :: γ ⊢ ((Unit ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
 m >> k = m ⋆ Lam (wkn k)
