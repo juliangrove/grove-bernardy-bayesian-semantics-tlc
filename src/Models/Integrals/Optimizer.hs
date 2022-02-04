@@ -169,13 +169,12 @@ cleanConds' cs e = if hasContradictionStrict (map negate cs) then zero else clea
 
 type a ∈ γ = Available a γ
 
+-- | Traversing with this returns free variables
 getVars :: x ∈ γ -> Const [SomeVar γ] (x ∈ γ)
 getVars v = Const  [SomeVar v]
 
-freeVars :: forall a γ t. Ord a => VarTraversable t => t γ a -> [SomeVar γ]
-freeVars e = getConst (varTraverse getVars e)
-
-
+-- | Return a list of conditions occuring, in the form of expressions
+-- whose sign is tested.
 discontinuities :: forall a γ. a ~ Rat => P γ a -> [Expr γ a]
 discontinuities  = \case
   Add a b -> discontinuities a <> discontinuities b
@@ -186,13 +185,16 @@ discontinuities  = \case
   Integrate (Domain los his) e -> mkEqs los <> mkEqs his <> catMaybes (fmap (A.traverseVars noHere) (discontinuities e))
     where mkEqs as = [a-b | a <- as, b <- as]
 
-splitDomainOn :: RatLike a => Domain γ Rat -> [Expr (γ, Rat) a] -> P (γ, Rat) a -> P γ a
-splitDomainOn d [] e = Integrate d e
-splitDomainOn d (f:fs) e = splitDomainOn d fs (Cond (isPositive f) e) + splitDomainOn d fs (Cond (isNegative f) e)
+-- | Make an explicit test on a condition. The underlying formula is:
+-- e = cond c e + cond (not c) e
+testCond :: RatLike a => Domain γ Rat -> [Expr (γ, Rat) a] -> P (γ, Rat) a -> P γ a
+testCond d [] e = Integrate d e
+testCond d (f:fs) e = testCond d fs (Cond (isPositive f) e) + testCond d fs (Cond (isNegative f) e)
 
+-- | Split domains of integration so that no condition remains
 splitDomains :: a ~ Rat => P γ a -> P γ a
 splitDomains = \case
-  Integrate d e -> splitDomainOn d fs e
+  Integrate d (splitDomains -> e) -> testCond d fs e
     where fs = filter ((SomeVar Here `elem`) . getConst . A.traverseVars getVars) (discontinuities e)
   Cond c e -> Cond c (splitDomains e)
   Add a b -> Add (splitDomains a) (splitDomains b) 
