@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -18,7 +20,6 @@ import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
 import TLC.Terms hiding ((>>), u, Con)
 import qualified Models.Field
 import Text.Pretty.Math
-import Data.Complex
 
 import Models.Integrals.Types
 
@@ -30,18 +31,18 @@ class ShowableContext γ where
   varsForCtx :: [String] -> Vars γ
   restOfVars :: [String] -> [String]
 
-instance ShowableContext () where
+instance ShowableContext 'Unit where
   varsForCtx _ = \case
   restOfVars = id
 
-instance ShowableContext γ => ShowableContext (γ,α) where
+instance ShowableContext γ => ShowableContext (γ × α) where
   varsForCtx [] = error "varsForCtx: panic: no more fresh variables"
   varsForCtx (f:fs) = \case
-    Here -> f
-    There x -> varsForCtx fs x
+    Get -> f
+    Weaken x -> varsForCtx fs x
   restOfVars = drop 1 . restOfVars @γ
 
-showProg :: forall γ a. Pretty a => ShowableContext γ => P γ a -> Doc
+showProg :: forall γ. ShowableContext γ => P γ -> Doc
 showProg = showP (restOfVars @γ freshes) (varsForCtx freshes)
 
 -- instance (Pretty a, ShowableContext γ) => Show (P γ a) where
@@ -49,42 +50,42 @@ showProg = showP (restOfVars @γ freshes) (varsForCtx freshes)
 
 class RatLike a => Pretty a where
   pretty :: a -> Doc
-instance (RealFloat a, RatLike a, Show a) => Pretty (Complex a) where
-  pretty (a :+ b) | b < 10e-15 = case show a of
-                      "1.0" -> one
-                      "0.0" -> zero
-                      "-1.0" -> negate one
-                      x -> text x
-                  | otherwise = text (show a ++ "+" ++ show b ++ "i")
+-- instance (RealFloat a, RatLike a, Show a) => Pretty (Complex a) where
+--   pretty (a :+ b) | b < 10e-15 = case show a of
+--                       "1.0" -> one
+--                       "0.0" -> zero
+--                       "-1.0" -> negate one
+--                       x -> text x
+--                   | otherwise = text (show a ++ "+" ++ show b ++ "i")
 
 instance Pretty Rat where
   pretty = Models.Field.eval
 
 type Vars γ  = forall v. Available v γ -> String
 
-(+!) :: String -> Vars γ -> Vars (γ, d)
-f +! v = \case Here -> f
-               There i -> v i
+(+!) :: String -> Vars γ -> Vars (γ × d)
+f +! v = \case Get -> f
+               Weaken i -> v i
 
 -- instance (RatLike a, Pretty a, ShowableContext γ) => Show (Expr γ a) where
 --   show e = showExpr (varsForCtx freshes) e Maxima
 
-showExpr :: DecidableZero a => Ord a => Pretty a => Vars γ -> Expr γ a -> Doc
+showExpr :: Vars γ -> Expr γ -> Doc
 showExpr v = A.eval pretty (text . v) 
 
-showElem :: Pretty a => Vars γ -> Elem γ a -> Doc
+showElem :: Vars γ -> Elem γ -> Doc
 showElem vs (Supremum m es) = showSupremum m [showPoly vs p | p <- es]
 showElem vs (Vari v) = text (vs v)
 showElem vs (CharFun e) = showCond' (IsNegative (showPoly vs e))
 
-showCoef :: forall γ a. Pretty a => Vars γ -> Coef γ a -> Doc
+showCoef :: forall γ. Vars γ -> Coef γ -> Doc
 showCoef v (Coef c) = LC.eval pretty (exp . showPoly v) c
 
-showPoly :: Pretty x => Vars γ -> Poly γ x -> Doc
+showPoly :: Vars γ -> Poly γ -> Doc
 showPoly v = eval (showCoef v) (showElem v)
 
-showDumb :: Pretty a => Vars γ -> Dumb (Poly γ a) -> Doc
-showDumb v = evalDumb (showPoly v)
+-- showDumb :: Pretty a => Vars γ -> Dumb (Poly γ) -> Doc
+-- showDumb v = evalDumb (showPoly v)
 
 -- instance (Pretty a, ShowableContext γ) => Show (Dumb (Poly γ a)) where
 --   show x = showDumb (varsForCtx freshes) x Mathematica
@@ -105,7 +106,7 @@ showCond' c0 = withStyle $ \st -> case c0 of
       LaTeX -> function "diracDelta" c'
       _ -> function "DiracDelta" c'
 
-showCond :: (Pretty α, RatLike α) => Vars γ -> Cond γ α -> Doc
+showCond :: Vars γ -> Cond γ -> Doc
 showCond v = showCond' . fmap (showExpr v)
 
 foldrMonoid :: (p -> p -> p) -> p -> [p] -> p
@@ -123,14 +124,14 @@ showSupremum dir xs =
           Max -> (\x y -> function' "max" [x,y])
   in foldrMonoid op ((case dir of Max -> negate; Min -> id) extremum) xs
       
-showBounds :: Vars γ -> Dir -> [Expr γ Rat] -> Doc
+showBounds :: Vars γ -> Dir -> [Expr γ] -> Doc
 showBounds v lo xs = showSupremum lo (map (showExpr v) xs)
 
 when :: Monoid p => [a] -> p -> p
 when [] _ = mempty
 when _ x = x
 
-showP :: Pretty a => [String] -> Vars γ -> P γ a -> Doc
+showP :: [String] -> Vars γ -> P γ -> Doc
 showP [] _ = error "showP: ran out of freshes"
 showP fs@(f:fsRest) v = \case
   Ret e -> showPoly v e
@@ -151,11 +152,11 @@ showP fs@(f:fsRest) v = \case
               [body, (if st == Mathematica then braces else id) dom]
   Cond c e -> showCond v c * showP fs v e
 
-mathematica :: Pretty a => ShowableContext γ => P γ a -> IO ()
+mathematica :: Pretty a => ShowableContext γ => P γ -> IO ()
 mathematica = putStrLn . render Mathematica . showProg  
 
-latex :: Pretty a => ShowableContext γ => P γ a -> IO ()
+latex :: Pretty a => ShowableContext γ => P γ -> IO ()
 latex = putStrLn . render LaTeX .showProg
 
-maxima :: Pretty a => ShowableContext γ => P γ a -> IO ()
+maxima :: Pretty a => ShowableContext γ => P γ -> IO ()
 maxima = putStrLn . render Maxima . showProg

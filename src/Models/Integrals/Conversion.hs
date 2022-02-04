@@ -17,24 +17,20 @@ import Models.Integrals.Types
 --------------------------------------------------------------------------------
 -- | Conversion from λ-terms
 
-type family Eval γ where
-  Eval 'R = Rat
-  Eval 'Unit = ()
-  Eval (γ × α) = (Eval γ, Eval α)
 
 pattern App2 :: Neutral γ (α3 ⟶ (α2 ⟶ α)) -> NF γ α3 -> NF γ α2 -> NF γ α
 pattern App2 f x y = Neu (NeuApp (NeuApp f x) y)
-pattern NNVar :: Available (Eval α) (Eval γ) -> NF γ α
-pattern NNVar i <- Neu (NeuVar (evalVar -> i))
+pattern NNVar :: Available (α) (γ) -> NF γ α
+pattern NNVar i <- Neu (NeuVar (i))
 pattern Equ :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Equ x y = App2 (NeuCon (General EqRl)) x y
-pattern EqVars :: Available Rat (Eval γ) -> Available Rat (Eval γ)  -> NF γ 'R
+pattern EqVars :: Available 'R (γ) -> Available 'R (γ)  -> NF γ 'R
 pattern EqVars i j <- Equ (NNVar i) (NNVar j)
 pattern Mults :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Mults x y = App2 (NeuCon (General Mult)) x y
 pattern Adds :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern Adds x y = App2 (NeuCon (General Addi)) x y
-pattern InEqVars :: Available Rat (Eval γ) -> Available Rat (Eval γ) -> NF γ 'R
+pattern InEqVars :: Available 'R (γ) -> Available 'R (γ) -> NF γ 'R
 pattern InEqVars i j <- InEq (NNVar i) (NNVar j)
 pattern InEq :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern InEq x y = Neu (NeuApp (NeuCon (General Indi))
@@ -59,13 +55,13 @@ pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
 pattern NNCon :: Field x => x -> NF γ 'R
 pattern NNCon x <- Neu (NeuCon (General (Incl (fromRational -> x))))
 
-retPoly :: RatLike a => Poly γ a -> P γ a
+retPoly :: Poly γ -> P γ
 retPoly = Ret 
 
-evalP :: NF 'Unit 'R -> P () Rat
+evalP :: NF 'Unit 'R -> P 'Unit
 evalP = evalP'
 
-evalP' :: NF γ 'R -> P (Eval γ) Rat
+evalP' :: NF γ 'R -> P (γ)
 evalP' = \case
   NNCon x -> retPoly $ constPoly (fromRational x)
   Neu (NeuApp (NeuCon (General Indi)) (Neu (NeuCon (Logical Tru)))) -> one
@@ -82,18 +78,18 @@ evalP' = \case
   Normal μ σ f -> Integrate full $ 
       (retPoly $ constPoly (1 / (σ * sqrt (2 * pi)))
        * exponential (constPoly (-1/2)
-                       * (constPoly (1/σ) * (constPoly μ - varPoly Here)) ^+ 2))
+                       * (constPoly (1/σ) * (constPoly μ - varPoly Get)) ^+ 2))
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Cauchy x0 γ f -> Integrate full $
     Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
     (retPoly $ (constPoly (pi * γ)
                  * (one + (constPoly (one/γ)
-                            * (varPoly Here - constPoly x0)) ^+2)))
+                            * (varPoly Get - constPoly x0)) ^+2)))
   Quartic μ σ f -> Integrate (Domain [A.constant (μ - a)]
                               [A.constant (μ + a)]) $
     (retPoly $ (constPoly ((15 / 16) / (a ^+ 5)))
-     * ((varPoly Here - constPoly μ) - constPoly a) ^+ 2
-     * ((varPoly Here - constPoly μ) + constPoly a) ^+ 2)
+     * ((varPoly Get - constPoly μ) - constPoly a) ^+ 2
+     * ((varPoly Get - constPoly μ) + constPoly a) ^+ 2)
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where a = sqrt 7 * σ
   Uniform x y f -> Integrate (Domain [A.constant x] [A.constant y]) $ 
@@ -105,8 +101,4 @@ evalP' = \case
   Divide x y -> Div (evalP' x) (evalP' y)
   t -> error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
 
-evalVar :: α ∈ γ -> Available (Eval α) (Eval γ)
-evalVar = \case
-  Get -> Here
-  Weaken (evalVar -> i) -> There i
 

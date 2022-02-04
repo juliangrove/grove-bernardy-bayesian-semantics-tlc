@@ -1,3 +1,7 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -9,7 +13,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
-module Models.Integrals.Types where
+module Models.Integrals.Types (module Models.Integrals.Types, module TLC.Terms) where
 
 -- import Data.Ratio
 import Algebra.Classes
@@ -22,7 +26,7 @@ import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
 import Models.Field (Fld(..))
 import Data.Complex
-
+import TLC.Terms (type (∈)(..), Type(..), type(×), type(⟶))
 
 --------------------------------------------------------------------------------
 -- | Types
@@ -35,65 +39,65 @@ type RatLike α = (Ring α, Ord α, DecidableZero α, Transcendental α)
 
 -- Map of exp(poly) to its coefficient.
 -- (A "regular" coefficient)
-newtype Coef γ α = Coef (LinComb (Poly γ α) α)
+newtype Coef γ = Coef (LinComb (Poly γ) Rat)
   deriving (Eq, Ord, Additive, Group, Show)
-instance RatLike a => DecidableZero (Coef g a) where
+instance DecidableZero (Coef g) where
   isZero (Coef c) = isZero c
-instance RatLike a => Multiplicative (Coef g a) where
+instance Multiplicative (Coef g) where
   one = Coef (LC.var zero)
   Coef p * Coef q = Coef (LC.fromList [ (m1 + m2, coef1 * coef2)
                                       | (m1, coef1) <- LC.toList p
                                       , (m2, coef2) <- LC.toList q ])
-instance RatLike a => Scalable (Coef g a) (Coef g a) where
+instance Scalable (Coef g) (Coef g) where
   (*^) = (*)
-instance RatLike a => AbelianAdditive (Coef g a) 
-instance RatLike a => Ring (Coef g a)
+instance AbelianAdditive (Coef g) 
+instance Ring (Coef g)
   
 data Dir = Min | Max deriving (Eq,Ord,Show)
-data Available α γ where
-  Here :: Available α (γ, α)
-  There :: Available α γ -> Available α (γ, β)
-deriving instance Eq (Available α γ)
+type Available α γ = α ∈ γ
+type Var γ = 'R ∈ γ
+-- deriving instance Eq (Available α γ)
 deriving instance Ord (Available α γ)
-deriving instance Show (Available α γ)
-type Expr γ α = A.Affine (Available α γ) α
-data Elem γ α = Vari (Available α γ) | Supremum Dir [Poly γ α] | CharFun (Poly γ α)
+-- deriving instance Show (Available α γ)
+type Expr γ = A.Affine (Available 'R γ) Rat
+data Elem γ = Vari (Available 'R γ) | Supremum Dir [Poly γ] | CharFun (Poly γ)
   deriving (Eq, Ord, Show)
-type Poly γ a = Polynomial (Elem γ a) (Coef γ a)
-type Mono γ a = Monomial (Elem γ a)
+type Poly γ = Polynomial (Elem γ) (Coef γ)
+type Mono γ a = Monomial (Elem γ)
 data Dumb a = a :/ a deriving Show
-type DD γ a = Dumb (Poly γ a)
+type DD γ a = Dumb (Poly γ)
 type Ret γ a = DD γ a 
 
-type Cond γ a = Cond' (Expr γ a)
+type Cond γ = Cond' (Expr γ)
 data Cond' e = IsNegative { condExpr :: e }
               -- Meaning of this constructor: expression ≤ 0
               | IsZero { condExpr :: e }
               -- Meaning of this constructor: expression = 0
    deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data Domain γ α = Domain { domainLoBounds, domainHiBounds :: [Expr γ α] }
+data Domain γ = Domain { domainLoBounds, domainHiBounds :: [Expr γ] }
   deriving Show
 
-data P γ α where
-  Integrate :: d ~ Rat => Domain γ d -> P (γ, d) α -> P γ α
-  Cond :: (DecidableZero a, Ord a, Ring a) => Cond γ a -> P γ a -> P γ a
-  Add :: P γ α -> P γ α -> P γ α
-  Div :: P γ α -> P γ α -> P γ α
+data P γ where
+  Integrate :: Domain γ -> P (γ × 'R) -> P γ
+  Cond :: Cond γ -> P γ -> P γ
+  Add :: P γ -> P γ -> P γ
+  Div :: P γ -> P γ -> P γ
   -- Can Div be replaced by "factor"? No, because we do integration in
   -- these factors as well.
-  Ret :: Poly γ α -> P γ α
+  Ret :: Poly γ -> P γ
+
 
 lift' :: Applicative f
   => (forall v. Available v γ -> f (Available v δ))
-  -> (forall v. Available v (γ, α) -> f (Available v (δ, α)))
-lift' _ (Here) = pure Here
-lift' f (There x) = There <$> (f x)
+  -> (forall v. Available v (γ × α) -> f (Available v (δ × α)))
+lift' _ (Get) = pure Get
+lift' f (Weaken x) = Weaken <$> (f x)
 
 class VarTraversable t where
-  varTraverse :: (Ord a, Applicative f)
+  varTraverse :: (Applicative f)
     => (forall x. Available x γ -> f (Available x δ))
-    -> t γ a -> f (t δ a)
+    -> t γ -> f (t δ)
 
 instance VarTraversable Domain where
  varTraverse f (Domain los his)
@@ -106,9 +110,9 @@ instance VarTraversable Elem where
     CharFun c -> CharFun <$> (traversePoly f) c
     Supremum d es -> Supremum d <$> traverse (traversePoly f) es
 
-traversePoly :: forall a f γ δ. (Ord a, Applicative f)
+traversePoly :: forall f γ δ. (Applicative f)
              => (forall x. Available x γ -> f (Available x δ))
-             -> Poly γ a -> f (Poly δ a)
+             -> Poly γ -> f (Poly δ)
 traversePoly f = bitraverse (varTraverse f) (varTraverse f)
 
 instance VarTraversable Coef where
@@ -124,7 +128,7 @@ instance VarTraversable P where
     Ret x -> Ret <$> traversePoly f x
 
 
-deriving instance (RatLike α, Show α) => Show (P γ α)
+deriving instance Show (P γ)
 
 infixl 7 :/
 instance (Ring a,DecidableZero a) => DecidableZero (Dumb a) where
@@ -154,44 +158,44 @@ evalDumb f (x :/ y) = f x / f y
 -- | Smart constructors
 
 
-conds_ :: RatLike a => [Cond γ a] -> P γ a -> P γ a
+conds_ :: [Cond γ] -> P γ -> P γ
 conds_ cs e = foldr Cond e cs
 
-isConstantCoef :: RatLike α => Coef γ α -> Maybe α
+isConstantCoef :: Coef γ -> Maybe Rat
 isConstantCoef (Coef l) = case LC.toList l of
   [(v,x)] | v == zero -> Just x
   _ -> Nothing
 
-isConstPoly :: RatLike α => Poly γ α -> Maybe α
+isConstPoly :: Poly γ -> Maybe Rat
 isConstPoly es = case isConstant es of
   Nothing -> Nothing
   Just coef -> isConstantCoef coef
 
   
-isPositive,isNegative :: RatLike a => Expr γ a -> Cond γ a
+isPositive,isNegative :: Expr γ -> Cond γ
 isPositive e = isNegative (negate e)
 isNegative e = IsNegative e
 
 
 -- Domain without restriction
-full :: Domain γ x
+full :: Domain γ
 full = Domain [] []
 
-lessThan, greaterThan :: RatLike a => Expr γ a -> Expr γ a -> Cond γ a
+lessThan, greaterThan :: Expr γ -> Expr γ -> Cond γ
 t `lessThan` u = isNegative (t - u)
 t `greaterThan` u = u `lessThan` t
 
-exponential :: RatLike α => Poly γ α -> Poly γ α
+exponential :: Poly γ -> Poly γ
 exponential p = case isConstPoly p of
   Just c -> constPoly (exp c)
   Nothing -> Coef (LC.var p) *^ one
 
-charfun :: RatLike α => Poly γ α -> Poly γ α
+charfun :: Poly γ -> Poly γ
 charfun e = case isConstPoly e of
   Nothing -> varP (CharFun e)
   Just x -> if x <= zero then one else zero
 
-supremum :: RatLike α => Dir -> [Poly γ α] -> Poly γ α
+supremum :: Dir -> [Poly γ] -> Poly γ
 supremum _ [e] = e
 supremum dir es = case traverse isConstPoly es of
                   Just cs | not (null es) ->
@@ -201,30 +205,27 @@ supremum dir es = case traverse isConstPoly es of
                                  cs)
                   _ -> varP (Supremum dir es)
 
-constCoef :: forall γ a. RatLike a => a -> Coef γ a
+constCoef :: forall γ. Rat -> Coef γ
 constCoef x = Coef (x *^ LC.var zero) -- x * Exp 0
 
-constPoly :: RatLike a => a -> Poly γ a
+constPoly :: Rat -> Poly γ
 constPoly = Multi.constPoly . constCoef
 
-varPoly :: RatLike α => Available α γ -> Poly γ α
+varPoly :: Var γ -> Poly γ
 varPoly = varP . Vari
 
-mkSuprema :: RatLike α => Domain γ α -> (Poly γ α, Poly γ α)
+mkSuprema :: Domain γ -> (Poly γ, Poly γ)
 mkSuprema (Domain los his) = (supremum Max $ map exprToPoly los,
                                  supremum Min $ map exprToPoly his)
 
 
-exprToPoly :: RatLike α => Expr γ α -> Poly γ α
+exprToPoly :: Expr γ -> Poly γ
 exprToPoly = A.eval constPoly  (monoPoly .  varM . Vari) 
 
 ----------------------------
 -- Instances
 
-instance Scalable C (Poly γ C) where
-  x *^ p = constCoef @γ x *^ p
-
-instance RatLike α => Multiplicative (P γ α) where
+instance Multiplicative (P γ) where
   one = Ret one
   (Integrate d p1) * p2 = Integrate d $ p1 * wkP p2
   p2 * (Integrate d p1) = Integrate d $ p1 * wkP p2
@@ -237,18 +238,18 @@ instance RatLike α => Multiplicative (P γ α) where
   -- (Div p1 p1') * (Div p2 p2') = Div ((*) p1 p1') ((*) p2 p2') -- no need to regroup normalisation factors
   Ret e1 * Ret e2 = Ret (e1 * e2)
 
-instance RatLike a => AbelianAdditive (P γ a)
-instance RatLike a => Group (P γ a) where
+instance AbelianAdditive (P γ)
+instance Group (P γ) where
   negate = (* (Ret (negate one)))
-instance RatLike a => Scalable (Poly γ a) (P γ a) where
+instance Scalable (Poly γ) (P γ) where
   p *^ q = Ret p * q
-instance RatLike a => Additive (P γ a) where
+instance Additive (P γ) where
   zero = Ret zero
   (Ret z) + x | isZero z = x
   x + (Ret z) | isZero z = x
   x + y = Add x y
 
-instance RatLike a => Division (P γ a) where
+instance Division (P γ) where
   (Ret z) / _ | isZero z = Ret $ zero
   (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrators in the denominator
   p1 / p2 = Div p1 p2
@@ -257,55 +258,51 @@ instance RatLike a => Division (P γ a) where
 -----------------------------------------------------
 -- | Normalising substitutions of variables to polys
 
-evalCoef :: forall α β γ δ ζ. RatLike β => RatLike α
-         => (Available α γ -> Available β δ)
-         -> (α -> β) -> SubstP δ ζ -> Coef γ α -> Poly ζ β
-evalCoef v fc f (Coef c)
-  = LC.eval (constCoef @ζ . fc) (exponential . evalPoly v fc f) c
+evalCoef :: forall γ δ ζ.
+           (Var γ -> Var δ)
+         -> SubstP δ ζ -> Coef γ -> Poly ζ
+evalCoef v f (Coef c)
+  = LC.eval (constCoef @ζ) (exponential . evalPoly v f) c
 
-evalPoly :: forall α β γ δ ζ. RatLike β => RatLike α
-         => (Available α γ -> Available β δ)
-         -> (α -> β) -> SubstP δ ζ -> Poly γ α -> Poly ζ β
-evalPoly v fc f = eval (evalCoef v fc f) (evalElem v fc f) 
+evalPoly :: forall γ δ ζ. (Var γ -> Var δ)
+         -> SubstP δ ζ -> Poly γ -> Poly ζ
+evalPoly v f = eval (evalCoef v f) (evalElem v f) 
 
-evalElem :: forall α β γ δ ζ. RatLike β => RatLike α
-         => (Available α γ -> Available β δ)
-         -> (α -> β) -> SubstP δ ζ -> Elem γ α -> Poly ζ β
-evalElem v fc f =
-  let evP :: Poly γ α -> Poly ζ β
-      evP = evalPoly v fc f
+evalElem :: forall γ δ ζ. (Var γ -> Var δ)
+         -> SubstP δ ζ -> Elem γ -> Poly ζ
+evalElem v f =
+  let evP :: Poly γ -> Poly ζ
+      evP = evalPoly v f
   in \case Supremum dir es -> supremum dir (evP <$> es)
            Vari x -> f (v x)
            CharFun x -> charfun (evP x)
 
-type SubstP γ δ = forall α. RatLike α => Available α γ -> Poly δ α
+type SubstP γ δ = Var γ -> Poly δ
 
-substPoly :: RatLike α => SubstP γ δ -> Poly γ α -> Poly δ α
-substPoly f = evalPoly id id f
-
+substPoly :: SubstP γ δ -> Poly γ -> Poly δ
+substPoly f = evalPoly id f
 ----------------------------------------------------------------
 -- Normalising substitutions of variables to affine expressions
 
-type SubstE γ δ = forall α. Ring α => Available α γ -> Expr δ α
+type SubstE γ δ = Var γ -> Expr δ
 
-wkSubst :: Ring α => SubstE γ δ -> SubstE (γ, α) (δ, α)
+wkSubst :: SubstE γ δ -> SubstE (γ × α) (δ × α)
 wkSubst f = \case
-  Here -> A.var Here 
-  There x -> A.mapVars There (f x)
+  Get -> A.var Get 
+  Weaken x -> A.mapVars Weaken (f x)
 
-substExpr :: (DecidableZero α, Ring α) => SubstE γ δ ->  Expr γ α -> Expr δ α
+substExpr :: SubstE γ δ ->  Expr γ -> Expr δ
 substExpr = A.subst
 
-substCond :: DecidableZero α => Ring α => SubstE γ δ -> Cond γ α -> Cond δ α
+substCond :: SubstE γ δ -> Cond γ -> Cond δ
 substCond f = fmap (substExpr f)
 
-substDomain :: (DecidableZero α, Ring α)
-            => SubstE γ δ -> Domain γ α -> Domain δ α
+substDomain :: SubstE γ δ -> Domain γ -> Domain δ
 substDomain f (Domain lo hi) = Domain
                                  (substExpr f <$> lo)
                                  (substExpr f <$> hi)
 
-substP :: RatLike x => SubstE γ δ -> P γ x -> P δ x
+substP :: SubstE γ δ -> P γ -> P δ
 substP f p0 = case p0 of
   Ret e -> Ret (substPoly (exprToPoly . f) e)
   Add p1 p2 -> substP f p1 + substP f p2
@@ -313,23 +310,23 @@ substP f p0 = case p0 of
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p) -- integrations are never simplified by substitution
 
-wkExpr :: RatLike α => Expr γ α -> Expr (γ, β) α
-wkExpr = substExpr (A.var . There) 
+wkExpr :: Expr γ -> Expr (γ × β)
+wkExpr = substExpr (A.var . Weaken) 
 
-wkP :: DecidableZero x => Transcendental x => Ord x => P γ x -> P (γ, α) x
-wkP = substP $ \i -> A.var (There i) 
+wkP :: P γ -> P (γ × α)
+wkP = substP $ \i -> A.var (Weaken i) 
 
 
-deepest :: Cond γ α -> SomeVar γ
+deepest :: Cond γ -> SomeVar γ
 deepest c = case condExpr c of
    (A.Affine _ e) -> case LC.toList e of
      xs@(_:_) -> foldr1 minVar . map SomeVar . map fst $ xs
      [] -> NoVar
 
 shallower :: SomeVar γ -> SomeVar γ -> Bool
-SomeVar Here `shallower` _ = False
-SomeVar (There _) `shallower` SomeVar Here = True
-SomeVar (There x) `shallower` SomeVar (There y)
+SomeVar Get `shallower` _ = False
+SomeVar (Weaken _) `shallower` SomeVar Get = True
+SomeVar (Weaken x) `shallower` SomeVar (Weaken y)
   = SomeVar x `shallower` SomeVar y
 NoVar `shallower` (SomeVar _) = True
 (SomeVar _) `shallower` NoVar = True
@@ -339,17 +336,17 @@ data SomeVar γ where
   SomeVar :: Available v γ -> SomeVar γ
   NoVar :: SomeVar γ
 instance Eq (SomeVar γ) where
-  SomeVar Here == SomeVar Here = True
-  SomeVar (There x) == SomeVar (There y) = SomeVar x == SomeVar y
+  SomeVar Get == SomeVar Get = True
+  SomeVar (Weaken x) == SomeVar (Weaken y) = SomeVar x == SomeVar y
   NoVar == NoVar = True
   _ == _ = False
 
 minVar :: SomeVar γ -> SomeVar γ -> SomeVar γ
-minVar (SomeVar Here) _ = SomeVar Here
-minVar _ (SomeVar Here)  = SomeVar Here 
-minVar (SomeVar (There x)) (SomeVar (There y))
+minVar (SomeVar Get) _ = SomeVar Get
+minVar _ (SomeVar Get)  = SomeVar Get 
+minVar (SomeVar (Weaken x)) (SomeVar (Weaken y))
   = case minVar (SomeVar x) (SomeVar y) of
-      SomeVar z -> SomeVar (There z)
+      SomeVar z -> SomeVar (Weaken z)
       _ -> error "minVar: panic"
 minVar NoVar y = y
 minVar x NoVar = x
