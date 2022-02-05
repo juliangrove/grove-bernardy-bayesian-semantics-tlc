@@ -43,13 +43,6 @@ infixr :->
 (≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ 'R
 m ≐ n = App (Con (General EqGen)) (Pair m n)
 
-pattern One = NCon (General (Incl 1))
-instance Multiplicative (NF g 'R) where
-  one = One
-  One * x = x
-  x * One = x
-  x * y = Neu (NeuCon (General Mult) `NeuApp` x `NeuApp` y)
-
 noOccur :: (α ∈ (γ × x)) -> Maybe (α ∈ γ)
 noOccur = \case
   Get -> Nothing
@@ -106,7 +99,10 @@ instance Equality ('Γ ⟶ 'E) where
     case i == j of
       True -> one
       False -> NCon (General (Incl 0))
-
+  equals (NCon (General (Pi i))) (NCon (General (Pi j))) =
+    case i == j of
+      True -> one
+      False -> NCon (General (Incl 0))
 
 
 u :: Int -> γ ⊢ 'U
@@ -115,8 +111,8 @@ u i = Con $ General $ Utt i
 u' :: γ ⊢ 'R -> γ ⊢ 'U
 u' = App $ Con $ General Utt'
 
-u'' :: [Maybe (Special 'E)] -> γ ⊢ 'U
-u'' as = Con $ General $ Utt'' as
+u'' :: [Maybe (Special 'E)] -> NF γ 'U
+u'' as = Neu $ NeuCon $ General $ Utt'' as
 
 vlad = Con $ Special Vlad
 height = Con $ Special Height
@@ -235,14 +231,25 @@ data General α where
 instance Additive (γ ⊢ 'R) where
   zero = Con (General (Incl 0))
   x + y  = Con (General Addi) `App` x `App` y
+instance Additive (NF γ 'R) where
+  zero = normalForm zero
+  x + y = normalForm (nf_to_λ x + nf_to_λ y)
 instance AbelianAdditive (γ ⊢ 'R)
+instance AbelianAdditive (NF γ 'R)
 instance Group (γ ⊢ 'R) where
   negate = App (App (Con (General Mult)) (Con (General (Incl (-1)))))
+instance Group (NF γ 'R) where
+  negate = normalForm . negate . nf_to_λ
 instance Multiplicative (γ ⊢ 'R) where
   one = Con (General (Incl 1))
   x * y  = Con (General Mult) `App` x `App` y
+instance Multiplicative (NF γ 'R) where
+  one = normalForm one
+  x * y = normalForm (nf_to_λ x * nf_to_λ y)
 instance Division (γ ⊢ 'R) where
   x / y  = Con (General Divi) `App` x `App` y
+instance Division (NF γ 'R) where
+  x / y = normalForm (nf_to_λ x Algebra.Classes./ nf_to_λ y)
 
 instance Show (General α) where
   show (Incl x) = showR x
@@ -263,6 +270,7 @@ instance Show (General α) where
   show Empty = "ε"
   show Upd = "(∷)"
   show (Pi n) = "π" ++ show n
+  show MakeUtts = "MakeUtts"
 
 data Special α where
   Entity :: Int -> Special 'E
@@ -387,11 +395,11 @@ apply t u = case t of
     NFLam m' -> substNF0 m' u -- β rule
     Neu m' -> case m' of      -- δ rules
       (NeuCon (General (Pi i))) -> listFromContext u !! i
-      (NeuCon (General MakeUtts)) ->
-        case u of
-          NFPair k (Neu (NeuCon u'')) ->
-            normalForm $ makeUtts' (nf_to_λ k) (Con u'')
-          _ -> deflt
+      -- (NeuCon (General MakeUtts)) ->
+        -- case u of
+          -- NFPair k (Neu (NeuCon u'')) | checkk k
+                                        -- -> makeUtts' k (Neu (NeuCon u''))
+          -- _ -> deflt
       (NeuCon (General EqGen)) -> equals (fst' u) (snd' u)
       (NeuCon (General (Interp i))) -> case nf_to_λ u of
          (Con (General (Utt 1))) -> morph $ App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
@@ -418,12 +426,19 @@ apply t u = case t of
               App (App (Con (General Upd)) x) c
                 -> normalForm x : listFromContext (normalForm c)
 
-toFinite :: [γ ⊢ α] -> γ ⊢ ((α ⟶ 'R) ⟶ 'R)
-toFinite [] = Lam zero
-toFinite (t:ts) = Lam $ (App (Var Get) (wkn t)) +
-                  App (toFinite $ map wkn ts) (Var Get)
+toFinite :: [NF γ α] -> NF γ ((α ⟶ 'R) ⟶ 'R)
+toFinite [] = NFLam $ normalForm zero
+toFinite (t:ts) = NFLam $ (Neu $ NeuApp (NeuVar Get) (wknNF t)) +
+                  case toFinite (map wknNF ts) of
+                    NFLam m -> substNF0 m (Neu (NeuVar Get))
+                    Neu m -> Neu $ NeuApp m (Neu (NeuVar Get))
 
-makeUtts :: [Special 'E] -> General 'U -> γ ⊢ (('U ⟶ 'R) ⟶ 'R)
+checkk :: NF γ Context1 -> Bool
+checkk = \case
+  NFPair (NFPair _ (Neu _)) (Neu _) -> True
+  _ -> False
+
+makeUtts :: [Special 'E] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts [e0, e1] = \case
   Utt'' [Nothing, Nothing] -> toFinite [ u'' [Just e0', Just e1']
                                        | e0' <- [e0, e1], e1' <- [e0, e1] ]
@@ -431,12 +446,12 @@ makeUtts [e0, e1] = \case
                                         | e1' <- [e0, e1] ]
   Utt'' [Nothing, Just e1'] -> toFinite [ u'' [Just e0', Just e1']
                                         | e0' <- [e0, e1] ]
-  u@(Utt'' [Just e0', Just e1']) -> η $ Con $ General u
+  u@(Utt'' [Just e0', Just e1']) -> normalForm $ η $ Con $ General u
 
-makeUtts' :: γ ⊢ Context1 -> γ ⊢ 'U -> γ ⊢ (('U ⟶ 'R) ⟶ 'R)
-makeUtts' k u = let Con (Special e0) = π Get k
-                    Con (Special e1) = π (Weaken Get) k
-                    Con (General u') = u
+makeUtts' :: NF γ Context1 -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
+makeUtts' k u = let Con (Special e0) = π Get (nf_to_λ k)
+                    Con (Special e1) = π (Weaken Get) (nf_to_λ k)
+                    Con (General u') = nf_to_λ u
                 in makeUtts [e0, e1] u'
 
 normalForm :: γ ⊢ α -> NF γ α
