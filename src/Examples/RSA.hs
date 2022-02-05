@@ -27,28 +27,26 @@ utts'' = uniform (68-5) (68+5) ⋆ Lam (η (u' (Var Get)))
 k :: γ ⊢ ((Context0 ⟶ 'R) ⟶ 'R)
 k = uniform 0 1
     ⋆ Lam (normal 68 3
-            ⋆ Lam
+           ⋆ Lam
            (observe' ((≥) `App` Var Get `App`  (Con (General (Incl (68 - 10))))) >>
            (observe' ((≥) `App` (Con (General (Incl (68 + 10)))) `App`  Var Get) >>
             (η (Pair
+                (Pair
                  (Pair
                   (Pair
-                   (Pair
-                    (Pair TT (≥))
-                    (Var (Weaken Get)))
-                   human)
-                  (Lam (Var (Weaken Get))))
-                 vlad)))))
+                   (Pair TT (≥))
+                   (Var (Weaken Get)))
+                  human)
+                 (Lam (Var (Weaken Get))))
+                vlad)))))
 
 makeUtts :: [γ ⊢ 'U] -> γ ⊢ (('U ⟶ 'R) ⟶ 'R)
 makeUtts us = Lam $ foldr1 addi $ map (App (Var Get) . wkn) us
   where addi :: γ ⊢ 'R -> γ ⊢ 'R -> γ ⊢ 'R
         addi x y = (Con $ General Addi) `App` x `App` y
 
-
 utts123 :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
 utts123 = makeUtts [u 1, u 2, u 3]
-
 
 updctx :: γ ⊢ Context0 -> γ ⊢ ('R ⟶ Context0)
 updctx kk = Lam (Pair

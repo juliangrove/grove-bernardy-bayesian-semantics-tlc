@@ -92,12 +92,15 @@ instance Equality ('E ⟶ 'R) where
 instance Equality ('E ⟶ 'T) where
   equals (NCon (Special (Property m))) (NCon (Special (Property n))) =
     NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
+instance Equality ('E ⟶ 'E ⟶ 'T) where
+  equals (NCon (Special (Relation m))) (NCon (Special (Relation n))) =
+    NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
 instance Equality ('R ⟶ 'R ⟶ 'T) where
   equals (NCon (Special GTE)) (NCon (Special GTE)) = one 
 instance Equality 'Γ where
-  equals (NCon (Special Empty)) (NCon (Special Empty)) = one
+  equals (NCon (General Empty)) (NCon (General Empty)) = one
 instance Equality ('E ⟶ 'Γ ⟶ 'Γ) where
-  equals (NCon (Special Upd)) (NCon (Special Upd)) = one
+  equals (NCon (General Upd)) (NCon (General Upd)) = one
 instance Equality ('Γ ⟶ 'E) where
   equals (NCon (Special (Sel i))) (NCon (Special (Sel j))) =
     case i == j of
@@ -112,14 +115,20 @@ u i = Con $ General $ Utt i
 u' :: γ ⊢ 'R -> γ ⊢ 'U
 u' = App $ Con $ General Utt'
 
+u'' :: [Maybe (Special 'E)] -> γ ⊢ 'U
+u'' as = Con $ General $ Utt'' as
+
 vlad = Con $ Special Vlad
 height = Con $ Special Height
 human = Con $ Special Human
+rel n = Con $ Special $ Relation n
 θ = Con $ Special Theta
 (≥) = Con $ Special GTE
-emp = Con $ Special Empty
-upd = Con $ Special Upd
+emp = Con $ General Empty
+upd = Con $ General Upd
+upd' x c = App (App upd x) c
 sel n = Con $ Special $ Sel n
+sel' n c = App (sel n) c
 
 (/\) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
 p /\ q = App (App (Con (Logical And)) p) q
@@ -165,8 +174,8 @@ reduce1s m = if can'Reduce m then reduce1s (reduce1step m) else m
 clean :: γ ⊢ α -> γ ⊢ α
 clean = reduce1s . evalβ 
 
-show'R :: Rational -> String
-show'R (\x -> (numerator x, denominator x) -> (num, den))
+showR :: Rational -> String
+showR (\x -> (numerator x, denominator x) -> (num, den))
   = case (num, den) of
       (0, _) -> "0"
       (_, 1) -> show num
@@ -211,12 +220,17 @@ data General α where
   EqRl :: General ('R ⟶ 'R ⟶ 'R)
   Utt :: Int -> General 'U
   Utt' :: General ('R ⟶ 'U)
+  Utt'' :: [Maybe (Special 'E)] -> General 'U
+  MakeUtts :: General ((Context1 × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
   Cau :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Les :: General (('R ⟶ 'R) ⟶ 'R)
   Nml :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Qua :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Uni :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Interp :: Witness n -> General ('U ⟶ Context n ⟶ 'T)
+  Empty :: General 'Γ
+  Upd :: General ('E ⟶ 'Γ ⟶ 'Γ)
+  Pi :: Int -> General ('Γ ⟶ 'E)
 
 instance Additive (γ ⊢ 'R) where
   zero = Con (General (Incl 0))
@@ -231,7 +245,7 @@ instance Division (γ ⊢ 'R) where
   x / y  = Con (General Divi) `App` x `App` y
 
 instance Show (General α) where
-  show (Incl x) = show'R x
+  show (Incl x) = showR x
   show Indi = "𝟙"
   show Addi = "(+)"
   show Mult = "(*)"
@@ -244,7 +258,11 @@ instance Show (General α) where
   show EqRl = "(≡)"
   show (Utt i) = "'U" ++ show i
   show Utt' = "'U"
+  show (Utt'' as) = "U" ++ show as
   show (Interp n) = "⟦⟧"
+  show Empty = "ε"
+  show Upd = "(∷)"
+  show (Pi n) = "π" ++ show n
 
 data Special α where
   Entity :: Int -> Special 'E
@@ -253,8 +271,6 @@ data Special α where
   Relation :: Int -> Special ('E ⟶ 'E ⟶ 'T)
   Degree :: Int -> Special 'R
   GTE :: Special ('R ⟶ 'R ⟶ 'T)
-  Empty :: Special 'Γ
-  Upd :: Special ('E ⟶ 'Γ ⟶ 'Γ)
   Sel :: Int -> Special ('Γ ⟶ 'E)
 
 pattern Vlad = Entity 1
@@ -269,11 +285,10 @@ instance Show (Special α) where
   show (MeasureFun n) = "measurefun" ++ show n
   show Human = "human"
   show (Property n) = "property" ++ show n
+  show (Relation n) = "relation" ++ show n
   show Theta = "θ"
   show (Degree n) = "degree" ++ show n
   show GTE = "(≥)"
-  show Empty = "ε"
-  show Upd = "(∷)"
   show (Sel n) = "sel" ++ show n
 
 data Con α where
@@ -367,21 +382,62 @@ substNF0 m t = substNF m $ \case
   Get -> t
   (Weaken i) -> Neu $ NeuVar i
 
-
 apply :: NF γ (α1 ⟶ α2) -> NF γ α1 -> NF γ α2
 apply t u = case t of
-    NFLam m' -> substNF0 m' u
-    Neu m' -> case m' of
+    NFLam m' -> substNF0 m' u -- β rule
+    Neu m' -> case m' of      -- δ rules
+      (NeuCon (General (Pi i))) -> listFromContext u !! i
+      (NeuCon (General MakeUtts)) ->
+        case u of
+          NFPair k (Neu (NeuCon u'')) ->
+            normalForm $ makeUtts' (nf_to_λ k) (Con u'')
+          _ -> deflt
       (NeuCon (General EqGen)) -> equals (fst' u) (snd' u)
-      (NeuCon (General (Interp i))) -> case (nf_to_λ u) of
+      (NeuCon (General (Interp i))) -> case nf_to_λ u of
          (Con (General (Utt 1))) -> morph $ App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
          (Con (General (Utt 2))) -> morph $ App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
          (Con (General (Utt 3))) -> morph $ Con $ Logical Tru -- silence
-         (App (Con (General Utt')) x) -> morph $ App (App (≥) (App height vlad)) x
+         (App (Con (General Utt')) x) ->
+           morph $ App (App (≥) (App height vlad)) x
+         (Con (General (Utt'' [Nothing, Nothing])))
+           -> morph $ App (App (rel 0) (sel' 0 ctx)) (sel' 1 ctx)
+         (Con (General (Utt'' [Just e0, Nothing]))) ->
+           morph $ App (App (rel 0) (Con $ Special e0)) (sel' 1 ctx)
+         (Con (General (Utt'' [Nothing, Just e1]))) ->
+           morph $ App (App (rel 0) (sel' 0 ctx)) (Con $ Special e1)
+         (Con (General (Utt'' [Just e0, Just e1]))) ->
+           morph $ App (App (rel 0) (Con $ Special e0)) (Con $ Special e1)
          _ -> deflt
          where morph = normalForm . hmorph i
+               ctx = upd' vlad (upd' vlad emp) 
       _ -> deflt
       where deflt = Neu (NeuApp m' u)
+            listFromContext :: NF γ 'Γ -> [NF γ 'E]
+            listFromContext u = case nf_to_λ u of
+              Con (General Empty) -> []
+              App (App (Con (General Upd)) x) c
+                -> normalForm x : listFromContext (normalForm c)
+
+toFinite :: [γ ⊢ α] -> γ ⊢ ((α ⟶ 'R) ⟶ 'R)
+toFinite [] = Lam zero
+toFinite (t:ts) = Lam $ (App (Var Get) (wkn t)) +
+                  App (toFinite $ map wkn ts) (Var Get)
+
+makeUtts :: [Special 'E] -> General 'U -> γ ⊢ (('U ⟶ 'R) ⟶ 'R)
+makeUtts [e0, e1] = \case
+  Utt'' [Nothing, Nothing] -> toFinite [ u'' [Just e0', Just e1']
+                                       | e0' <- [e0, e1], e1' <- [e0, e1] ]
+  Utt'' [Just e0', Nothing] -> toFinite [ u'' [Just e0', Just e1']
+                                        | e1' <- [e0, e1] ]
+  Utt'' [Nothing, Just e1'] -> toFinite [ u'' [Just e0', Just e1']
+                                        | e0' <- [e0, e1] ]
+  u@(Utt'' [Just e0', Just e1']) -> η $ Con $ General u
+
+makeUtts' :: γ ⊢ Context1 -> γ ⊢ 'U -> γ ⊢ (('U ⟶ 'R) ⟶ 'R)
+makeUtts' k u = let Con (Special e0) = π Get k
+                    Con (Special e1) = π (Weaken Get) k
+                    Con (General u') = u
+                in makeUtts [e0, e1] u'
 
 normalForm :: γ ⊢ α -> NF γ α
 normalForm = \case
@@ -447,10 +503,10 @@ instance Show (γ ⊢ α) where
     App (App (Con (General EqRl)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
     App (Con (General (Interp n))) (show -> u) -> "⟦" ++ u ++ "⟧"
+    App (App (Con (General Upd)) (show -> m)) (show -> n)
+      -> m ++ "∷" ++ n
     App (App (Con (Special GTE)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≥ " ++ n ++ ")"
-    App (App (Con (Special Upd)) (show -> m)) (show -> n)
-      -> m ++ "∷" ++ n
     App (show -> m) (show -> n) -> m ++ "(" ++ n ++ ")"
     Con (show -> c) -> c
     Lam (show -> m) -> "λ(" ++ m ++ ")"
@@ -500,10 +556,10 @@ displayVs' fs ρ t =
   App (App (Con (General EqRl)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
   App (Con (General (Interp n))) (dd -> u) -> "⟦" ++ u ++ "⟧"
+  App (App (Con (General Upd)) (dd -> m)) (dd -> n)
+    -> m ++ "∷" ++ n
   App (App (Con (Special GTE)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≥ " ++ n ++ ")"
-  App (App (Con (Special Upd)) (dd -> m)) (dd -> n)
-    -> m ++ "∷" ++ n
   App (dd -> m) n@(dd -> n') -> m ++ case n of
                                        Lam _ -> n'
                                        Fst _ -> n'
@@ -558,6 +614,12 @@ findC = \case
     Human -> Weaken (Weaken Get)
     Theta -> Weaken (Weaken (Weaken Get))
     GTE -> Weaken (Weaken (Weaken (Weaken (Get))))
+  S Z -> \case
+    Entity 0 -> Get
+    Entity 1 -> Weaken Get
+    Relation 0 -> Weaken (Weaken Get)
+    Sel 0 -> Weaken (Weaken (Weaken Get))
+    Sel 1 -> Weaken (Weaken (Weaken (Weaken Get)))
            
 rename :: (∀α. α ∈ γ -> α ∈ δ) -> γ ⊢ β -> δ ⊢ β
 rename f = \case
