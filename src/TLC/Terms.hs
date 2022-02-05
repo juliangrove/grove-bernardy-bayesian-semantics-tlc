@@ -395,11 +395,11 @@ apply t u = case t of
     NFLam m' -> substNF0 m' u -- β rule
     Neu m' -> case m' of      -- δ rules
       (NeuCon (General (Pi i))) -> listFromContext u !! i
-      -- (NeuCon (General MakeUtts)) ->
-        -- case u of
-          -- NFPair k (Neu (NeuCon u'')) | checkk k
-                                        -- -> makeUtts' k (Neu (NeuCon u''))
-          -- _ -> deflt
+      (NeuCon (General MakeUtts)) ->
+        case u of
+          NFPair k (Neu (NeuCon u''))
+            -> if checkk k then makeUtts' k (Neu (NeuCon u'')) else deflt
+          _ -> deflt
       (NeuCon (General EqGen)) -> equals (fst' u) (snd' u)
       (NeuCon (General (Interp i))) -> case nf_to_λ u of
          (Con (General (Utt 1))) -> morph $ App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
@@ -435,7 +435,7 @@ toFinite (t:ts) = NFLam $ (Neu $ NeuApp (NeuVar Get) (wknNF t)) +
 
 checkk :: NF γ Context1 -> Bool
 checkk = \case
-  NFPair (NFPair _ (Neu _)) (Neu _) -> True
+  NFPair (NFPair _ (Neu (NeuCon (Special _)))) (Neu (NeuCon (Special _))) -> True
   _ -> False
 
 makeUtts :: [Special 'E] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
@@ -449,8 +449,7 @@ makeUtts [e0, e1] = \case
   u@(Utt'' [Just e0', Just e1']) -> normalForm $ η $ Con $ General u
 
 makeUtts' :: NF γ Context1 -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
-makeUtts' k u = let Con (Special e0) = π Get (nf_to_λ k)
-                    Con (Special e1) = π (Weaken Get) (nf_to_λ k)
+makeUtts' k u = let Pair (Pair _ (Con (Special e1))) (Con (Special e0)) = nf_to_λ k
                     Con (General u') = nf_to_λ u
                 in makeUtts [e0, e1] u'
 
