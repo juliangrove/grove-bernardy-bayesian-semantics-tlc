@@ -152,11 +152,11 @@ showP fs@(f:fsRest) v = \case
               [body, (if st == Mathematica then braces else id) dom]
   Cond c e -> showCond v c * showP fs v e
 
-mathematica :: Pretty a => ShowableContext γ => P γ -> IO ()
+mathematica :: ShowableContext γ => P γ -> IO ()
 mathematica = putStrLn . render Mathematica . showProg  
 
-latex :: Pretty a => ShowableContext γ => P γ -> IO ()
+latex :: ShowableContext γ => P γ -> IO ()
 latex = putStrLn . render LaTeX .showProg
 
-maxima :: Pretty a => ShowableContext γ => P γ -> IO ()
+maxima :: ShowableContext γ => P γ -> IO ()
 maxima = putStrLn . render Maxima . showProg
