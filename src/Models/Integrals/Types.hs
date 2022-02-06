@@ -258,18 +258,14 @@ instance Division (P γ) where
 -----------------------------------------------------
 -- | Normalising substitutions of variables to polys
 
-evalCoef :: forall γ δ ζ.
-           (Var γ -> Var δ)
-         -> SubstP δ ζ -> Coef γ -> Poly ζ
+evalCoef :: forall γ δ ζ. (Var γ -> Var δ) -> SubstP δ ζ -> Coef γ -> Poly ζ
 evalCoef v f (Coef c)
   = LC.eval (constCoef @ζ) (exponential . evalPoly v f) c
 
-evalPoly :: forall γ δ ζ. (Var γ -> Var δ)
-         -> SubstP δ ζ -> Poly γ -> Poly ζ
+evalPoly :: forall γ δ ζ. (Var γ -> Var δ) -> SubstP δ ζ -> Poly γ -> Poly ζ
 evalPoly v f = eval (evalCoef v f) (evalElem v f) 
 
-evalElem :: forall γ δ ζ. (Var γ -> Var δ)
-         -> SubstP δ ζ -> Elem γ -> Poly ζ
+evalElem :: forall γ δ ζ. (Var γ -> Var δ) -> SubstP δ ζ -> Elem γ -> Poly ζ
 evalElem v f =
   let evP :: Poly γ -> Poly ζ
       evP = evalPoly v f
