@@ -56,6 +56,7 @@ class Equality α where
 instance Equality 'E where
   equals (NCon (Special (Entity m))) (NCon (Special (Entity n))) =
     NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
+  equals x y = Neu $ NeuApp (NeuCon (General EqGen)) (NFPair x y) 
 instance Equality 'R where
   equals (NCon (General (Incl x))) (NCon (General (Incl y)))
     = case x == y of
@@ -68,8 +69,18 @@ instance Equality 'U where
   equals (NCon (General (Utt i))) (NCon (General (Utt j))) = case i == j of
                              True -> one
                              False -> NCon (General (Incl 0))
-  equals (Neu (NeuApp (NeuCon (General Utt')) x)) (Neu (NeuApp (NeuCon (General Utt')) y))
-    = equals x y
+  equals (Neu (NeuApp (NeuCon (General Utt')) x))
+    (Neu (NeuApp (NeuCon (General Utt')) y)) = equals x y
+  equals (NCon (General (Utt'' es0))) (NCon (General (Utt'' es1))) =
+    checkEquality es0 es1
+    where checkEquality :: [Maybe (Special 'E)] -> [Maybe (Special 'E)]
+                        -> NF γ 'R
+          checkEquality [] [] = one
+          checkEquality (Nothing:es0) (Nothing:es1) = checkEquality es0 es1
+          checkEquality (Just _ : _) (Nothing:_) = NCon (General (Incl 0))
+          checkEquality (Nothing:_) (Just _ : _) = NCon (General (Incl 0))
+          checkEquality (Just x : es0) (Just y : es1) =
+            equals (NCon $ Special x) (NCon $ Special y) * checkEquality es0 es1
   equals m n = Neu $ (NeuCon $ General $ EqGen) `NeuApp` (NFPair m n)
 instance Equality Unit where
   equals _ _ = one
@@ -90,7 +101,7 @@ instance Equality ('E ⟶ 'E ⟶ 'T) where
   equals (NCon (Special (Relation m))) (NCon (Special (Relation n))) =
     NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
 instance Equality ('R ⟶ 'R ⟶ 'T) where
-  equals (NCon (Special GTE)) (NCon (Special GTE)) = one 
+  equals (NCon (Special GTE)) (NCon (Special GTE)) = one
 instance Equality 'Γ where
   equals (NCon (General Empty)) (NCon (General Empty)) = one
 instance Equality ('E ⟶ 'Γ ⟶ 'Γ) where
@@ -105,7 +116,6 @@ instance Equality ('Γ ⟶ 'E) where
       True -> one
       False -> NCon (General (Incl 0))
 
-
 u :: Int -> γ ⊢ 'U
 u i = Con $ General $ Utt i
 
@@ -116,6 +126,8 @@ u'' :: [Maybe (Special 'E)] -> NF γ 'U
 u'' as = Neu $ NeuCon $ General $ Utt'' as
 
 vlad = Con $ Special Vlad
+jp = Con $ Special JP
+entity i = Con $ Special $ Entity i
 height = Con $ Special Height
 human = Con $ Special Human
 rel n = Con $ Special $ Relation n
@@ -282,12 +294,14 @@ data Special α where
   GTE :: Special ('R ⟶ 'R ⟶ 'T)
   Sel :: Int -> Special ('Γ ⟶ 'E)
 
+pattern JP = Entity 0
 pattern Vlad = Entity 1
 pattern Height = MeasureFun 1
 pattern Human = Property 1
 pattern Theta = Degree 1
   
 instance Show (Special α) where
+  show JP = "jp"
   show Vlad = "v"
   show (Entity n) = "entity" ++ show n
   show Height = "height"
@@ -357,7 +371,6 @@ traverseNeu f = \case
   NeuSnd t -> NeuSnd <$>  traverseNeu f t
   NeuTT -> pure NeuTT 
   
-
 absInversionNF :: NF γ ('R ⟶ α) -> NF (γ × 'R) α
 absInversionNF (NFLam f) = f
 absInversionNF (Neu t) = Neu (NeuApp (renameNeu Weaken t) (Neu (NeuVar Get)))
