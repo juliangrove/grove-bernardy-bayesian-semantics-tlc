@@ -20,7 +20,10 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Models.Integrals.Optimizer (cleanConds, normalise, splitDomains, conds_) where
+module Models.Integrals.Optimizer (cleanConds
+                                  , normalise
+                                  , splitDomains
+                                  , conds_) where
 
 -- import Data.Ratio
 import Algebra.Classes

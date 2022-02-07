@@ -9,14 +9,14 @@ module Models.Integrals.Conversion where
 
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
-import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt , exp)
+import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt, exp)
 import TLC.Terms hiding ((>>), u, Con)
 import Models.Field (Fld(Pi))
 import Models.Integrals.Types
 
+
 --------------------------------------------------------------------------------
 -- | Conversion from λ-terms
-
 
 pattern App2 :: Neutral γ (α3 ⟶ (α2 ⟶ α)) -> NF γ α3 -> NF γ α2 -> NF γ α
 pattern App2 f x y = Neu (NeuApp (NeuApp f x) y)
