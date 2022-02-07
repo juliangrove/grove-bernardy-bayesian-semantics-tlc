@@ -8,21 +8,28 @@ module Examples.RSA where
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Integrals
+import Models.Integrals.Approx3
 import TLC.Terms
 import TLC.Distributions
 import qualified Algebra.Morphism.Affine as A
+import qualified Algebra.Linear.Chebyshev as Chebyshev
+import Models.Gnuplot
+
+-- >>> toGnuPlot "test.dat" test2'
+
+test2' :: Chebyshev.Samples (Chebyshev.Samples Double)
+test2' = approxTop test2
+
+test2 :: P (('Unit × 'R) × 'R)
+test2 = simplifyFun2 [] utilitys1
 
 
 -- >>> maxima $ test2
--- charfun(-73 + y <= 0)*charfun(63 - y <= 0)*charfun(-73 + x <= 0)*charfun(63 - x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^-(1)*1/10*(3*sqrt(2*%pi))^-(1)*exp(-4624/9 + 136/9*x - 1/9*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, y, 78)/integrate((3*sqrt(2*%pi))^-(1)*1/10*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, z, 78), z, 63, 73)/integrate((3*sqrt(2*%pi))^-(1)*1/10*(3*sqrt(2*%pi))^-(1)*exp(-4624/9 + 136/9*z - 1/9*z^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, y, 78)/integrate((3*sqrt(2*%pi))^-(1)*1/10*exp(-2312/9 + 68/9*z - 1/18*z^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*v - 1/18*v^2), v, u, 78), u, 63, min(73, z)), z, y, 78)
+-- charfun(58 - x <= 0)*charfun(-78 + x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, max(y, 58), 78)
 
-test2 :: P (('Unit × 'R) × 'R)
-test2 = simplifyFun2 [A.var Get `lessThan` A.constant 73] utilityl1
--- charfun(-78 + x <= 0)*charfun(63 - x <= 0)*integrate((3*sqrt(2*%pi))^-(1)*1/10*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, z, 78), z, 63, min(73, x))/integrate((3*sqrt(2*%pi))^-(1)*1/10*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^-(1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, z, 78), z, 63, min(73, x))
---
 
 utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
-utts'' = uniform (68-5) (68+5) ⋆ Lam (η (u' (Var Get)))
+utts'' = uniform (68-15) (68+15) ⋆ Lam (η (u' (Var Get)))
 
 k :: γ ⊢ ((Context0 ⟶ 'R) ⟶ 'R)
 k = uniform 0 1
@@ -45,8 +52,8 @@ makeUtts us = Lam $ foldr1 addi $ map (App (Var Get) . wkn) us
   where addi :: γ ⊢ 'R -> γ ⊢ 'R -> γ ⊢ 'R
         addi x y = (Con $ General Addi) `App` x `App` y
 
-utts123 :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
-utts123 = makeUtts [u 1, u 2, u 3]
+-- utts123 :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
+-- utts123 = makeUtts [u 1, u 2, u 3]
 
 updctx :: γ ⊢ Context0 -> γ ⊢ ('R ⟶ Context0)
 updctx kk = Lam (Pair
