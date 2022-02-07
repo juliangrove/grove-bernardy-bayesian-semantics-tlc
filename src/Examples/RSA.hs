@@ -16,20 +16,25 @@ import qualified Algebra.Linear.Chebyshev as Chebyshev
 import Models.Gnuplot
 
 -- >>> toGnuPlot "test.dat" test2'
+-- *** Exception: approxIntegralsWithCache: infinite sample
+--   x=78.0
+--    e=Div (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-117995991011276264548730833801/89131682828547379792736944128)]}))]}},(3*(2*pi)^(1 % 2))^((-1) % 1)*(1/20))]}))]}})) (Div (Integrate (Domain {domainLoBounds = [Affine 0 (LinComb {fromLinComb = fromList [(Get,1)]}),Affine 58 (LinComb {fromLinComb = fromList []})], domainHiBounds = [Affine 78 (LinComb {fromLinComb = fromList []})]}) (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-2312/9)]})),(M (Exp (LinComb {fromLinComb = fromList [(Vari Get,1)]})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},68/9)]})),(M (Exp (LinComb {fromLinComb = fromList [(Vari Get,2)]})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-1/18)]}))]}},(3*(2*pi)^(1 % 2))^((-1) % 1))]}))]}}))) (Div (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},1)]}))]}})) (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},1)]}))]}}))))
+-- CallStack (from HasCallStack):
+--   error, called at src/Models/Integrals/Approx3.hs:111:22 in grove-bernardy-bayesian-semantics-tlc-0.1.0.0-inplace:Models.Integrals.Approx3
 
 test2' :: Chebyshev.Samples (Chebyshev.Samples Double)
 test2' = approxTop test2
 
 test2 :: P (('Unit × 'R) × 'R)
-test2 = simplifyFun2 [] utilitys1
+test2 = simplifyFun2 [A.var Get `lessThan` A.constant 73] utilitys1
 
 
 -- >>> maxima $ test2
--- charfun(58 - x <= 0)*charfun(-78 + x <= 0)*charfun(-x + y <= 0)*(3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, max(y, 58), 78)
+-- charfun(53 - y <= 0)*charfun(-73 + x <= 0)*charfun(-x + y <= 0)*charfun(58 - x <= 0)*(3*sqrt(2*%pi))^(-1)*1/20*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, max(y, 58), 78)/integrate((3*sqrt(2*%pi))^(-1)*1/20*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, max(z, 58), 78), z, 53, x)
 
 
 utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
-utts'' = uniform (68-15) (68+15) ⋆ Lam (η (u' (Var Get)))
+utts'' = uniform (68-15) (68+5) ⋆ Lam (η (u' (Var Get)))
 
 k :: γ ⊢ ((Context0 ⟶ 'R) ⟶ 'R)
 k = uniform 0 1
