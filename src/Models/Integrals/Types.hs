@@ -34,7 +34,7 @@ import TLC.Terms (type (∈)(..), Type(..), type(×), type(⟶))
 type C = Complex Double
   
 type Rat = Fld
-type RatLike α = (Ring α, Ord α, DecidableZero α, Transcendental α)
+type RatLike α = (Ring α, Ord α, DecidableZero α)
 
 -- Map of exp(poly) to its coefficient.
 -- (A "regular" coefficient)
