@@ -454,18 +454,24 @@ checkk = \case
 
 makeUtts :: [Special 'E] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts [e0, e1] = \case
-  Utt'' [Nothing, Nothing] -> toFinite [ u'' [Just e0', Just e1']
-                                       | e0' <- [e0, e1], e1' <- [e0, e1] ]
-  Utt'' [Just e0', Nothing] -> toFinite [ u'' [Just e0', Just e1']
-                                        | e1' <- [e0, e1] ]
-  Utt'' [Nothing, Just e1'] -> toFinite [ u'' [Just e0', Just e1']
-                                        | e0' <- [e0, e1] ]
+  (Utt'' [Nothing, Nothing]) -> toFinite $
+    u'' [Nothing, Nothing] :
+    [ u'' [Just e0', Nothing] | e0' <- [e0, e1] ] ++
+    [ u'' [Nothing, Just e1'] | e1' <- [e0, e1] ] ++
+    [ u'' [Just e0', Just e1'] | e0' <- [e0, e1], e1' <- [e0, e1] ]
+  Utt'' [Just e0', Nothing] -> toFinite $
+    u'' [Just e0', Nothing] : [ u'' [Just e0', Just e1'] | e1' <- [e0, e1] ]
+  Utt'' [Nothing, Just e1'] -> toFinite $
+    u'' [Nothing, Just e1'] : [ u'' [Just e0', Just e1'] | e0' <- [e0, e1] ]
   u@(Utt'' [Just e0', Just e1']) -> normalForm $ η $ Con $ General u
 
 makeUtts' :: NF γ Context1 -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts' k u = let Pair (Pair _ (Con (Special e1))) (Con (Special e0)) = nf_to_λ k
                     Con (General u') = nf_to_λ u
                 in makeUtts [e0, e1] u'
+
+-- >>> makeUtts [Vlad, JP] $ Utt'' [Nothing, Nothing]
+-- λ((x(U[Just v,Just v]) + (x(U[Just v,Just jp]) + (x(U[Just jp,Just v]) + (x(U[Just jp,Just jp]) + 0)))))
 
 normalForm :: γ ⊢ α -> NF γ α
 normalForm = \case

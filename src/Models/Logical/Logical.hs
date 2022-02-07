@@ -20,6 +20,7 @@ import Models.Field (Fld(Pi))
 import Prelude hiding (Num(..), Fractional(..), (>>), fromRational, sqrt, (/))
 import TLC.Terms
 
+
 type ValueSubst = forall δ β. β ∈ δ -> FOL.Value
 
 viewApp :: ValueSubst -> γ ⊢ α -> Maybe (String, [FOL.Value])
@@ -83,8 +84,8 @@ evalPLogical' = \case
   Equ (NNVar i) (NNCon x) -> pure $ Cond (IsZero $ A.constant x - A.var i) one
   InEq (NNVar i) (NNCon x) -> pure $ Cond (IsNegative $ A.constant x - A.var i) one
   InEq (NNCon x) (NNVar i) -> pure $ Cond (IsNegative $ A.var i - A.constant x) one
-  Adds (flip evalState [] . evalPLogical' -> x)
-    (flip evalState [] . evalPLogical' -> y) -> pure $ Add x y
+  Adds (evalState . evalPLogical' -> x) (evalState . evalPLogical' -> y) ->
+    state $ \φs -> (Add (x φs) (y φs), φs)
   Mults (evalPLogical' -> x) (evalPLogical' -> y) -> (*) <$> x <*> y
   -- Normal μ σ f -> Integrate full $ 
       -- (retPoly $ constPoly (1 / (σ * sqrt (2 * Models.Field.Pi)))

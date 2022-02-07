@@ -31,7 +31,6 @@ import qualified Algebra.Morphism.Affine as A
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
 import Algebra.Linear.FourierMotzkin (entailsStrict, hasContradictionStrict)
-
 import Models.Integrals.Types
 import Control.Applicative (Const(..))
 import Data.List (partition)
@@ -64,8 +63,7 @@ solve' :: Cond (γ × 'R) -> Solution γ
 solve' c0 = case c0 of
     IsZero _ -> (EQ, e)
     IsNegative _ -> if positive then (LT, e) else (GT, e) 
-  where (positive,e) = solveGet (condExpr c0)
-  
+  where (positive,e) = solveGet (condExpr c0) 
 
 occurExpr :: Expr (γ × 'R) -> Maybe (Expr γ)
 occurExpr = A.traverseVars $ \case
