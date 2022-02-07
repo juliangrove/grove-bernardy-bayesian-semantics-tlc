@@ -101,17 +101,21 @@ approxIntegralsWithCache =
   in \case
       Add a b -> (+) <$> aa a <*> aa b
       Div a b -> (/) <$> aa a <*> aa b
-      Integrate (Domain (maximum . fmap evalX  -> lo0) (minimum . fmap evalX -> hi0)) e -> do
+      Integrate d e -> do
         cachedFun <- gets (M.lookup e)
         p <- case cachedFun of
           Nothing -> do
-            s <- flip traverse chebPtsDom $ \x -> 
-              aa (substP (\case Get -> A.constant (Models.Field.Con (toRational x)) ; Weaken v -> A.var v) e)
+            s <- flip traverse chebPtsDom $ \x -> do
+                   y <- aa (substP (\case Get -> A.constant (Models.Field.Con (toRational x)) ; Weaken v -> A.var v) e)
+                   when (isInfinite y) $ do
+                     error ("approxIntegralsWithCache: infinite sample\n  x=" ++ show x ++ "\n   e=" ++ show e)
+                   pure y
             let p = Chebyshev.integrate @RR $ fmap realPart $ Chebyshev.samplesToPoly @(Complex RR) $ fmap (:+ 0) s
-            modify (M.insert e p) 
+            modify (M.insert e p)
             pure p
           Just p -> pure p
-        let [lo,hi] = fmap rlint [lo0,hi0]
+        let (Domain (maximum . fmap evalX  -> lo0) (minimum . fmap evalX -> hi0)) = d
+            [lo,hi] = fmap rlint [lo0,hi0]
         pure (((0.5::RR) *^ (hi-lo)) *^ (Chebyshev.clenshaw hi p - Chebyshev.clenshaw lo p))
       Ret x -> pure (evalP x)
       Cond (IsNegative c) e -> if A.eval @RR Models.Field.eval (\case) c <= 0 then aa e else pure 0
