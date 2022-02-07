@@ -77,8 +77,8 @@ lint :: forall s a. Field s => Module s a => s -> a -> a -> a
 lint f lo hi = (0.5::s) *^ ((f+1) *^ hi + (1-f) *^ lo)
 
 domLo, domHi :: RR
-domLo = 48
-domHi = 78
+domLo = 65 - 15
+domHi = 63 + 15
 
 rlint :: RR -> RR
 rlint x = (2 * x - domLo - domHi) / (domHi - domLo)
@@ -112,7 +112,7 @@ approxIntegralsWithCache =
             pure p
           Just p -> pure p
         let [lo,hi] = fmap rlint [lo0,hi0]
-        pure (Chebyshev.clenshaw hi p - Chebyshev.clenshaw lo p)
+        pure (((0.5::RR) *^ (hi-lo)) *^ (Chebyshev.clenshaw hi p - Chebyshev.clenshaw lo p))
       Ret x -> pure (evalP x)
       Cond (IsNegative c) e -> if A.eval @RR Models.Field.eval (\case) c <= 0 then aa e else pure 0
       Cond (IsZero _) _ -> error "approxIntegrals: equality not eliminated?"
