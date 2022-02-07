@@ -20,8 +20,8 @@ instance DecidableZero Fld where
   isZero (Con 0) = True
   isZero _ = False
 
-instance Transcendental Fld where
-  pi = Pi
+-- instance Transcendental Fld where
+--   pi = Pi
 
 instance Roots Fld where
   root n x = Pow x (recip (fromInteger n))

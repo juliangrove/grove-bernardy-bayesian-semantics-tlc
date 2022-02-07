@@ -11,7 +11,7 @@ import Algebra.Linear.Vector
 import Algebra.Classes
 import Data.Complex
 import Data.Foldable
-import Control.Applicative
+import Models.Gnuplot
 
 type Ivl = (Double,Double)
 
@@ -65,11 +65,6 @@ get m i j = fromSamples (fromSamples m ! i) ! j
 pts :: Vec Double
 pts = chebPoints size__
 
-toGnuPlot :: String -> Samples (Samples Double) -> IO ()
-toGnuPlot fn x = writeFile fn
-            $   unlines $ fmap (unwords . fmap show) $
-            (0 : (toList pts)) :
-            [ (pts ! i) : toList (fromSamples x ! i)  | i <- [0..size__] ]
 
 normalizeH :: Samples (Samples Double) -> Samples (Samples Double)
 normalizeH = xpose . fmap normalizeS . xpose
@@ -99,11 +94,6 @@ l1 = normalizeH $ mkSamples $ \h u -> get s1 h u * get (sample' $ prior) h u
 -- >>> toGnuPlot "l0.dat" l0
 -- >>> toGnuPlot "s1.dat" s1
 -- >>> toGnuPlot "l1.dat" l1
-
--- To see this, in gnuplot, run:
--- set zrange [0:5]
--- splot 'l1.dat' nonuniform matrix with pm3d
-
 
 
 

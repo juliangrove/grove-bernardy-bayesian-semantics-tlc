@@ -11,7 +11,7 @@ import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt , exp)
 import TLC.Terms hiding ((>>), u, Con)
-
+import Models.Field (Fld(Pi))
 import Models.Integrals.Types
 
 --------------------------------------------------------------------------------
@@ -76,13 +76,13 @@ evalP' = \case
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> x * y
   Normal μ σ f -> Integrate full $ 
-      (retPoly $ constPoly (1 / (σ * sqrt (2 * pi)))
+      (retPoly $ constPoly (1 / (σ * sqrt (2 * Models.Field.Pi)))
        * exponential (constPoly (-1/2)
                        * (constPoly (1/σ) * (constPoly μ - varPoly Get)) ^+ 2))
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Cauchy x0 γ f -> Integrate full $
     Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
-    (retPoly $ (constPoly (pi * γ)
+    (retPoly $ (constPoly (Models.Field.Pi * γ)
                  * (one + (constPoly (one/γ)
                             * (varPoly Get - constPoly x0)) ^+2)))
   Quartic μ σ f -> Integrate (Domain [A.constant (μ - a)]

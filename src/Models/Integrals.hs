@@ -17,7 +17,6 @@ import qualified Algebra.Morphism.Affine as A
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
 import TLC.Terms hiding ((>>), u, Con)
-import Algebra.Linear ((*<))
 
 --------------------------------------------------------------------------------
 -- | Top-level Entry points

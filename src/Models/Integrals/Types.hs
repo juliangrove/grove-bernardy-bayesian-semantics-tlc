@@ -32,7 +32,6 @@ import TLC.Terms (type (∈)(..), Type(..), type(×), type(⟶))
 -- | Types
 
 type C = Complex Double
-deriving instance Ord a => Ord (Complex a) -- yikes
   
 type Rat = Fld
 type RatLike α = (Ring α, Ord α, DecidableZero α, Transcendental α)
@@ -56,9 +55,6 @@ instance Ring (Coef g)
 data Dir = Min | Max deriving (Eq,Ord,Show)
 type Available α γ = α ∈ γ
 type Var γ = 'R ∈ γ
--- deriving instance Eq (Available α γ)
-deriving instance Ord (Available α γ)
--- deriving instance Show (Available α γ)
 type Expr γ = A.Affine (Available 'R γ) Rat
 data Elem γ = Vari (Available 'R γ) | Supremum Dir [Poly γ] | CharFun (Poly γ)
   deriving (Eq, Ord, Show)
@@ -73,10 +69,10 @@ data Cond' e = IsNegative { condExpr :: e }
               -- Meaning of this constructor: expression ≤ 0
               | IsZero { condExpr :: e }
               -- Meaning of this constructor: expression = 0
-   deriving (Eq, Show, Functor, Foldable, Traversable)
+   deriving (Eq, Show, Functor, Foldable, Traversable, Ord)
 
 data Domain γ = Domain { domainLoBounds, domainHiBounds :: [Expr γ] }
-  deriving Show
+  deriving (Show, Eq, Ord)
 
 data P γ where
   Integrate :: Domain γ -> P (γ × 'R) -> P γ
@@ -86,6 +82,7 @@ data P γ where
   -- Can Div be replaced by "factor"? No, because we do integration in
   -- these factors as well.
   Ret :: Poly γ -> P γ
+  deriving (Ord, Eq)
 
 
 lift' :: Applicative f
@@ -187,8 +184,8 @@ t `greaterThan` u = u `lessThan` t
 
 exponential :: Poly γ -> Poly γ
 exponential p = case isConstPoly p of
-  Just c -> constPoly (exp c)
-  Nothing -> Coef (LC.var p) *^ one
+  -- Just c -> constPoly (exp c)
+  _ -> Coef (LC.var p) *^ one
 
 charfun :: Poly γ -> Poly γ
 charfun e = case isConstPoly e of
@@ -216,7 +213,7 @@ varPoly = varP . Vari
 
 mkSuprema :: Domain γ -> (Poly γ, Poly γ)
 mkSuprema (Domain los his) = (supremum Max $ map exprToPoly los,
-                                 supremum Min $ map exprToPoly his)
+                              supremum Min $ map exprToPoly his)
 
 
 exprToPoly :: Expr γ -> Poly γ
@@ -258,27 +255,31 @@ instance Division (P γ) where
 -----------------------------------------------------
 -- | Normalising substitutions of variables to polys
 
-evalCoef :: forall γ δ ζ. (Var γ -> Var δ) -> SubstP δ ζ -> Coef γ -> Poly ζ
-evalCoef v f (Coef c)
-  = LC.eval (constCoef @ζ) (exponential . evalPoly v f) c
+substCoef :: forall γ ζ. SubstP γ ζ -> Coef γ -> Poly ζ
+substCoef v (Coef c)
+  = LC.eval (constCoef @ζ) (exponential . substPoly v) c
 
-evalPoly :: forall γ δ ζ. (Var γ -> Var δ) -> SubstP δ ζ -> Poly γ -> Poly ζ
-evalPoly v f = eval (evalCoef v f) (evalElem v f) 
+substPoly :: forall γ ζ. SubstP γ ζ -> Poly γ -> Poly ζ
+substPoly v = eval (substCoef v) (substElem v) 
 
-evalElem :: forall γ δ ζ. (Var γ -> Var δ) -> SubstP δ ζ -> Elem γ -> Poly ζ
-evalElem v f =
+substElem :: forall γ ζ. SubstP γ ζ -> Elem γ -> Poly ζ
+substElem v =
   let evP :: Poly γ -> Poly ζ
-      evP = evalPoly v f
+      evP = substPoly v
   in \case Supremum dir es -> supremum dir (evP <$> es)
-           Vari x -> f (v x)
+           Vari x -> v x
            CharFun x -> charfun (evP x)
 
 type SubstP γ δ = Var γ -> Poly δ
 
-substPoly :: SubstP γ δ -> Poly γ -> Poly δ
-substPoly f = evalPoly id f
+setHere :: f γ -> (Var γ -> f γ) -> Var (γ × α) -> f γ
+setHere a f = \case
+  Get -> a
+  Weaken x -> f x
+
 ----------------------------------------------------------------
 -- Normalising substitutions of variables to affine expressions
+
 
 type SubstE γ δ = Var γ -> Expr δ
 
