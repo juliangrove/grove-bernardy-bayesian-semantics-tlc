@@ -466,7 +466,7 @@ makeUtts [e0, e1] = \case
   u@(Utt'' [Just e0', Just e1']) -> normalForm $ η $ Con $ General u
 
 makeUtts' :: NF γ Context1 -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
-makeUtts' k u = let Pair (Pair _ (Con (Special e1))) (Con (Special e0)) = nf_to_λ k
+makeUtts' k u = let Pair (Pair _ (Con (Special e0))) (Con (Special e1)) = nf_to_λ k
                     Con (General u') = nf_to_λ u
                 in makeUtts [e0, e1] u'
 

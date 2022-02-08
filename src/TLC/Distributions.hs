@@ -46,6 +46,7 @@ normalize :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ ((α ⟶ 'R) ⟶ 'R)
 normalize m = m ⋆ Lam (factor' (recip $ measure $ wkn m) >> η (Var Get))
 
 expectedValue :: γ ⊢ (('R ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
-expectedValue m = lower m / measure m where
-  lower :: γ ⊢ (('R ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
-  lower m = App m (Lam (Var Get))
+expectedValue m = lower m / measure m
+  
+lower :: γ ⊢ (('R ⟶ 'R) ⟶ 'R) -> γ ⊢ 'R
+lower m = App m (Lam (Var Get))

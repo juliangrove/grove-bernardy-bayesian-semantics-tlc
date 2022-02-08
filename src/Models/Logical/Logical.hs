@@ -79,9 +79,12 @@ evalPLogical' = \case
     pure $ Cond (IsZero $ A.var i + A.var j - A.var k) one
   EqVars i j -> pure $ Cond (IsZero $ A.var i - A.var j) one
   InEqVars i j -> pure $ Cond (IsNegative $ A.var j - A.var i) one
-  Equ (NNVar i) (NNCon x) -> pure $ Cond (IsZero $ A.constant x - A.var i) one
-  InEq (NNVar i) (NNCon x) -> pure $ Cond (IsNegative $ A.constant x - A.var i) one
-  InEq (NNCon x) (NNVar i) -> pure $ Cond (IsNegative $ A.var i - A.constant x) one
+  Equ (NNVar i) (NNCon x) ->
+    pure $ Cond (IsZero $ A.constant x - A.var i) one
+  InEq (NNVar i) (NNCon x) ->
+    pure $ Cond (IsNegative $ A.constant x - A.var i) one
+  InEq (NNCon x) (NNVar i) ->
+    pure $ Cond (IsNegative $ A.var i - A.constant x) one
   Adds (evalState . evalPLogical' -> x) (evalState . evalPLogical' -> y) ->
     state $ \φs -> (Add (x φs) (y φs), φs)
   Mults (evalPLogical' -> x) (evalPLogical' -> y) -> (*) <$> x <*> y
@@ -110,8 +113,8 @@ evalPLogical' = \case
                 -- (evalPLogical' (map wknNF φs) $
                  -- normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   NNVar i -> pure $ retPoly $ varPoly i
-  Divide (evalPLogical' -> x) (flip evalState [] . evalPLogical' -> y) ->
-    (\x' -> Div x' y) <$> x
+  Divide (evalPLogical' -> x) (evalState . evalPLogical' -> y) ->
+    flip Div <$> state (\φs -> (y φs, φs)) <*> x
   t -> error ("evalPLogical': don't know how to handle: " ++ (show . nf_to_λ) t)
 
 evalPLogical ::NF 'Unit 'R -> P 'Unit
