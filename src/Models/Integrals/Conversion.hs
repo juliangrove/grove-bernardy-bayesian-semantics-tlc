@@ -64,7 +64,7 @@ evalP = evalP'
 evalP' :: NF γ 'R -> P (γ)
 evalP' = \case
   NNCon x -> retPoly $ constPoly (fromRational x)
-  Neu (NeuApp (NeuCon (General Indi)) φ) -> one
+  Neu (NeuApp (NeuCon (General Indi)) (Neu (NeuCon (Logical Tru)))) -> one
   Neu (NeuApp (NeuApp (NeuCon (General EqRl))
                (Adds (NNVar i) (NNVar j))) (NNVar k)) ->
     Cond (IsZero $ A.var i + A.var j - A.var k) one
