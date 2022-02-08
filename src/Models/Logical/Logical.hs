@@ -46,20 +46,21 @@ termToFol' ρ t =
                             (evalβ $ App (wkn f) (Var Get)))
     Exists' f -> FOL.VExi (\x -> termToFol' (\case
                                                 Get -> x
-                                                Weaken i -> ρ i) f)
+                                                Weaken i -> ρ i)
+                            (evalβ $ App (wkn f) (Var Get)))
     _ -> case viewApp ρ t of
                  Just (f, args) -> FOL.VApp f (args)
-                 Nothing -> error $ "tromToFol': viewApp produced Nothing"
+                 Nothing -> error $ "termToFol': viewApp produced Nothing"
 
--- >>> tryProve' $ termToFol False'
--- Contradiction
+-- >>> FOL.doQuote $ termToFol $ normalForm $ Exists' (Lam (App (App (rel 0) (Var Get)) jp))
+-- ∃x. relation0(x,jp)
 
 termToFol :: NF γ α -> FOL.Value
 termToFol = termToFol' (\case) . nf_to_λ 
 
 makeBernoulli :: γ ⊢ 'T -> γ ⊢ 'R -> γ ⊢ (('T ⟶ 'R) ⟶ 'R)
 makeBernoulli φ x = Lam $ App (Var Get) (wkn φ) * (wkn x) +
-                    App (Var Get) (Imp' (wkn φ) True') * (one - wkn x)
+                    App (Var Get) (Imp' (wkn φ) False') * (one - wkn x)
 
 tryProve' :: [FOL.Value] -> FOL.Value -> Status
 tryProve' = tryProve 10

@@ -125,12 +125,14 @@ u' = App $ Con $ General Utt'
 u'' :: [Maybe (Special 'E)] -> NF γ 'U
 u'' as = Neu $ NeuCon $ General $ Utt'' as
 
+
+prop i = Con $ Special $ Property i
+rel i = Con $ Special $ Relation i
 vlad = Con $ Special Vlad
 jp = Con $ Special JP
 entity i = Con $ Special $ Entity i
 height = Con $ Special Height
 human = Con $ Special Human
-rel n = Con $ Special $ Relation n
 θ = Con $ Special Theta
 (≥) = Con $ Special GTE
 emp = Con $ General Empty
@@ -431,7 +433,7 @@ apply t u = case t of
            morph $ App (App (rel 0) (Con $ Special e0)) (Con $ Special e1)
          _ -> deflt
          where morph = normalForm . hmorph i
-               ctx = upd' vlad (upd' vlad emp) 
+               ctx = upd' jp (upd' vlad emp) 
       _ -> deflt
       where deflt = Neu (NeuApp m' u)
             listFromContext :: NF γ 'Γ -> [NF γ 'E]
@@ -626,7 +628,12 @@ lft f = \case
 π (Weaken i) κ = π i (Fst κ)
 
 type Context0 = Unit × ('R ⟶ 'R ⟶ 'T) × 'R × ('E ⟶ 'T) × ('E ⟶ 'R) × 'E
-type Context1 = Unit × ('Γ ⟶ 'E) × ('Γ ⟶ 'E) × ('E ⟶ 'E ⟶ 'T) × 'E × 'E
+type Context1 = Unit ×
+                ('Γ ⟶ 'E) ×
+                ('Γ ⟶ 'E) ×
+                ('E ⟶ 'E ⟶ 'T) ×
+                ('E ⟶ 'E ⟶ 'T) ×
+                ('E ⟶ 'T) × 'E × 'E
 
 data Nat where
   Zero :: Nat
@@ -651,9 +658,11 @@ findC = \case
   S Z -> \case
     Entity 0 -> Get
     Entity 1 -> Weaken Get
-    Relation 0 -> Weaken (Weaken Get)
-    Sel 0 -> Weaken (Weaken (Weaken Get))
-    Sel 1 -> Weaken (Weaken (Weaken (Weaken Get)))
+    Property 0 -> Weaken (Weaken Get)
+    Relation 0 -> Weaken (Weaken (Weaken Get))
+    Relation 1 -> Weaken (Weaken (Weaken (Weaken Get)))
+    Sel 0 -> Weaken (Weaken (Weaken (Weaken (Weaken Get))))
+    Sel 1 -> Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))
            
 rename :: (∀α. α ∈ γ -> α ∈ δ) -> γ ⊢ β -> δ ⊢ β
 rename f = \case
