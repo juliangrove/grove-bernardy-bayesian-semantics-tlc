@@ -47,11 +47,9 @@ termToFol' ρ t =
     Exists' f -> FOL.VExi (\x -> termToFol' (\case
                                                 Get -> x
                                                 Weaken i -> ρ i) f)
-    App m n -> case viewApp ρ t of
+    _ -> case viewApp ρ t of
                  Just (f, args) -> FOL.VApp f (args)
                  Nothing -> error $ "tromToFol': viewApp produced Nothing"
-    _ ->  error $ "termToFol': unsupported input " ++ show t
-
 
 -- >>> tryProve' $ termToFol False'
 -- Contradiction
