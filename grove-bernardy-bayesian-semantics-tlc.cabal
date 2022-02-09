@@ -14,7 +14,7 @@ library
   exposed-modules: Examples.RSA
                  , Models.Field
                  , Models.Integrals
-                 , Models.Logical.Logical
+                 , Models.Logical.FiniteLogical
                  , TLC.Distributions
                  , TLC.Terms
   other-modules: FOL.CNF
