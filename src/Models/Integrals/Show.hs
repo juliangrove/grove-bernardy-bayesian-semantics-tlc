@@ -22,9 +22,11 @@ import qualified Models.Field
 import Text.Pretty.Math
 
 import Models.Integrals.Types
+import qualified Algebra.Expression as E
 
 --------------------------------------------------------------------------------
 -- | Showing stuff
+
 
 class ShowableContext γ where
   -- This stupidifying interface is dictated by lack of "impredicative polymorphism"
@@ -48,8 +50,8 @@ showProg = showP (restOfVars @γ freshes) (varsForCtx freshes)
 -- instance (Pretty a, ShowableContext γ) => Show (P γ a) where
 --   show = showProg Mathematica
 
-class RatLike a => Pretty a where
-  pretty :: a -> Doc
+-- class RatLike a => Pretty a where
+--   pretty :: a -> Doc
 -- instance (RealFloat a, RatLike a, Show a) => Pretty (Complex a) where
 --   pretty (a :+ b) | b < 10e-15 = case show a of
 --                       "1.0" -> one
@@ -58,8 +60,6 @@ class RatLike a => Pretty a where
 --                       x -> text x
 --                   | otherwise = text (show a ++ "+" ++ show b ++ "i")
 
-instance Pretty Rat where
-  pretty = Models.Field.eval
 
 type Vars γ  = forall v. Available v γ -> String
 
@@ -70,19 +70,21 @@ f +! v = \case Get -> f
 -- instance (RatLike a, Pretty a, ShowableContext γ) => Show (Expr γ a) where
 --   show e = showExpr (varsForCtx freshes) e Maxima
 
+showRet :: Vars γ -> Ret γ -> Doc
+showRet v = E.eval (showElem v)
+
 showExpr :: Vars γ -> Expr γ -> Doc
-showExpr v = A.eval pretty (text . v) 
+showExpr v = A.eval (E.eval (\case)  . fromNumber ) (text . v) 
 
 showElem :: Vars γ -> Elem γ -> Doc
-showElem vs (Supremum m es) = showSupremum m [showPoly vs p | p <- es]
+showElem vs (Supremum m es) = showSupremum m [showRet vs p | p <- es]
 showElem vs (Vari v) = text (vs v)
-showElem vs (CharFun e) = showCond' (IsNegative (showPoly vs e))
 
-showCoef :: forall γ. Vars γ -> Coef γ -> Doc
-showCoef v (Coef c) = LC.eval pretty (exp . showPoly v) c
+-- showCoef :: forall γ. Vars γ -> Coef γ -> Doc
+-- showCoef v (Coef c) = LC.eval pretty (exp . showPoly v) c
 
-showPoly :: Vars γ -> Poly γ -> Doc
-showPoly v = eval (showCoef v) (showElem v)
+-- showPoly :: Vars γ -> Poly γ -> Doc
+-- showPoly v = eval (showCoef v) (showElem v)
 
 -- showDumb :: Pretty a => Vars γ -> Dumb (Poly γ) -> Doc
 -- showDumb v = evalDumb (showPoly v)
@@ -134,7 +136,7 @@ when _ x = x
 showP :: [String] -> Vars γ -> P γ -> Doc
 showP [] _ = error "showP: ran out of freshes"
 showP fs@(f:fsRest) v = \case
-  Ret e -> showPoly v e
+  Ret e -> showRet v e
   Add p1 p2 -> showP fs v p1 + showP fs v p2
   Div p1 p2 -> showP fs v p1 / showP fs v p2
   Integrate (Domain los his) e -> withStyle $ \st -> 

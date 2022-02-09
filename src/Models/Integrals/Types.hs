@@ -1,3 +1,6 @@
+{-# LANGUAGE EmptyDataDeriving #-}
+{-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeOperators #-}
@@ -21,49 +24,45 @@ import qualified Algebra.Morphism.Affine as A
 import qualified Algebra.Morphism.LinComb as LC
 import Algebra.Morphism.LinComb (LinComb)
 import qualified Algebra.Morphism.Polynomial.Multi as Multi
-import Algebra.Morphism.Polynomial.Multi hiding (constPoly)
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
-import Models.Field (Fld(..))
 import Data.Complex
 import TLC.Terms (type (∈)(..), Type(..), type(×), type(⟶))
+import qualified Algebra.Expression as E
+import Data.Function (on)
 
 --------------------------------------------------------------------------------
 -- | Types
 
 type C = Complex Double
-  
-type Rat = Fld
+
+data Zero deriving (Show,Eq,Ord)
+newtype Number = Number (E.Expr Zero) deriving
+  (Additive,Group,AbelianAdditive,Multiplicative,Division,Field,Ring,Roots,Transcendental)
+instance Scalable Number Number where (*^) = (*)
+type Rat = Number
+fromNumber :: Number -> E.Expr Zero
+fromNumber (Number x) = x
+evalNumber :: Number -> Double
+evalNumber = E.eval @Double (\case) . fromNumber
+instance Show Number where show = show . fromNumber
+instance Eq Rat where
+  (==) = (==) `on` evalNumber
+instance Ord Rat where
+  compare = compare `on` evalNumber
+instance DecidableZero Rat where
+  isZero  = (== 0) . evalNumber
 type RatLike α = (Ring α, Ord α, DecidableZero α)
 
--- Map of exp(poly) to its coefficient.
--- (A "regular" coefficient)
-newtype Coef γ = Coef (LinComb (Poly γ) Rat)
-  deriving (Eq, Ord, Additive, Group, Show)
-instance DecidableZero (Coef g) where
-  isZero (Coef c) = isZero c
-instance Multiplicative (Coef g) where
-  one = Coef (LC.var zero)
-  Coef p * Coef q = Coef (LC.fromList [ (m1 + m2, coef1 * coef2)
-                                      | (m1, coef1) <- LC.toList p
-                                      , (m2, coef2) <- LC.toList q ])
-instance Scalable (Coef g) (Coef g) where
-  (*^) = (*)
-instance AbelianAdditive (Coef g) 
-instance Ring (Coef g)
-  
+
+data Elem γ = Vari ('R ∈ γ) | Supremum Dir [Ret γ]
+  deriving (Eq, Ord, Show)
+
 data Dir = Min | Max deriving (Eq,Ord,Show)
 type Available α γ = α ∈ γ
 type Var γ = 'R ∈ γ
 type Expr γ = A.Affine (Available 'R γ) Rat
-data Elem γ = Vari (Available 'R γ) | Supremum Dir [Poly γ] | CharFun (Poly γ)
-  deriving (Eq, Ord, Show)
-type Poly γ = Polynomial (Elem γ) (Coef γ)
-type Mono γ a = Monomial (Elem γ)
-data Dumb a = a :/ a deriving Show
-type DD γ a = Dumb (Poly γ)
-type Ret γ a = DD γ a 
-
+type Ret γ = E.Expr (Elem γ)
 type Cond γ = Cond' (Expr γ)
 data Cond' e = IsNegative { condExpr :: e }
               -- Meaning of this constructor: expression ≤ 0
@@ -74,14 +73,14 @@ data Cond' e = IsNegative { condExpr :: e }
 data Domain γ = Domain { domainLoBounds, domainHiBounds :: [Expr γ] }
   deriving (Show, Eq, Ord)
 
-data P γ where
+data P (γ :: Type) where
   Integrate :: Domain γ -> P (γ × 'R) -> P γ
   Cond :: Cond γ -> P γ -> P γ
   Add :: P γ -> P γ -> P γ
   Div :: P γ -> P γ -> P γ
   -- Can Div be replaced by "factor"? No, because we do integration in
   -- these factors as well.
-  Ret :: Poly γ -> P γ
+  Ret :: Ret γ -> P γ
   deriving (Ord, Eq)
 
 
@@ -101,20 +100,6 @@ instance VarTraversable Domain where
   = Domain <$> traverse (A.traverseVars f) los <*>
                traverse (A.traverseVars f) his
 
-instance VarTraversable Elem where
-  varTraverse f = \case
-    Vari x -> Vari <$> f x
-    CharFun c -> CharFun <$> (traversePoly f) c
-    Supremum d es -> Supremum d <$> traverse (traversePoly f) es
-
-traversePoly :: forall f γ δ. (Applicative f)
-             => (forall x. Available x γ -> f (Available x δ))
-             -> Poly γ -> f (Poly δ)
-traversePoly f = bitraverse (varTraverse f) (varTraverse f)
-
-instance VarTraversable Coef where
-  varTraverse f (Coef x) = Coef <$> LC.traverseVars (traversePoly f) x
-
 instance VarTraversable P where
   varTraverse f = \case
     Div x y -> Div <$> varTraverse f x <*> varTraverse f y
@@ -122,34 +107,15 @@ instance VarTraversable P where
       Integrate <$> (varTraverse f d) <*> (varTraverse (lift' f) e)
     Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> varTraverse f x
     Add x y  -> Add <$> varTraverse f x <*> varTraverse f y
-    Ret x -> Ret <$> traversePoly f x
+    Ret x -> Ret <$> traverse (varTraverse f) x
 
+instance VarTraversable Elem where
+  varTraverse f = \case
+    Vari x -> Vari <$> f x
+    Supremum d es -> Supremum d <$> traverse (traverse (varTraverse f)) es
 
 deriving instance Show (P γ)
 
-infixl 7 :/
-instance (Ring a,DecidableZero a) => DecidableZero (Dumb a) where
-  isZero (x :/ _) = isZero x
-instance {-# OVERLAPPABLE #-} Scalable s a => Scalable s (Dumb a) where
-  f *^ (x :/ y) = (f *^ x) :/ y
-instance Ring a => Additive (Dumb a) where
-  zero = zero :/ one
-  (x :/ y) + (x' :/ y') = (x * y' + x' * y) :/ (y * y')
-instance Ring a => AbelianAdditive (Dumb a)
-instance Multiplicative a => Multiplicative (Dumb a) where
-  one = one :/ one
-  (x :/ y) * (x' :/ y') = (x * x') :/ (y * y')
-instance Ring a => Group (Dumb a) where
-  negate (x :/ y) = negate x :/ y
-instance Ring a => Scalable (Dumb a) (Dumb a) where
-  (*^) = (*)
-instance Ring a => Ring (Dumb a) where
-  fromInteger x = fromInteger x :/ one
-instance Multiplicative a => Division (Dumb a) where
-  recip (x :/ y) = y :/ x
-instance Ring a => Field (Dumb a)
-evalDumb :: Division x => (a -> x) -> Dumb a -> x
-evalDumb f (x :/ y) = f x / f y
 
 ----------------------------------
 -- | Smart constructors
@@ -158,17 +124,6 @@ evalDumb f (x :/ y) = f x / f y
 conds_ :: [Cond γ] -> P γ -> P γ
 conds_ cs e = foldr Cond e cs
 
-isConstantCoef :: Coef γ -> Maybe Rat
-isConstantCoef (Coef l) = case LC.toList l of
-  [(v,x)] | v == zero -> Just x
-  _ -> Nothing
-
-isConstPoly :: Poly γ -> Maybe Rat
-isConstPoly es = case isConstant es of
-  Nothing -> Nothing
-  Just coef -> isConstantCoef coef
-
-  
 isPositive,isNegative :: Expr γ -> Cond γ
 isPositive e = isNegative (negate e)
 isNegative e = IsNegative e
@@ -182,42 +137,7 @@ lessThan, greaterThan :: Expr γ -> Expr γ -> Cond γ
 t `lessThan` u = isNegative (t - u)
 t `greaterThan` u = u `lessThan` t
 
-exponential :: Poly γ -> Poly γ
-exponential p = case isConstPoly p of
-  -- Just c -> constPoly (exp c)
-  _ -> Coef (LC.var p) *^ one
 
-charfun :: Poly γ -> Poly γ
-charfun e = case isConstPoly e of
-  Nothing -> varP (CharFun e)
-  Just x -> if x <= zero then one else zero
-
-supremum :: Dir -> [Poly γ] -> Poly γ
-supremum _ [e] = e
-supremum dir es = case traverse isConstPoly es of
-                  Just cs | not (null es) ->
-                     constPoly ((case dir of
-                                   Max -> maximum
-                                   Min -> minimum)
-                                 cs)
-                  _ -> varP (Supremum dir es)
-
-constCoef :: forall γ. Rat -> Coef γ
-constCoef x = Coef (x *^ LC.var zero) -- x * Exp 0
-
-constPoly :: Rat -> Poly γ
-constPoly = Multi.constPoly . constCoef
-
-varPoly :: Var γ -> Poly γ
-varPoly = varP . Vari
-
-mkSuprema :: Domain γ -> (Poly γ, Poly γ)
-mkSuprema (Domain los his) = (supremum Max $ map exprToPoly los,
-                              supremum Min $ map exprToPoly his)
-
-
-exprToPoly :: Expr γ -> Poly γ
-exprToPoly = A.eval constPoly  (monoPoly .  varM . Vari) 
 
 ----------------------------
 -- Instances
@@ -238,39 +158,20 @@ instance Multiplicative (P γ) where
 instance AbelianAdditive (P γ)
 instance Group (P γ) where
   negate = (* (Ret (negate one)))
-instance Scalable (Poly γ) (P γ) where
+instance Scalable (Ret γ) (P γ) where
   p *^ q = Ret p * q
 instance Additive (P γ) where
   zero = Ret zero
-  (Ret z) + x | isZero z = x
-  x + (Ret z) | isZero z = x
+  (Ret (E.Sum [])) + x = x
+  x + (Ret (E.Sum [])) = x
   x + y = Add x y
 
 instance Division (P γ) where
-  (Ret z) / _ | isZero z = Ret $ zero
+  (Ret (E.Sum [])) / _  = Ret $ zero
   (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrators in the denominator
   p1 / p2 = Div p1 p2
 
 
------------------------------------------------------
--- | Normalising substitutions of variables to polys
-
-substCoef :: forall γ ζ. SubstP γ ζ -> Coef γ -> Poly ζ
-substCoef v (Coef c)
-  = LC.eval (constCoef @ζ) (exponential . substPoly v) c
-
-substPoly :: forall γ ζ. SubstP γ ζ -> Poly γ -> Poly ζ
-substPoly v = eval (substCoef v) (substElem v) 
-
-substElem :: forall γ ζ. SubstP γ ζ -> Elem γ -> Poly ζ
-substElem v =
-  let evP :: Poly γ -> Poly ζ
-      evP = substPoly v
-  in \case Supremum dir es -> supremum dir (evP <$> es)
-           Vari x -> v x
-           CharFun x -> charfun (evP x)
-
-type SubstP γ δ = Var γ -> Poly δ
 
 setHere :: f γ -> (Var γ -> f γ) -> Var (γ × α) -> f γ
 setHere a f = \case
@@ -279,7 +180,6 @@ setHere a f = \case
 
 ----------------------------------------------------------------
 -- Normalising substitutions of variables to affine expressions
-
 
 type SubstE γ δ = Var γ -> Expr δ
 
@@ -299,9 +199,19 @@ substDomain f (Domain lo hi) = Domain
                                  (substExpr f <$> lo)
                                  (substExpr f <$> hi)
 
+wkP :: P γ -> P (γ × α)
+wkP = substP $ \i -> A.var (Weaken i) 
+
+substElem :: forall γ ζ. SubstE γ ζ -> Elem γ -> Ret ζ
+substElem v =
+  let evP :: Ret γ -> Ret ζ
+      evP = E.eval (substElem v) 
+  in \case Supremum dir es -> supremum dir (evP <$> es)
+           Vari x -> exprToPoly (v x)
+
 substP :: SubstE γ δ -> P γ -> P δ
 substP f p0 = case p0 of
-  Ret e -> Ret (substPoly (exprToPoly . f) e)
+  Ret e -> Ret (e >>= substElem f)
   Add p1 p2 -> substP f p1 + substP f p2
   Div p1 p2 -> substP f p1 / substP f p2
   Cond c p -> Cond (substCond f c) (substP f p)
@@ -309,9 +219,6 @@ substP f p0 = case p0 of
 
 wkExpr :: Expr γ -> Expr (γ × β)
 wkExpr = substExpr (A.var . Weaken) 
-
-wkP :: P γ -> P (γ × α)
-wkP = substP $ \i -> A.var (Weaken i) 
 
 
 deepest :: Cond γ -> SomeVar γ
@@ -347,3 +254,29 @@ minVar (SomeVar (Weaken x)) (SomeVar (Weaken y))
       _ -> error "minVar: panic"
 minVar NoVar y = y
 minVar x NoVar = x
+
+
+supremum :: Dir -> [Ret γ] -> Ret γ
+supremum _ [e] = e
+supremum dir es = E.Var (Supremum dir es)
+  -- case traverse (traverse (varTraverse _)) es of
+  --                   Just cs | not (null es) ->
+  --                      constPoly ((case dir of
+  --                                    Max -> maximum
+  --                                    Min -> minimum)
+  --                                  cs)
+  --                   _ -> varP (Supremum dir es)
+
+constPoly :: Number -> Ret γ
+constPoly (Number n) = (\case) <$> n
+
+varPoly :: 'R ∈ γ -> Ret γ
+varPoly = E.Var . Vari
+
+exprToPoly :: Expr γ -> Ret γ
+exprToPoly = A.eval (fmap (\case) .fromNumber) (E.Var .  Vari)
+
+mkSuprema :: Domain γ -> (Ret γ, Ret γ)
+mkSuprema (Domain los his) = (supremum Max $ map exprToPoly los,
+                              supremum Min $ map exprToPoly his)
+

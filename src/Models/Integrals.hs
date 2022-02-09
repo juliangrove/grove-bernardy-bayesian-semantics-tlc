@@ -103,7 +103,7 @@ example3 = Integrate full $
            Cond (IsNegative (A.constant 3 - A.var Get)) $
            Cond (IsZero (A.constant 4 + A.var (Weaken Get) - A.var Get)) $
            retPoly $
-           constPoly 2 + (varPoly Get) ^+ 2 + 2 *< varPoly (Weaken Get)
+           constPoly 2 + (varPoly Get) ^+ 2 + (one+one) * varPoly (Weaken Get)
 
 -- >>> mathematica $ example3
 -- Integrate[Integrate[Boole[3 - y ≤ 0]*DiracDelta[4 - y + x]*(2 + y^2 + 2*x), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
@@ -128,7 +128,7 @@ example4 = Integrate full $
            Cond (IsNegative (A.constant (-3) + A.var Get)) $
            Cond (IsZero (A.var  (Weaken Get) - A.var Get)) $
            retPoly $
-           exponential $ negate $ varPoly Get ^+2 + (varPoly (Weaken Get) ^+ 2)
+           exp $ negate $ varPoly Get ^+2 + (varPoly (Weaken Get) ^+ 2)
 
 -- >>> mathematica $ example4
 -- Integrate[Integrate[Boole[-3 - y ≤ 0]*Boole[-3 + y ≤ 0]*DiracDelta[-y + x]*Exp[-y^2 - x^2], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
@@ -145,7 +145,7 @@ example5 = Integrate full $
            Cond (IsNegative (A.constant (-3) - A.var Get)) $
            Cond (IsNegative (A.constant (-3) + A.var Get)) $
            retPoly $
-           exponential $ negate $ varPoly Get ^+2 + (varPoly (Weaken Get) ^+ 2)
+           exp $ negate $ varPoly Get ^+2 + (varPoly (Weaken Get) ^+ 2)
 
 -- >>> mathematica example5
 -- Integrate[Boole[-3 - y ≤ 0]*Boole[-3 + y ≤ 0]*Exp[-y^2 - x^2], {y, -Infinity, Infinity}]

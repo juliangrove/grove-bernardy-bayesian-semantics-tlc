@@ -25,7 +25,7 @@ library
                , FOL.Solver
                , FOL.Tableau
                , FOL.Unification
-               -- , Models.Integrals.Approximate
+               , Models.Integrals.Approx4
                , Models.Integrals.Conversion
                , Models.Integrals.Optimizer
                , Models.Integrals.Show

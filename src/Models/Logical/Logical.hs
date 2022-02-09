@@ -16,7 +16,6 @@ import FOL.Solver
 import Models.Integrals.Conversion
 import Models.Integrals.Optimizer
 import Models.Integrals.Types
-import Models.Field (Fld(Pi))
 import Prelude hiding (Num(..), Fractional(..), (>>), fromRational, sqrt, (/))
 import TLC.Terms
 

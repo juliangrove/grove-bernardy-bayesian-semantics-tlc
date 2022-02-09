@@ -1,3 +1,4 @@
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -11,8 +12,8 @@ import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt, exp)
 import TLC.Terms hiding ((>>), u, Con)
-import Models.Field (Fld(Pi))
 import Models.Integrals.Types
+import qualified Algebra.Expression as E
 
 
 --------------------------------------------------------------------------------
@@ -55,7 +56,7 @@ pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
 pattern NNCon :: Field x => x -> NF γ 'R
 pattern NNCon x <- Neu (NeuCon (General (Incl (fromRational -> x))))
 
-retPoly :: Poly γ -> P γ
+retPoly :: Ret γ -> P γ
 retPoly = Ret 
 
 evalP :: NF 'Unit 'R -> P 'Unit
@@ -75,14 +76,14 @@ evalP' = \case
   InEq (NNCon x) (NNVar i) -> Cond (IsNegative $ A.var i - A.constant x) one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> x * y
-  Normal μ σ f -> Integrate full $ 
-      (retPoly $ constPoly (1 / (σ * sqrt (2 * Models.Field.Pi)))
-       * exponential (constPoly (-1/2)
+  Normal μ σ f -> Integrate full $
+      (retPoly $ constPoly (1 / (σ * sqrt (2 * pi)))
+       * exp (constPoly (-1/2)
                        * (constPoly (1/σ) * (constPoly μ - varPoly Get)) ^+ 2))
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Cauchy x0 γ f -> Integrate full $
     Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
-    (retPoly $ (constPoly (Models.Field.Pi * γ)
+    (retPoly $ (constPoly (pi * γ)
                  * (one + (constPoly (one/γ)
                             * (varPoly Get - constPoly x0)) ^+2)))
   Quartic μ σ f -> Integrate (Domain [A.constant (μ - a)]

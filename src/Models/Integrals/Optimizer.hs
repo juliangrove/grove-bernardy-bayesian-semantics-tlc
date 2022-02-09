@@ -35,6 +35,7 @@ import Models.Integrals.Types
 import Control.Applicative (Const(..))
 import Data.List (partition)
 import Data.Maybe (catMaybes)
+import qualified Algebra.Expression as E
   
 
 ---------------------------------------------------------
@@ -82,7 +83,7 @@ noGet = (\case Get -> Nothing; Weaken x -> Just x)
 -- so that they can be exposed to integrals which are able to resolve them.
 cond :: Cond γ -> P γ -> P γ
 cond (IsNegative (A.Affine k0 vs)) e | k0 <= zero, vs == zero = e
-cond _ (Ret z) | isZero z = Ret $ zero
+cond _ (Ret (E.Zero))  = Ret $ zero
 cond c (Cond c' e) | c == c' = cond c e
 cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
                      then Cond c (Cond c' e)
@@ -91,10 +92,10 @@ cond c e = Cond c e
 
 
 integrate :: Domain γ -> P (γ × 'R) -> P γ
-integrate _ (Ret z) | isZero z = Ret $ zero
+integrate _ (Ret E.Zero) = Ret $ zero
 integrate d e | Just z' <- varTraverse noGet e = z' / recip (Ret (hi-lo)) 
   where (lo,hi) = mkSuprema d -- ∫_lo^hi k dx = k*(hi-lo)
--- NOTE: the above causes many traver, we'd need to compute the unused
+-- NOTE: the above causes many traversals. To avoid it we'd need to compute the unused
 -- variables at every stage in this function, and record the result
 -- using a new constructor in P. This new constructor can the be used
 -- to check for free variables directly.

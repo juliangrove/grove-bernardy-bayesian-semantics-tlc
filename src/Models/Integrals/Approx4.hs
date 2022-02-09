@@ -29,6 +29,7 @@ import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Foldable hiding (sum)
+import qualified Algebra.Expression as E
 
 import Models.Integrals.Types
 
@@ -39,23 +40,11 @@ type family Env γ where
 
 type RR = Double
 
-
-evalC :: Coef 'Unit -> RR
-evalC (Coef c) = LC.eval (\x -> Models.Field.eval @RR x) (exp . evalP) c
-
-evalP :: Poly 'Unit -> RR
-evalP = Multi.eval evalC evalE 
-
-evalE :: Elem 'Unit -> RR
-evalE = \case
-  Supremum dir es -> case dir of
-    Min ->  foldr (min) (( 1/0)) (evalP <$> es)
-    Max ->  foldr (max) ((-1/0)) (evalP <$> es)
-  Vari x -> case x of
-  CharFun x -> if evalP x >= 0 then 1 else 0 
+evalP :: Ret 'Unit -> RR
+evalP = E.eval (\case)
 
 evalX :: Expr  'Unit -> RR
-evalX = A.eval Models.Field.eval (\case)
+evalX = A.eval evalNumber (\case)
 
 size__ :: Int
 size__ = 128
@@ -103,7 +92,7 @@ approxIntegralsWithCache =
         p <- case cachedFun of
           Nothing -> do
             s <- flip traverse pts $ \x -> do
-                   y <- aa (substP (\case Get -> A.constant (Models.Field.Con (toRational x)) ; Weaken v -> A.var v) e)
+                   y <- aa (substP (\case Get -> A.constant (Number (E.Flt x)) ; Weaken v -> A.var v) e)
                    pure y
             modify (M.insert e s)
             pure s
@@ -111,7 +100,7 @@ approxIntegralsWithCache =
         let (Domain (maximum . fmap evalX  -> lo) (minimum . fmap evalX -> hi)) = d
         pure $ (resolution *^) $ sum [ y | (x, y) <- zip ptsrng (toList p), x > lo, x < hi]
       Ret x -> pure (evalP x)
-      Cond (IsNegative c) e -> if A.eval @RR Models.Field.eval (\case) c <= 0 then aa e else pure 0
+      Cond (IsNegative c) e -> if A.eval @RR evalNumber (\case) c <= 0 then aa e else pure 0
       Cond (IsZero _) _ -> error "approxIntegrals: equality not eliminated?"
 
 type family FUN γ x where
@@ -126,7 +115,7 @@ instance KnownContext γ => KnownContext (γ × 'R) where
   approxFUN e = flip traverse (fromList $ (point <$> rng)) $ \x ->
                 approxFUN $
                 flip substP e $ \case
-                   Get -> A.constant (Models.Field.Con (toRational x))
+                   Get -> A.constant (Number (E.Flt x))
                    Weaken v -> A.var v
 
 runWithCache :: WithCache x -> x
