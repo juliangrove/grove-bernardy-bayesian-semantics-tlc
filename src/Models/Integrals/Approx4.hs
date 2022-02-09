@@ -109,7 +109,7 @@ approxIntegralsWithCache =
             pure s
           Just p -> pure p
         let (Domain (maximum . fmap evalX  -> lo) (minimum . fmap evalX -> hi)) = d
-        pure $ (resolution *^) $ sum [ y | (x, y) <- zip ptsrng (toList p), x > lo, y < hi]
+        pure $ (resolution *^) $ sum [ y | (x, y) <- zip ptsrng (toList p), x > lo, x < hi]
       Ret x -> pure (evalP x)
       Cond (IsNegative c) e -> if A.eval @RR Models.Field.eval (\case) c <= 0 then aa e else pure 0
       Cond (IsZero _) _ -> error "approxIntegrals: equality not eliminated?"
