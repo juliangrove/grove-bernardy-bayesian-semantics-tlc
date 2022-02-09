@@ -1,8 +1,8 @@
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
@@ -232,7 +232,7 @@ data General α where
   Utt :: Int -> General 'U
   Utt' :: General ('R ⟶ 'U)
   Utt'' :: [Maybe (Special 'E)] -> General 'U
-  MakeUtts :: General ((Context1 × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
+  MakeUtts :: Witness n -> General ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
   Cau :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Les :: General (('R ⟶ 'R) ⟶ 'R)
   Nml :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
@@ -281,11 +281,11 @@ instance Show (General α) where
   show (Utt i) = "'U" ++ show i
   show Utt' = "'U"
   show (Utt'' as) = "U" ++ show as
-  show (Interp n) = "⟦⟧"
+  show (Interp _) = "⟦⟧"
   show Empty = "ε"
   show Upd = "(∷)"
   show (Pi n) = "π" ++ show n
-  show MakeUtts = "MakeUtts"
+  show (MakeUtts _) = "MakeUtts"
 
 data Special α where
   Entity :: Int -> Special 'E
@@ -411,25 +411,37 @@ apply t u = case t of
     NFLam m' -> substNF0 m' u -- β rule
     Neu m' -> case m' of      -- δ rules
       (NeuCon (General (Pi i))) -> listFromContext u !! i
-      (NeuCon (General MakeUtts)) ->
+      (NeuCon (General (MakeUtts n))) ->
         case u of
           NFPair k (Neu (NeuCon u''))
-            -> if checkk k then makeUtts' k (Neu (NeuCon u'')) else deflt
+            -> if checkk n k then makeUtts' n k (Neu (NeuCon u'')) else deflt
           _ -> deflt
+        where checkk :: Witness n -> NF γ (Context n) -> Bool
+              checkk (S Z) = \case
+                NFPair (NFPair _ (Neu (NeuCon (Special _))))
+                  (Neu (NeuCon (Special _))) -> True
+                _ -> False
+              checkk (S (S Z)) = \case
+                NFPair (NFPair _ (Neu (NeuCon (Special _))))
+                  (Neu (NeuCon (Special _))) -> True
+                _ -> False
       (NeuCon (General EqGen)) -> equals (fst' u) (snd' u)
       (NeuCon (General (Interp i))) -> case nf_to_λ u of
-         (Con (General (Utt 1))) -> morph $ App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
-         (Con (General (Utt 2))) -> morph $ App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
-         (Con (General (Utt 3))) -> morph $ Con $ Logical Tru -- silence
-         (App (Con (General Utt')) x) ->
+         Con (General (Utt 1)) -> morph $ App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
+         Con (General (Utt 2)) -> morph $ App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
+         Con (General (Utt 3)) -> morph $ Con $ Logical Tru -- silence
+         App (Con (General Utt')) x ->
            morph $ App (App (≥) (App height vlad)) x
-         (Con (General (Utt'' [Nothing, Nothing])))
+         Con (General (Utt'' [Nothing])) -> morph $ App (prop 0) (sel' 0 ctx)
+         Con (General (Utt'' [Just e0])) ->
+           morph $ App (prop 0) (Con $ Special e0)
+         Con (General (Utt'' [Nothing, Nothing]))
            -> morph $ App (App (rel 0) (sel' 0 ctx)) (sel' 1 ctx)
-         (Con (General (Utt'' [Just e0, Nothing]))) ->
+         Con (General (Utt'' [Just e0, Nothing])) ->
            morph $ App (App (rel 0) (Con $ Special e0)) (sel' 1 ctx)
-         (Con (General (Utt'' [Nothing, Just e1]))) ->
+         Con (General (Utt'' [Nothing, Just e1])) ->
            morph $ App (App (rel 0) (sel' 0 ctx)) (Con $ Special e1)
-         (Con (General (Utt'' [Just e0, Just e1]))) ->
+         Con (General (Utt'' [Just e0, Just e1])) ->
            morph $ App (App (rel 0) (Con $ Special e0)) (Con $ Special e1)
          _ -> deflt
          where morph = normalForm . hmorph i
@@ -449,14 +461,9 @@ toFinite (t:ts) = NFLam $ (Neu $ NeuApp (NeuVar Get) (wknNF t)) +
                     NFLam m -> substNF0 m (Neu (NeuVar Get))
                     Neu m -> Neu $ NeuApp m (Neu (NeuVar Get))
 
-checkk :: NF γ Context1 -> Bool
-checkk = \case
-  NFPair (NFPair _ (Neu (NeuCon (Special _)))) (Neu (NeuCon (Special _))) -> True
-  _ -> False
-
 makeUtts :: [Special 'E] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts [e0, e1] = \case
-  (Utt'' [Nothing, Nothing]) -> toFinite $
+  Utt'' [Nothing, Nothing] -> toFinite $
     u'' [Nothing, Nothing] :
     [ u'' [Just e0', Nothing] | e0' <- [e0, e1] ] ++
     [ u'' [Nothing, Just e1'] | e1' <- [e0, e1] ] ++
@@ -465,12 +472,20 @@ makeUtts [e0, e1] = \case
     u'' [Just e0', Nothing] : [ u'' [Just e0', Just e1'] | e1' <- [e0, e1] ]
   Utt'' [Nothing, Just e1'] -> toFinite $
     u'' [Nothing, Just e1'] : [ u'' [Just e0', Just e1'] | e0' <- [e0, e1] ]
-  u@(Utt'' [Just e0', Just e1']) -> normalForm $ η $ Con $ General u
+  u@(Utt'' [Just _, Just _]) -> normalForm $ η $ Con $ General u
+  Utt'' [Nothing] -> toFinite $
+    [ u'' [Just e0'] | e0' <- [e0, e1] ]
+  u@(Utt'' [Just _]) -> normalForm $ η $ Con $ General u
 
-makeUtts' :: NF γ Context1 -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
-makeUtts' k u = let Pair (Pair _ (Con (Special e0))) (Con (Special e1)) = nf_to_λ k
-                    Con (General u') = nf_to_λ u
-                in makeUtts [e0, e1] u'
+makeUtts' :: Witness n -> NF γ (Context n) -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
+makeUtts' (S Z) k u =
+  let Pair (Pair _ (Con (Special e0))) (Con (Special e1)) = nf_to_λ k
+      Con (General u') = nf_to_λ u
+  in makeUtts [e0, e1] u'
+makeUtts' (S (S Z)) k u =
+  let Pair (Pair _ (Con (Special e0))) (Con (Special e1)) = nf_to_λ k
+      Con (General u') = nf_to_λ u
+  in makeUtts [e0, e1] u'
 
 -- >>> makeUtts [Vlad, JP] $ Utt'' [Nothing, Nothing]
 -- λ((x(U[Just v,Just v]) + (x(U[Just v,Just jp]) + (x(U[Just jp,Just v]) + (x(U[Just jp,Just jp]) + 0)))))
@@ -634,6 +649,7 @@ type Context1 = Unit ×
                 ('E ⟶ 'E ⟶ 'T) ×
                 ('E ⟶ 'E ⟶ 'T) ×
                 ('E ⟶ 'T) × 'E × 'E
+type Context2 = Unit × ('Γ ⟶ 'E) × ('E ⟶ 'T) × 'E × 'E
 
 data Nat where
   Zero :: Nat
@@ -646,6 +662,7 @@ data Witness (n :: Nat) where
 type family Context (n :: Nat) where
   Context 'Zero = Context0
   Context ('Succ 'Zero) = Context1
+  Context ('Succ ('Succ 'Zero)) = Context2
 
 findC :: Witness n -> Special α -> α ∈ Context n
 findC = \case
@@ -663,6 +680,11 @@ findC = \case
     Relation 1 -> Weaken (Weaken (Weaken (Weaken Get)))
     Sel 0 -> Weaken (Weaken (Weaken (Weaken (Weaken Get))))
     Sel 1 -> Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))
+  S (S Z) -> \case
+    Entity 0 -> Get
+    Entity 1 -> Weaken Get
+    Property 0 -> Weaken (Weaken Get)
+    Sel 0 -> Weaken (Weaken (Weaken Get))
            
 rename :: (∀α. α ∈ γ -> α ∈ δ) -> γ ⊢ β -> δ ⊢ β
 rename f = \case
