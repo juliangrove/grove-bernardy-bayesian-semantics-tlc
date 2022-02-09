@@ -8,40 +8,35 @@ module Examples.RSA where
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Integrals
-import Models.Integrals.Approx3
+import Models.Integrals.Approx4
 import TLC.Terms
 import TLC.Distributions
 import qualified Algebra.Morphism.Affine as A
 import qualified Algebra.Linear.Chebyshev as Chebyshev
-import Models.Gnuplot
+import qualified Algebra.Linear.Vector as V
 
 -- >>> toGnuPlot "test.dat" test2'
--- *** Exception: approxIntegralsWithCache: infinite sample
---   x=78.0
---    e=Div (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-117995991011276264548730833801/89131682828547379792736944128)]}))]}},(3*(2*pi)^(1 % 2))^((-1) % 1)*(1/20))]}))]}})) (Div (Integrate (Domain {domainLoBounds = [Affine 0 (LinComb {fromLinComb = fromList [(Get,1)]}),Affine 58 (LinComb {fromLinComb = fromList []})], domainHiBounds = [Affine 78 (LinComb {fromLinComb = fromList []})]}) (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-2312/9)]})),(M (Exp (LinComb {fromLinComb = fromList [(Vari Get,1)]})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},68/9)]})),(M (Exp (LinComb {fromLinComb = fromList [(Vari Get,2)]})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},-1/18)]}))]}},(3*(2*pi)^(1 % 2))^((-1) % 1))]}))]}}))) (Div (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},1)]}))]}})) (Ret (P {fromPoly = LinComb {fromLinComb = fromList [(M (Exp (LinComb {fromLinComb = fromList []})),Coef (LinComb {fromLinComb = fromList [(P {fromPoly = LinComb {fromLinComb = fromList []}},1)]}))]}}))))
--- CallStack (from HasCallStack):
---   error, called at src/Models/Integrals/Approx3.hs:111:22 in grove-bernardy-bayesian-semantics-tlc-0.1.0.0-inplace:Models.Integrals.Approx3
 
-test2' :: Chebyshev.Samples (Chebyshev.Samples Double)
+test2' :: V.Vec (V.Vec Double)
 test2' = approxTop test2
 
 test2 :: P (('Unit × 'R) × 'R)
-test2 = simplifyFun2 [A.var Get `lessThan` A.constant 73] utilitys1
+test2 = simplifyFun2 [] utilityl1
 
 
 -- >>> maxima $ test2
--- charfun(53 - y <= 0)*charfun(-73 + x <= 0)*charfun(-x + y <= 0)*charfun(58 - x <= 0)*(3*sqrt(2*%pi))^(-1)*1/20*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, max(y, 58), 78)/integrate((3*sqrt(2*%pi))^(-1)*1/20*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, max(z, 58), 78), z, 53, x)
+-- charfun(53 - y <= 0)*charfun(-78 + y <= 0)*charfun(-x + y <= 0)*charfun(-83 + x <= 0)*(3*sqrt(2*%pi))^(-1)*1/25*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, y, 83)/integrate((3*sqrt(2*%pi))^(-1)*1/25*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, z, 83), z, 53, min(78, x))
 
 
 utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
-utts'' = uniform (68-15) (68+5) ⋆ Lam (η (u' (Var Get)))
+utts'' = uniform (68-15) (68+10) ⋆ Lam (η (u' (Var Get)))
 
 k :: γ ⊢ ((Context0 ⟶ 'R) ⟶ 'R)
 k = uniform 0 1
     ⋆ Lam (normal 68 3
            ⋆ Lam
-           (observe' ((≥) `App` Var Get `App`  (Con (General (Incl (68 - 10))))) >>
-           (observe' ((≥) `App` (Con (General (Incl (68 + 10)))) `App`  Var Get) >>
+           (observe' ((≥) `App` Var Get `App`  (Con (General (Incl (68 - 15))))) >>
+           (observe' ((≥) `App` (Con (General (Incl (68 + 15)))) `App`  Var Get) >>
             (η (Pair
                 (Pair
                  (Pair
@@ -93,7 +88,7 @@ s1' α = Lam (
 --                                      )
 
 s1 :: γ ⊢ (Context0 ⟶ ('U ⟶ 'R) ⟶ 'R)
-s1 = s1' 1
+s1 = s1' 4
 
 s1Distr :: γ ⊢ (Context0 ⟶ 'U ⟶ 'R)
 s1Distr = Lam (Lam (distr (s1 `App` Var (Weaken Get))) `App` Var Get)
