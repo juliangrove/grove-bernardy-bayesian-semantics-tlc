@@ -20,7 +20,7 @@ module TLC.Terms where
 import Algebra.Classes
 import Data.Ratio
 import Data.String.Utils
-import Prelude hiding ((>>), Num(..))
+import Prelude hiding ((>>), Num(..), Sum(..), sum)
 
 
 data Type = E | T | R | U | Γ
@@ -456,11 +456,7 @@ apply t u = case t of
                 -> normalForm x : listFromContext (normalForm c)
 
 toFinite :: [NF γ α] -> NF γ ((α ⟶ 'R) ⟶ 'R)
-toFinite [t] = normalForm $ η $ nf_to_λ t
-toFinite (t:ts) = NFLam $ (Neu $ NeuApp (NeuVar Get) (wknNF t)) +
-                  case toFinite (map wknNF ts) of
-                    NFLam m -> substNF0 m (Neu (NeuVar Get))
-                    Neu m -> Neu $ NeuApp m (Neu (NeuVar Get))
+toFinite ts = NFLam $ sum [apply (Neu (NeuVar Get)) (wknNF t) | t <- ts]
 
 makeUtts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0]) = \case
