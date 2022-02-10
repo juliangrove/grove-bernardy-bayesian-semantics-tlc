@@ -15,6 +15,10 @@ import qualified FOL.FOL as FOL
 import FOL.Solver
 import Models.Integrals.Conversion
 import Models.Integrals.Types
+<<<<<<< HEAD
+=======
+import Models.Field
+>>>>>>> 21b4c96 (Add test.)
 import Prelude hiding (Num(..), Fractional(..), (>>), fromRational, sqrt, (/))
 import TLC.Terms
 
@@ -63,14 +67,17 @@ makeBernoulli φ x = Lam $ App (Var Get) (wkn φ) * (wkn x) +
 tryProve' :: [FOL.Value] -> FOL.Value -> Status
 tryProve' = tryProve 10
 
+type Finite = Double
+
 -- >>> :t tryProve
 -- tryProve :: Int -> [FOL.Value] -> FOL.Value -> Status
 
-evalPLogical' :: NF γ 'R -> State [NF γ 'T] (P γ)
-evalPLogical' = \case
-  NNCon x -> pure $ retPoly $ constPoly (fromRational x)
+evalLF' :: NF γ 'R -> State [NF γ 'T] Finite
+evalLF' = \case
+  NCon (General (Incl x)) -> pure $ fromRational x
   Neu (NeuApp (NeuCon (General Indi)) ψ) -> state $ \φs ->
     case tryProve' (map termToFol φs) (termToFol ψ) of
+<<<<<<< HEAD
       Contradiction -> (zero, ψ:φs)
       _ -> (one, ψ:φs)
   Neu (NeuApp (NeuApp (NeuCon (General EqRl))
@@ -115,10 +122,72 @@ evalPLogical' = \case
   Divide (evalPLogical' -> x) (evalState . evalPLogical' -> y) ->
     flip (/) <$> state (\φs -> (y φs, φs)) <*> x
   t -> error ("evalPLogical': don't know how to handle: " ++ (show . nf_to_λ) t)
+=======
+      Contradiction -> (0, ψ:φs)
+      _ -> (1, ψ:φs)
+  Mults (NCon (General (Incl 0))) _ -> pure 0
+  Mults _ (NCon (General (Incl 0))) -> pure 0
+  Mults (evalLF' -> x) (evalLF' -> y) -> (*) <$> x <*> y
+  Adds (evalState . evalLF' -> x) (evalState . evalLF' -> y) ->
+    state $ \φs -> (x φs + y φs, φs)
+  Divide (NCon (General (Incl 0))) _ -> pure 0
+  Divide (evalLF' -> x) (evalState . evalLF' -> y) ->
+    flip (/) <$> state (\φs -> (y φs, φs)) <*> x
+  t -> error ("evalLF': don't know how to handle: " ++ (show . nf_to_λ) t)
+>>>>>>> 21b4c96 (Add test.)
 
-evalPLogical ::NF 'Unit 'R -> P 'Unit
-evalPLogical = flip evalState [] . evalPLogical'
- 
+-- evalLF' :: NF γ 'R -> State [NF γ 'T] (P γ)
+-- evalLF' = \case
+--   NNCon x -> pure $ retPoly $ constPoly (fromRational x)
+--   Neu (NeuApp (NeuCon (General Indi)) ψ) -> state $ \φs ->
+--     case tryProve' (map termToFol φs) (termToFol ψ) of
+--       Contradiction -> (zero, ψ:φs)
+--       _ -> (one, ψ:φs)
+--   Neu (NeuApp (NeuApp (NeuCon (General EqRl))
+--                (Adds (NNVar i) (NNVar j))) (NNVar k)) ->
+--     pure $ Cond (IsZero $ A.var i + A.var j - A.var k) one
+--   EqVars i j -> pure $ Cond (IsZero $ A.var i - A.var j) one
+--   InEqVars i j -> pure $ Cond (IsNegative $ A.var j - A.var i) one
+--   Equ (NNVar i) (NNCon x) ->
+--     pure $ Cond (IsZero $ A.constant x - A.var i) one
+--   InEq (NNVar i) (NNCon x) ->
+--     pure $ Cond (IsNegative $ A.constant x - A.var i) one
+--   InEq (NNCon x) (NNVar i) ->
+--     pure $ Cond (IsNegative $ A.var i - A.constant x) one
+--   Adds (evalState . evalLF' -> x) (evalState . evalLF' -> y) ->
+--     state $ \φs -> (Add (x φs) (y φs), φs)
+--   Mults (evalLF' -> x) (evalLF' -> y) -> (*) <$> x <*> y
+--   -- Normal μ σ f -> Integrate full $ 
+--       -- (retPoly $ constPoly (1 / (σ * sqrt (2 * Models.Field.Pi)))
+--        -- * exponential (constPoly (-1/2)
+--                        -- * (constPoly (1/σ) * (constPoly μ - varPoly Get)) ^+ 2))
+--     -- * (evalLF' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+--   -- Cauchy x0 γ f -> Integrate full $
+--     -- Div (evalLF' (map wknNF φs) $
+--          -- normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
+--     -- (retPoly $ (constPoly (Models.Field.Pi * γ)
+--                  -- * (one + (constPoly (one/γ)
+--                             -- * (varPoly Get - constPoly x0)) ^+2)))
+--   -- Quartic μ σ f -> Integrate (Domain [A.constant (μ - a)]
+--                               -- [A.constant (μ + a)]) $
+--     -- (retPoly $ (constPoly ((15 / 16) / (a ^+ 5)))
+--      -- * ((varPoly Get - constPoly μ) - constPoly a) ^+ 2
+--      -- * ((varPoly Get - constPoly μ) + constPoly a) ^+ 2)
+--     -- * (evalLF' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+--     -- where a = sqrt 7 * σ
+--   -- Uniform x y f -> Integrate (Domain [A.constant x] [A.constant y]) $ 
+--     -- (retPoly $ constPoly (1 / (y - x))) *
+--     -- (evalLF' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+--   -- Lesbegue f -> Integrate (Domain [] []) $
+--                 -- (evalLF' (map wknNF φs) $
+--                  -- normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+--   NNVar i -> pure $ retPoly $ varPoly i
+--   Divide (evalLF' -> x) (evalState . evalLF' -> y) ->
+--     flip Div <$> state (\φs -> (y φs, φs)) <*> x
+--   t -> error ("evalLF': don't know how to handle: " ++ (show . nf_to_λ) t)
+
+evalLF :: NF 'Unit 'R -> Finite
+evalLF = flip evalState [] . evalLF'
 
 -- >>> FOL.doQuote FOL.VFal
 -- ⊥

@@ -94,7 +94,16 @@ k (S (S Z)) =
                                             (prop 0))
                                            (entity 1))
                                           (entity 0)))))))))))
-  
+
+k1 :: γ ⊢ Context2
+k1 = Pair
+     (Pair
+      (Pair
+       (Pair TT (Con $ General $ Pi 0))
+       (prop 0))
+      (entity 1))
+     (entity 0)
+
 -- | Literal listener
 l0 :: Witness n -> γ ⊢ ('U ⟶ (Context n ⟶ 'R) ⟶ 'R)
 l0 n = Lam (k n ⋆
@@ -128,6 +137,3 @@ l1 n =
                   (App (distr (App (s1 n) (Pair (Var Get) (Var (Weaken Get)))))
                    (Var (Weaken Get))) >>
                   η (Var Get)))
-
--- >>> mathematica $ evalPLogical $ normalForm $ expectedValue $ App (l0 (S (S Z))) (nf_to_λ $ u'' [Nothing]) ⋆ Lam (η (App (hmorph (S (S Z)) (App (Con $ General EqGen) (Pair (sel' 0 (upd' jp (upd' vlad emp))) vlad))) (Var Get)))
--- (1/4000000 + 1/200000 - 1/4000000 + 1/200000 - 1/4000000 + 1/10000 - 1/200000 - 1/200000 + 1/4000000)/(1/4000000 + 1/200000 - 1/4000000 + 1/200000 - 1/4000000 + 1/10000 - 1/200000 - 1/200000 + 1/4000000 + 1/2000 - 1/40000 - 1/40000 + 1/800000 - 1/10000 + 1/200000 + 1/200000 - 1/4000000 + 1/4000000 + 1/200000 - 1/4000000 + 1/200000 - 1/4000000 + 1/10000 - 1/200000 - 1/200000 + 1/4000000)

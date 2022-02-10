@@ -10,6 +10,7 @@ author:              Julian Grove and Jean-Philippe Bernardy
 maintainer:          julian.grove@gmail.com
 copyright:           2021
 build-type:          Simple
+
 library 
   exposed-modules: Examples.RSA
                  , Models.Integrals
@@ -39,3 +40,36 @@ library
                , mtl
                , pretty
   default-language: Haskell2010
+
+executable test
+  other-modules: Examples.Anaphora
+               , Models.Field
+               , Models.Integrals
+               , Models.Logical.FiniteLogical
+               , TLC.Distributions
+               , TLC.Terms
+               , FOL.CNF
+               , FOL.Connection
+               , FOL.FOL
+               , FOL.Regularity
+               , FOL.Search
+               , FOL.Solver
+               , FOL.Tableau
+               , FOL.Unification
+               , Models.Integrals.Approx4
+               , Models.Integrals.Conversion
+               , Models.Integrals.Optimizer
+               , Models.Integrals.Show
+               , Models.Integrals.Types
+  main-is: Main.hs
+  hs-source-dirs: src
+                  test
+  build-depends: base
+               , containers
+               , gasp
+               , logict
+               , MissingH
+               , missing-math
+               , mtl
+               , pretty
+  default-language: Haskell2010 

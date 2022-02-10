@@ -478,7 +478,7 @@ makeUtts [e0, e1] = \case
     u'' [Nothing, Just e1'] : [ u'' [Just e0', Just e1'] | e0' <- [e0, e1] ]
   u@(Utt'' [Just _, Just _]) -> normalForm $ η $ Con $ General u
   Utt'' [Nothing] -> toFinite $
-    [ u'' [Just e0'] | e0' <- [e0, e1] ]
+    u'' [Nothing] : [ u'' [Just e0'] | e0' <- [e0, e1] ]
   u@(Utt'' [Just _]) -> normalForm $ η $ Con $ General u
 
 makeUtts' :: Witness n -> NF γ (Context n) -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
