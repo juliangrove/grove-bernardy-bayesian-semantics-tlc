@@ -15,7 +15,6 @@
 {-# LANGUAGE UnicodeSyntax #-}
 {-# LANGUAGE ViewPatterns #-}
 
-
 module TLC.Terms where
 
 import Algebra.Classes
@@ -24,7 +23,7 @@ import Data.String.Utils
 import Prelude hiding ((>>), Num(..))
 
 
-data Type = E | 'T | R | U | 'Γ
+data Type = E | T | R | U | Γ
           | Type :-> Type
           | Unit
           | Type :× Type
@@ -124,7 +123,6 @@ u' = App $ Con $ General Utt'
 
 u'' :: [Maybe (Special 'E)] -> NF γ 'U
 u'' as = Neu $ NeuCon $ General $ Utt'' as
-
 
 prop i = Con $ Special $ Property i
 rel i = Con $ Special $ Relation i
@@ -418,16 +416,15 @@ apply t u = case t of
       (NeuCon (General (MakeUtts n))) ->
         case u of
           NFPair k (Neu (NeuCon u''))
-            -> if checkk n k then makeUtts' n k (Neu (NeuCon u'')) else deflt
+            -> if checkk n k then makeUtts' n (normalForm ctx) k (Neu (NeuCon u'')) else deflt
           _ -> deflt
         where checkk :: Witness n -> NF γ (Context n) -> Bool
-              checkk (S Z) = \case
-                NFPair (NFPair _ (Neu (NeuCon (Special _))))
-                  (Neu (NeuCon (Special _))) -> True
-                _ -> False
+              -- checkk (S Z) = \case
+                -- NFPair (NFPair _ (NFPair _))) ()) -> True
+                -- _ -> False
               checkk (S (S Z)) = \case
-                NFPair (NFPair _ (Neu (NeuCon (Special _))))
-                  (Neu (NeuCon (Special _))) -> True
+                NFPair (NFPair (NFPair (NFPair _ (NCon (General _))) _) _) _ ->
+                  True
                 _ -> False
       (NeuCon (General EqGen)) -> equals (fst' u) (snd' u)
       (NeuCon (General (Interp i))) -> case nf_to_λ u of
@@ -448,10 +445,10 @@ apply t u = case t of
          Con (General (Utt'' [Just e0, Just e1])) ->
            morph $ App (App (rel 0) (Con $ Special e0)) (Con $ Special e1)
          _ -> deflt
-         where morph = normalForm . hmorph i
-               ctx = upd' jp (upd' vlad emp) 
+        where morph = normalForm . hmorph i
       _ -> deflt
       where deflt = Neu (NeuApp m' u)
+            ctx = upd' jp (upd' vlad emp)
             listFromContext :: NF γ 'Γ -> [NF γ 'E]
             listFromContext u = case nf_to_λ u of
               Con (General Empty) -> []
@@ -465,31 +462,37 @@ toFinite (t:ts) = NFLam $ (Neu $ NeuApp (NeuVar Get) (wknNF t)) +
                     NFLam m -> substNF0 m (Neu (NeuVar Get))
                     Neu m -> Neu $ NeuApp m (Neu (NeuVar Get))
 
-makeUtts :: [Special 'E] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
-makeUtts [e0, e1] = \case
-  Utt'' [Nothing, Nothing] -> toFinite $
-    u'' [Nothing, Nothing] :
-    [ u'' [Just e0', Nothing] | e0' <- [e0, e1] ] ++
-    [ u'' [Nothing, Just e1'] | e1' <- [e0, e1] ] ++
-    [ u'' [Just e0', Just e1'] | e0' <- [e0, e1], e1' <- [e0, e1] ]
-  Utt'' [Just e0', Nothing] -> toFinite $
-    u'' [Just e0', Nothing] : [ u'' [Just e0', Just e1'] | e1' <- [e0, e1] ]
-  Utt'' [Nothing, Just e1'] -> toFinite $
-    u'' [Nothing, Just e1'] : [ u'' [Just e0', Just e1'] | e0' <- [e0, e1] ]
-  u@(Utt'' [Just _, Just _]) -> normalForm $ η $ Con $ General u
-  Utt'' [Nothing] -> toFinite $
-    u'' [Nothing] : [ u'' [Just e0'] | e0' <- [e0, e1] ]
-  u@(Utt'' [Just _]) -> normalForm $ η $ Con $ General u
+makeUtts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
+makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0]) = \case
+  Utt'' [Nothing] -> toFinite $ [ u'' [Nothing]
+                                , u'' [Just e0] ]
+    where NCon (Special e0) = normalForm (App sel0 ctx)
+  u@(Utt'' [Just e0]) -> normalForm $ η $ Con $ General u
+  -- Utt'' [Nothing, Nothing] -> toFinite $ [ u'' [Nothing, Nothing]
+                                         -- , u'' [
+    -- u'' [Nothing, Nothing] :
+    -- [ u'' [Just e0', Nothing] | e0' <- [e0, e1] ] ++
+    -- [ u'' [Nothing, Just e1'] | e1' <- [e0, e1] ] ++
+    -- [ u'' [Just e0', Just e1'] | e0' <- [e0, e1], e1' <- [e0, e1] ]
+  -- Utt'' [Just e0', Nothing] -> toFinite $
+    -- u'' [Just e0', Nothing] : [ u'' [Just e0', Just e1'] | e1' <- [e0, e1] ]
+  -- Utt'' [Nothing, Just e1'] -> toFinite $
+    -- u'' [Nothing, Just e1'] : [ u'' [Just e0', Just e1'] | e0' <- [e0, e1] ]
+  -- u@(Utt'' [Just _, Just _]) -> normalForm $ η $ Con $ General u
+  -- Utt'' [Nothing] -> toFinite $
+    -- u'' [Nothing] : [ u'' [Just e0'] | e0' <- [e0, e1] ]
+  -- u@(Utt'' [Just _]) -> normalForm $ η $ Con $ General u
 
-makeUtts' :: Witness n -> NF γ (Context n) -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
-makeUtts' (S Z) k u =
-  let Pair (Pair _ (Con (Special e0))) (Con (Special e1)) = nf_to_λ k
+makeUtts' :: Witness n
+          -> NF γ 'Γ -> NF γ (Context n) -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
+-- makeUtts' (S Z) k u =
+  -- let Pair (Pair _ (Con (Special e0))) (Con (Special e1)) = nf_to_λ k
+      -- Con (General u') = nf_to_λ u
+  -- in makeUtts [e0, e1] u'
+makeUtts' (S (S Z)) ctx k u =
+  let Pair (Pair (Pair (Pair _ sel0) _) _) _ = nf_to_λ k
       Con (General u') = nf_to_λ u
-  in makeUtts [e0, e1] u'
-makeUtts' (S (S Z)) k u =
-  let Pair (Pair _ (Con (Special e0))) (Con (Special e1)) = nf_to_λ k
-      Con (General u') = nf_to_λ u
-  in makeUtts [e0, e1] u'
+  in makeUtts ctx [normalForm sel0] u'
 
 -- >>> makeUtts [Vlad, JP] $ Utt'' [Nothing, Nothing]
 -- λ((x(U[Just v,Just v]) + (x(U[Just v,Just jp]) + (x(U[Just jp,Just v]) + (x(U[Just jp,Just jp]) + 0)))))
