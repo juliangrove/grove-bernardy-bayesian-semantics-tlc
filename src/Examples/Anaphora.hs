@@ -117,17 +117,17 @@ l0 n = Lam (k n ⋆
 
 -- | Pragmatic speaker
 s1' :: Equality (Context n)
-    => Witness n -> Integer -> γ ⊢ ((Context n × 'U) ⟶ ('U ⟶ 'R) ⟶ 'R)
+    => Witness n -> Rational -> γ ⊢ ((Context n × 'U) ⟶ ('U ⟶ 'R) ⟶ 'R)
 s1' n α =
   Lam (App (Con $ General $ MakeUtts n) (Var Get)
        ⋆ Lam (factor'
               (distr (l0 n `App` Var Get) `App`
-               (Fst $ Var (Weaken Get)) ^+ α) >>
+               (Fst $ Var (Weaken Get)) ^/ α) >>
               η (Var Get)))
 
 s1 :: Equality (Context n)
    => Witness n -> γ ⊢ ((Context n × 'U) ⟶ ('U ⟶ 'R) ⟶ 'R)
-s1 n = s1' n 1
+s1 n = s1' n 0.5
 
 -- | Pragmatic listener
 l1 :: Equality (Context n)

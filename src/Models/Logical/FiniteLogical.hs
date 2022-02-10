@@ -9,16 +9,15 @@
 module Models.Logical.FiniteLogical where
 
 import Algebra.Classes
-import qualified Algebra.Morphism.Affine as A
 import Control.Monad.State
 import qualified FOL.FOL as FOL
 import FOL.Solver
 import Models.Integrals.Conversion
 import Models.Integrals.Types
-import Models.Field
 import Prelude hiding (Num(..), Fractional(..), (>>), fromRational, sqrt, (/))
 import TLC.Terms
-
+import Text.Pretty.Math
+import qualified Algebra.Expression as E
 
 type ValueSubst = forall δ β. β ∈ δ -> FOL.Value
 
@@ -64,7 +63,7 @@ makeBernoulli φ x = Lam $ App (Var Get) (wkn φ) * (wkn x) +
 tryProve' :: [FOL.Value] -> FOL.Value -> Status
 tryProve' = tryProve 10
 
-type Finite = Double
+type Finite = E.Expr Zero
 
 -- >>> :t tryProve
 -- tryProve :: Int -> [FOL.Value] -> FOL.Value -> Status
@@ -74,14 +73,14 @@ evalLF' = \case
   NCon (General (Incl x)) -> pure $ fromRational x
   Neu (NeuApp (NeuCon (General Indi)) ψ) -> state $ \φs ->
     case tryProve' (map termToFol φs) (termToFol ψ) of
-      Contradiction -> (0, ψ:φs)
-      _ -> (1, ψ:φs)
-  Mults (NCon (General (Incl 0))) _ -> pure 0
-  Mults _ (NCon (General (Incl 0))) -> pure 0
+      Contradiction -> (zero, ψ:φs)
+      _ -> (one, ψ:φs)
+  Mults (NCon (General (Incl 0))) _ -> pure zero
+  Mults _ (NCon (General (Incl 0))) -> pure zero
   Mults (evalLF' -> x) (evalLF' -> y) -> (*) <$> x <*> y
   Adds (evalState . evalLF' -> x) (evalState . evalLF' -> y) ->
     state $ \φs -> (x φs + y φs, φs)
-  Divide (NCon (General (Incl 0))) _ -> pure 0
+  Divide (NCon (General (Incl 0))) _ -> pure zero
   Divide (evalLF' -> x) (evalState . evalLF' -> y) ->
     flip (/) <$> state (\φs -> (y φs, φs)) <*> x
   Expos (evalLF' -> x) (NCon (General (Incl y))) ->
