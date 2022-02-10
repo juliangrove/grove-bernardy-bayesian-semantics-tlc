@@ -12,7 +12,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RebindableSyntax #-}
 
-module Models.Integrals.Approx4  where
+module Models.Integrals.Approx4 (toGnuPlot, approxTop, KnownContext(..), Env, FUN) where
 
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
