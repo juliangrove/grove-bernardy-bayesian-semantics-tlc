@@ -60,6 +60,8 @@ makeBernoulli :: γ ⊢ 'T -> γ ⊢ 'R -> γ ⊢ (('T ⟶ 'R) ⟶ 'R)
 makeBernoulli φ x = Lam $ App (Var Get) (wkn φ) * (wkn x) +
                     App (Var Get) (Imp' (wkn φ) False') * (one - wkn x)
 
+-- makeBernoulli φ x k = Bernoulli x (\t ->  k (if t then 𝟙(φ) else 𝟙(φ ⊢ ⊥))) 
+
 tryProve' :: [FOL.Value] -> FOL.Value -> Status
 tryProve' = tryProve 10
 
