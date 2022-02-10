@@ -75,12 +75,9 @@ evalLF' = \case
     case tryProve' (map termToFol φs) (termToFol ψ) of
       Contradiction -> (zero, ψ:φs)
       _ -> (one, ψ:φs)
-  Mults (NCon (General (Incl 0))) _ -> pure zero
-  Mults _ (NCon (General (Incl 0))) -> pure zero
   Mults (evalLF' -> x) (evalLF' -> y) -> (*) <$> x <*> y
   Adds (evalState . evalLF' -> x) (evalState . evalLF' -> y) ->
     state $ \φs -> (x φs + y φs, φs)
-  Divide (NCon (General (Incl 0))) _ -> pure zero
   Divide (evalLF' -> x) (evalState . evalLF' -> y) ->
     flip (/) <$> state (\φs -> (y φs, φs)) <*> x
   Expos (evalLF' -> x) (NCon (General (Incl y))) ->
