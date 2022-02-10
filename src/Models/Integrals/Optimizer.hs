@@ -85,7 +85,7 @@ cond :: Cond γ -> P γ -> P γ
 cond (IsNegative (A.Affine k0 vs)) e | k0 <= zero, vs == zero = e
 cond _ PZero  = zero
 cond c (Cond c' e) | c == c' = cond c e
-cond c (Cond c' e) = if (deepest $ condVars c) `shallower` (deepest $ condVars c')
+cond c (Cond c' e) = if deepest (condVars c) > deepest (condVars c')
                      then Cond c (Cond c' e)
                      else Cond c' (cond c e)
 cond c e = Cond c e
@@ -154,12 +154,31 @@ scal E.Zero _ = zero
 scal (E.Prod xs) e = foldr scal e xs -- split the product so that parts of it can commute with integrals
 scal k (Cond c e) = Cond c (scal k e)
 scal k (Add a b) = scal k a `Add` scal k b
-scal c (Scale c' e)
+scal c e0@(Scale c' e)
+  | deepest (retVars c) > deepest (retVars c') = Scale c e0
+  | deepest (retVars c) < deepest (retVars c') = scal c' (scal c e)
+  | E.Pow x k <- c, E.Pow x' k' <- c', x == x' = scal (x ** (k + k')) e
   | c == c' = scal (c ^+ 2) e
-  | otherwise = if (deepest (retVars c)) `shallower` (deepest (retVars c'))
-                     then Scale c (scal c' e)
-                     else Scale c' (scal c e)
+  | c < c' = Scale c e0
+  | c > c' = scal c' (scal c e)
+  
 scal k e = Scale k e
+
+
+-- | The deepest variable in a list. Relies on correct order for Var type.
+deepest :: [Var γ] -> SomeVar γ
+deepest [] = NoVar
+deepest xs = SomeVar (minimum xs)
+
+-- varExamples :: [SomeVar ('Unit × 'R × 'R)]
+-- varExamples = [NoVar, SomeVar (Get), SomeVar (Weaken Get)]
+
+-- >>> [(x,y,x > y) | x <- varExamples, y <- varExamples]
+-- [(NoVar,NoVar,False),(NoVar,SomeVar Get,True),(NoVar,SomeVar (Weaken Get),True),(SomeVar Get,NoVar,False),(SomeVar Get,SomeVar Get,False),(SomeVar Get,SomeVar (Weaken Get),False),(SomeVar (Weaken Get),NoVar,False),(SomeVar (Weaken Get),SomeVar Get,True),(SomeVar (Weaken Get),SomeVar (Weaken Get),False)]
+
+
+data SomeVar γ = SomeVar (Var γ) | NoVar
+  deriving (Eq,Ord,Show)
 
 type Negative γ = Expr γ 
 
@@ -207,8 +226,8 @@ cleanConds' :: (a ~ Rat) => [Negative γ] -> P γ -> P γ
 cleanConds' cs e = if hasContradictionStrict (map negate cs) then zero else cleanConds cs e
 
 -- | Traversing with this returns free variables
-getVars :: x ∈ γ -> Const [SomeVar γ] (x ∈ γ)
-getVars v = Const  [SomeVar v]
+getVars :: Var γ -> Const [Var γ] (Var γ)
+getVars v = Const [v]
 
 -- | Return a list of conditions occuring, in the form of expressions
 -- whose sign is tested.
@@ -235,7 +254,7 @@ splitDomains :: P γ -> P γ
 splitDomains = \case
   Power e k -> Power (splitDomains e) k
   Integrate d (splitDomains -> e) -> testCond d fs e
-    where fs = filter ((SomeVar Get `elem`) . getConst . A.traverseVars getVars) (discontinuities e)
+    where fs = filter ((Get `elem`) . getConst . A.traverseVars getVars) (discontinuities e)
   Cond c e -> Cond c (splitDomains e)
   Add a b -> Add (splitDomains a) (splitDomains b) 
   Div a b -> Div (splitDomains a) (splitDomains b)

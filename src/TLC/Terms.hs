@@ -34,7 +34,7 @@ data (α :: Type) ∈ (γ :: Type) where
   Weaken :: α ∈ γ -> α ∈ (γ × β)
 deriving instance Show (α ∈ γ)
 deriving instance Eq (α ∈ γ)
-deriving instance Ord (α ∈ γ)
+deriving instance Ord (α ∈ γ) -- do not change this instance, it is used for testing deepness of variables
 
 type α × β = α ':× β
 type α ⟶ β = α ':-> β

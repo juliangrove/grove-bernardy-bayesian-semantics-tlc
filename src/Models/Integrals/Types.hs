@@ -240,33 +240,6 @@ elemVars = \case
    Vari x -> [x]
    Supremum _ es -> concatMap retVars es
   
-            
-deepest :: [Var γ] -> SomeVar γ
-deepest [] = NoVar
-deepest xs = SomeVar (foldr1 minVar xs)
-
-shallower :: SomeVar γ -> SomeVar γ -> Bool
-SomeVar Get `shallower` _ = False
-SomeVar (Weaken _) `shallower` SomeVar Get = True
-SomeVar (Weaken x) `shallower` SomeVar (Weaken y)
-  = SomeVar x `shallower` SomeVar y
-NoVar `shallower` (SomeVar _) = True
-(SomeVar _) `shallower` NoVar = True
-_ `shallower` _ = False
-
-data SomeVar γ where
-  SomeVar :: Available v γ -> SomeVar γ
-  NoVar :: SomeVar γ
-instance Eq (SomeVar γ) where
-  SomeVar Get == SomeVar Get = True
-  SomeVar (Weaken x) == SomeVar (Weaken y) = SomeVar x == SomeVar y
-  NoVar == NoVar = True
-  _ == _ = False
-
-minVar :: Var γ -> Var γ -> Var γ
-minVar Get _ = Get
-minVar _ Get  = Get 
-minVar (Weaken x) (Weaken y) =  Weaken (minVar x y)
 
 supremum :: Dir -> [Ret γ] -> Ret γ
 supremum _ [e] = e
