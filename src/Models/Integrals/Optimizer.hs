@@ -150,6 +150,7 @@ scal k (Add a b) = scal k a `Add` scal k b
 scal c e0@(Scale c' e)
   | deepest (retVars c) > deepest (retVars c') = Scale c e0
   | deepest (retVars c) < deepest (retVars c') = scal c' (scal c e)
+  | E.Pow x' k' <- c', x' == c = scal (c ** (k' + 1)) e
   | E.Pow x k <- c, E.Pow x' k' <- c', x == x' = scal (x ** (k + k')) e
   | c == c' = scal (c ^+ 2) e
   | c < c' = Scale c e0

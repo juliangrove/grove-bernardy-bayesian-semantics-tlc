@@ -233,20 +233,25 @@ elemVars = \case
 
 supremum :: Dir -> [Ret γ] -> Ret γ
 supremum _ [e] = e
-supremum dir es = E.Var (Supremum dir es)
-  -- case traverse (traverse (varTraverse _)) es of
-  --                   Just cs | not (null es) ->
-  --                      constPoly ((case dir of
-  --                                    Max -> maximum
-  --                                    Min -> minimum)
-  --                                  cs)
-  --                   _ -> varP (Supremum dir es)
+supremum dir es = 
+  case traverse (fmap retToNumber . traverse (varTraverse (const Nothing))) es of
+    Just cs | not (null es) ->
+       constPoly ((case dir of
+                     Max -> maximum
+                     Min -> minimum)
+                   cs)
+    _ -> E.Var (Supremum dir es)
 
 constPoly :: Number -> Ret γ
 constPoly (Number n) = (\case) <$> n
 
 varPoly :: 'R ∈ γ -> Ret γ
 varPoly = E.Var . Vari
+
+retToNumber :: Ret 'Unit -> Number
+retToNumber = E.eval $ \case
+     Vari x -> case x of
+     Supremum d xs -> (case d of Max -> maximum; Min -> minimum) (fmap retToNumber xs)
 
 numberToRet :: Number -> Ret γ
 numberToRet (Number x) = fmap (\case) x
