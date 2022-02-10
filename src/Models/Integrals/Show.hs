@@ -136,7 +136,7 @@ showP fs@(f:fsRest) v = \case
   Done -> one
   Scale k e -> showRet v k * showP fs v e
   Add p1 p2 -> showP fs v p1 + showP fs v p2
-  Div p1 p2 -> showP fs v p1 / showP fs v p2
+  Mul p1 p2 -> showP fs v p1 * showP fs v p2
   Power p (Number k) -> showP fs v p ** E.eval (\case) k
   Integrate (Domain los his) e -> withStyle $ \st -> 
     let body = showP fsRest (f +! v) e

@@ -123,30 +123,23 @@ integrate d e | Just z' <- varTraverse noGet e = scal (recip (hi-lo)) z'
 integrate d e = Integrate d e
 
 
-(//) :: P γ -> P γ -> P γ
-PZero // _  = zero
-(Cond c n) // d = Cond c (n // d) -- this exposes conditions to the integrators in the denominator
-x // Scale k y = scal (recip k) (x // y)
-Scale k x // y = scal k (x // y)
-p1 // p2 = Div p1 p2
-
-
 normalise :: P γ -> P γ
 normalise = \case
   Cond c (normalise -> e) -> cond c e
   Integrate d (normalise -> e) -> integrate d e
   Power p e -> power e (normalise p)
   Add (normalise -> p1) (normalise -> p2) -> p1 + p2
-  Div (normalise -> p1) (normalise -> p2) -> p1 // p2
+  Mul (normalise -> p1) (normalise -> p2) -> p1 *? p2
   Done -> Done
   Scale k e -> scal k (normalise e)
 
 power :: Number -> P γ -> P γ
 power k = \case
-  Div a b -> (power k a) `Div` (power k b)
+  Mul a b -> (power k a) `Mul` (power k b)
   Cond c e -> Cond c (power k e)
   Done -> Done
   Scale x e -> Scale (x ** numberToRet k) (power k e)
+  Power e k' -> power (k*k') e
   e -> Power e k
 
 scal :: Ret γ -> P γ -> P γ
@@ -163,6 +156,20 @@ scal c e0@(Scale c' e)
   | c > c' = scal c' (scal c e)
   
 scal k e = Scale k e
+
+
+(*?) :: P γ -> P γ -> P γ
+Done *? p = p
+p *? Done = p
+(Integrate d p1) *? p2 = Integrate d $ p1 *? wkP p2
+p2 *? (Integrate d p1) = Integrate d $ p1 *? wkP p2
+(Cond c p1) *? p2 = Cond c (p1 *? p2)
+p2 *? (Cond c p1) = Cond c (p1 *? p2)
+(Add p1 p1') *? p2 = Add (p1 *? p2) (p1' *? p2)
+p1 *? (Add p2 p2') = Add (p1 *? p2) (p1 *? p2')
+Scale k e1 *? e2 = Scale k (e1 *? e2)
+e1 *? Scale k e2 = Scale k (e1 *? e2)
+e1 *? e2 = Mul e1 e2
 
 
 -- | The deepest variable in a list. Relies on correct order for Var type.
@@ -217,7 +224,7 @@ cleanConds cs = \case
   Cond c e -> if cs `entail` fromNegative c
               then cleanConds cs e
               else cond c $ cleanConds' (fromNegative c:cs) e
-  Div x y -> Div (cleanConds cs x) (cleanConds cs y)
+  Mul x y -> Mul (cleanConds cs x) (cleanConds cs y)
   Add x y -> Add (cleanConds cs x) (cleanConds cs y)
  where fromNegative (IsNegative c) = c
        fromNegative _ = error "cleanConds: equality condition remaining?"
@@ -235,7 +242,7 @@ discontinuities :: forall γ. P γ -> [Expr γ]
 discontinuities  = \case
   Add a b -> discontinuities a <> discontinuities b
   Power e _ -> discontinuities e
-  Div a b -> discontinuities a <> discontinuities b
+  Mul a b -> discontinuities a <> discontinuities b
   Cond (IsNegative f) e -> f : discontinuities e
   Cond _ _ -> error "discontinuities equality?"
   Scale _ e -> discontinuities e
@@ -257,7 +264,7 @@ splitDomains = \case
     where fs = filter ((Get `elem`) . getConst . A.traverseVars getVars) (discontinuities e)
   Cond c e -> Cond c (splitDomains e)
   Add a b -> Add (splitDomains a) (splitDomains b) 
-  Div a b -> Div (splitDomains a) (splitDomains b)
+  Mul a b -> Mul (splitDomains a) (splitDomains b)
   Scale k e -> Scale k (splitDomains e)
   Done -> Done
 

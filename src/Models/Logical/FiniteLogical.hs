@@ -113,7 +113,7 @@ evalPLogical' = \case
                  -- normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   NNVar i -> pure $ retPoly $ varPoly i
   Divide (evalPLogical' -> x) (evalState . evalPLogical' -> y) ->
-    flip Div <$> state (\φs -> (y φs, φs)) <*> x
+    flip (/) <$> state (\φs -> (y φs, φs)) <*> x
   t -> error ("evalPLogical': don't know how to handle: " ++ (show . nf_to_λ) t)
 
 evalPLogical ::NF 'Unit 'R -> P 'Unit

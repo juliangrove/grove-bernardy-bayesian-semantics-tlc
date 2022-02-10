@@ -84,7 +84,7 @@ approxIntegralsWithCache =
       Done -> pure one
       Power a k -> (** evalNumber k) <$> aa a
       Add a b -> (+) <$> aa a <*> aa b
-      Div a b -> (/) <$> aa a <*> aa b
+      Mul a b -> (*) <$> aa a <*> aa b
       Integrate d e -> do
         cachedFun <- gets (M.lookup e)
         p <- case cachedFun of

@@ -76,9 +76,9 @@ data P (γ :: Type) where
   Cond :: Cond γ -> P γ -> P γ
   Done :: P γ
   Add :: P γ -> P γ -> P γ
-  Div :: P γ -> P γ -> P γ -- replace this by Mul and Power -1
-  -- Can Div be replaced by "factor"? No, because we do integration in
-  -- these factors as well.
+  Mul :: P γ -> P γ -> P γ
+  -- Can this replaced by "Scale"? No, because we do integration in
+  -- normalisation factors as well.
   Power :: P γ -> Rat -> P γ
   Scale :: Ret γ -> P γ -> P γ
   deriving (Ord, Eq)
@@ -104,7 +104,7 @@ instance VarTraversable P where
   varTraverse f = \case
     Done -> pure Done
     Power e k -> Power <$> varTraverse f e <*> pure k
-    Div x y -> Div <$> varTraverse f x <*> varTraverse f y
+    Mul x y -> Mul <$> varTraverse f x <*> varTraverse f y
     Integrate d e ->
       Integrate <$> (varTraverse f d) <*> (varTraverse (lift' f) e)
     Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> varTraverse f x
@@ -146,20 +146,10 @@ t `greaterThan` u = u `lessThan` t
 
 instance Multiplicative (P γ) where
   one = Done
-  Done * p = p
-  p * Done = p
-  (Integrate d p1) * p2 = Integrate d $ p1 * wkP p2
-  p2 * (Integrate d p1) = Integrate d $ p1 * wkP p2
-  (Cond c p1) * p2 = Cond c (p1 * p2)
-  p2 * (Cond c p1) = Cond c (p1 * p2)
-  (Add p1 p1') * p2 = Add (p1 * p2) (p1' * p2)
-  p1 * (Add p2 p2') = Add (p1 * p2) (p1 * p2')
-  (Div p1 p1') * p2 = Div (p1 * p2) p1'
-  p1 * (Div p2 p2') = Div (p1 * p2) p2'
-  -- (Div p1 p1') * (Div p2 p2') = Div ((*) p1 p1') ((*) p2 p2') -- no need to regroup normalisation factors
-  Scale k e1 * e2 = Scale k (e1 * e2)
-  e1 * Scale k e2 = Scale k (e1 * e2)
-  _ * _ = error "P-type multiplication cannot handle Power. TODO: replace Div by Mul and Power -1" 
+  (*) = Mul
+
+instance Division (P γ) where
+  recip x = Power x (negate one)
 
 instance AbelianAdditive (P γ)
 instance Group (P γ) where
@@ -221,7 +211,7 @@ substP f p0 = case p0 of
   Done -> Done
   Power p k -> Power (substP f p) k
   Add p1 p2 -> substP f p1 + substP f p2
-  Div p1 p2 -> substP f p1 `Div` substP f p2
+  Mul p1 p2 -> substP f p1 `Mul` substP f p2
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p) -- integrations are never simplified by substitution
 

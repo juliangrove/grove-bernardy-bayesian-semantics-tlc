@@ -85,7 +85,7 @@ evalP' = \case
                        * (constPoly (1/σ) * (constPoly μ - varPoly Get)) ^+ 2))
     `Scale` (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Cauchy x0 γ f -> Integrate full $
-    Div (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))  
+    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)) /
     (retPoly $ (constPoly (pi * γ)
                  * (one + (constPoly (one/γ)
                             * (varPoly Get - constPoly x0)) ^+2)))
@@ -102,7 +102,7 @@ evalP' = \case
   Lesbegue f -> Integrate (Domain [] []) $
                 (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   NNVar i -> retPoly $ varPoly i
-  Divide x y -> Div (evalP' x) (evalP' y)
+  Divide x y -> (evalP' x) / (evalP' y)
   t -> error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
 
 
