@@ -12,7 +12,6 @@ copyright:           2021
 build-type:          Simple
 library 
   exposed-modules: Examples.RSA
-                 , Models.Field
                  , Models.Integrals
                  , Models.Logical.FiniteLogical
                  , TLC.Distributions

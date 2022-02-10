@@ -17,14 +17,8 @@ module Models.Integrals.Approx4  where
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
-                      , exp, toInteger)
-import qualified Models.Field
+                      , exp, toInteger, (**))
 import Algebra.Linear.Vector
-import Data.Complex
-import qualified Algebra.Morphism.Polynomial.Multi as Multi
-import Algebra.Morphism.Polynomial.Multi hiding (constPoly)
-import qualified Algebra.Morphism.LinComb as LC
-import Control.Applicative
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -41,7 +35,9 @@ type family Env γ where
 type RR = Double
 
 evalP :: Ret 'Unit -> RR
-evalP = E.eval (\case)
+evalP = E.eval $ \case
+     Supremum d x -> (case d of Min -> minimum; Max -> maximum) (fmap evalP x)
+     Vari v -> case v of
 
 evalX :: Expr  'Unit -> RR
 evalX = A.eval evalNumber (\case)
@@ -85,6 +81,8 @@ approxIntegralsWithCache :: P 'Unit -> WithCache RR
 approxIntegralsWithCache = 
   let aa = approxIntegralsWithCache
   in \case
+      Done -> pure one
+      Power a k -> (** evalNumber k) <$> aa a
       Add a b -> (+) <$> aa a <*> aa b
       Div a b -> (/) <$> aa a <*> aa b
       Integrate d e -> do
@@ -99,7 +97,7 @@ approxIntegralsWithCache =
           Just p -> pure p
         let (Domain (maximum . fmap evalX  -> lo) (minimum . fmap evalX -> hi)) = d
         pure $ (resolution *^) $ sum [ y | (x, y) <- zip ptsrng (toList p), x > lo, x < hi]
-      Ret x -> pure (evalP x)
+      Scale k x -> (evalP k *) <$> aa x
       Cond (IsNegative c) e -> if A.eval @RR evalNumber (\case) c <= 0 then aa e else pure 0
       Cond (IsZero _) _ -> error "approxIntegrals: equality not eliminated?"
 

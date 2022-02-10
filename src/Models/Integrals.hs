@@ -67,7 +67,7 @@ exampleEq = Integrate full $
 example :: P 'Unit
 example = Integrate full $ Integrate full $
           Cond (IsNegative (3 *< A.var (Weaken Get) + 2 *< A.var (Get))) $
-          Cond (IsNegative (A.var (Weaken Get))) one
+          Cond (IsNegative (A.var (Weaken Get))) Done
 
 -- >>> mathematica $ example
 -- Integrate[Integrate[Boole[2*y + 3*x ≤ 0]*Boole[x ≤ 0], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
@@ -77,13 +77,13 @@ example = Integrate full $ Integrate full $
 
 example1 :: P 'Unit
 example1 = Integrate full $ Integrate full $
-           Cond (IsZero (A.constant 4 + A.var (Weaken Get) - A.var Get)) one
+           Cond (IsZero (A.constant 4 + A.var (Weaken Get) - A.var Get)) Done
 
 -- >>> mathematica $ example1
 -- Integrate[Integrate[DiracDelta[4 - y + x], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> maxima $ normalise example1
--- 1/(1/(inf + inf))
+-- inf + inf
 
 example2 :: P 'Unit
 example2 = Integrate full $
@@ -112,7 +112,7 @@ example3 = Integrate full $
 -- Integrate[18 + 10*x + x^2, {x, -1, Infinity}]
 
 example4a :: P 'Unit
-example4a = Integrate (Domain [zero] [A.constant 1]) one
+example4a = Integrate (Domain [zero] [A.constant 1]) Done
 
 -- >>> mathematica $ normalise example4a
 -- 1

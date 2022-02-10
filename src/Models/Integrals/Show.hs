@@ -13,12 +13,9 @@ module Models.Integrals.Show where
 
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
-import qualified Algebra.Morphism.LinComb as LC
-import Algebra.Morphism.Polynomial.Multi hiding (constPoly)
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
-                      , exp)
+                      , exp, (**))
 import TLC.Terms hiding ((>>), u, Con)
-import qualified Models.Field
 import Text.Pretty.Math
 
 import Models.Integrals.Types
@@ -136,9 +133,11 @@ when _ x = x
 showP :: [String] -> Vars γ -> P γ -> Doc
 showP [] _ = error "showP: ran out of freshes"
 showP fs@(f:fsRest) v = \case
-  Ret e -> showRet v e
+  Done -> one
+  Scale k e -> showRet v k * showP fs v e
   Add p1 p2 -> showP fs v p1 + showP fs v p2
   Div p1 p2 -> showP fs v p1 / showP fs v p2
+  Power p (Number k) -> showP fs v p ** E.eval (\case) k
   Integrate (Domain los his) e -> withStyle $ \st -> 
     let body = showP fsRest (f +! v) e
         dom :: Doc

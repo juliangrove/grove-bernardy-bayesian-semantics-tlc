@@ -28,14 +28,14 @@ module Models.Integrals.Optimizer (cleanConds
 -- import Data.Ratio
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
-import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
-                      , exp)
+import Prelude hiding (Num(..), Fractional(..), (^), product, sum 
+                      , Floating (..))
 import Algebra.Linear.FourierMotzkin (entailsStrict, hasContradictionStrict)
 import Models.Integrals.Types
 import Control.Applicative (Const(..))
-import Data.List (partition)
 import Data.Maybe (catMaybes)
 import qualified Algebra.Expression as E
+import Data.Foldable
   
 
 ---------------------------------------------------------
@@ -83,22 +83,21 @@ noGet = (\case Get -> Nothing; Weaken x -> Just x)
 -- so that they can be exposed to integrals which are able to resolve them.
 cond :: Cond γ -> P γ -> P γ
 cond (IsNegative (A.Affine k0 vs)) e | k0 <= zero, vs == zero = e
-cond _ (Ret (E.Zero))  = Ret $ zero
+cond _ PZero  = zero
 cond c (Cond c' e) | c == c' = cond c e
-cond c (Cond c' e) = if (deepest c) `shallower` (deepest c')
+cond c (Cond c' e) = if (deepest $ condVars c) `shallower` (deepest $ condVars c')
                      then Cond c (Cond c' e)
                      else Cond c' (cond c e)
 cond c e = Cond c e
 
 
 integrate :: Domain γ -> P (γ × 'R) -> P γ
-integrate _ (Ret E.Zero) = Ret $ zero
-integrate d e | Just z' <- varTraverse noGet e = z' / recip (Ret (hi-lo)) 
-  where (lo,hi) = mkSuprema d -- ∫_lo^hi k dx = k*(hi-lo)
--- NOTE: the above causes many traversals. To avoid it we'd need to compute the unused
--- variables at every stage in this function, and record the result
--- using a new constructor in P. This new constructor can the be used
--- to check for free variables directly.
+integrate _ PZero = zero
+integrate d Done = Scale (hi-lo) Done
+  where (lo,hi) = mkSuprema d -- ∫_lo^hi dx = (hi-lo)
+integrate d (Scale k e)
+  | Just k' <- traverse (varTraverse noGet) k
+  = scal k' (integrate d e)
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> foldr cond (integrate d' e) cs
     where (d', cs) = restrictDomain c d
@@ -114,15 +113,53 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     where (_, x0) = solveGet c'
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
+integrate d e | Just z' <- varTraverse noGet e = scal (recip (hi-lo)) z'  
+  where (lo,hi) = mkSuprema d
+--- NOTE: the above causes many traversals. To avoid it we'd need to compute the unused
+--- variables at every stage in this function, and record the result
+--- using a new constructor in P. This new constructor can the be used
+--- to check for free variables directly.
+
 integrate d e = Integrate d e
+
+
+(//) :: P γ -> P γ -> P γ
+PZero // _  = zero
+(Cond c n) // d = Cond c (n // d) -- this exposes conditions to the integrators in the denominator
+x // Scale k y = scal (recip k) (x // y)
+Scale k x // y = scal k (x // y)
+p1 // p2 = Div p1 p2
+
 
 normalise :: P γ -> P γ
 normalise = \case
   Cond c (normalise -> e) -> cond c e
   Integrate d (normalise -> e) -> integrate d e
+  Power p e -> power e (normalise p)
   Add (normalise -> p1) (normalise -> p2) -> p1 + p2
-  Div (normalise -> p1) (normalise -> p2) -> p1 / p2
-  Ret e -> Ret e
+  Div (normalise -> p1) (normalise -> p2) -> p1 // p2
+  Done -> Done
+  Scale k e -> scal k (normalise e)
+
+power :: Number -> P γ -> P γ
+power k = \case
+  Div a b -> (power k a) `Div` (power k b)
+  Cond c e -> Cond c (power k e)
+  Done -> Done
+  Scale x e -> Scale (x ** numberToRet k) (power k e)
+  e -> Power e k
+
+scal :: Ret γ -> P γ -> P γ
+scal E.Zero _ = zero
+scal (E.Prod xs) e = foldr scal e xs -- split the product so that parts of it can commute with integrals
+scal k (Cond c e) = Cond c (scal k e)
+scal k (Add a b) = scal k a `Add` scal k b
+scal c (Scale c' e)
+  | c == c' = scal (c ^+ 2) e
+  | otherwise = if (deepest (retVars c)) `shallower` (deepest (retVars c'))
+                     then Scale c (scal c' e)
+                     else Scale c' (scal c e)
+scal k e = Scale k e
 
 type Negative γ = Expr γ 
 
@@ -151,7 +188,9 @@ cleanDomain cs (Domain los his) =
 -- | Remove redundant conditions
 cleanConds :: [Negative γ] -> P γ -> P γ
 cleanConds cs = \case
-  Ret x -> Ret x
+  Done -> Done
+  Power e k -> Power (cleanConds cs e) k
+  Scale k e -> Scale k (cleanConds cs e)
   Integrate d e -> Integrate (cleanDomain cs d) $
                    cleanConds' ((fromNegative <$> domainToConds d) ++
                                (map (A.mapVars  Weaken) cs)) $
@@ -176,10 +215,12 @@ getVars v = Const  [SomeVar v]
 discontinuities :: forall γ. P γ -> [Expr γ]
 discontinuities  = \case
   Add a b -> discontinuities a <> discontinuities b
+  Power e _ -> discontinuities e
   Div a b -> discontinuities a <> discontinuities b
   Cond (IsNegative f) e -> f : discontinuities e
   Cond _ _ -> error "discontinuities equality?"
-  Ret _ -> []
+  Scale _ e -> discontinuities e
+  Done -> []
   Integrate (Domain los his) e -> mkEqs los <> mkEqs his <> catMaybes (fmap (A.traverseVars noGet) (discontinuities e))
     where mkEqs as = [a-b | a <- as, b <- as]
 
@@ -192,11 +233,13 @@ testCond d (f:fs) e = testCond d fs (Cond (isPositive f) e) + testCond d fs (Con
 -- | Split domains of integration so that no condition remains
 splitDomains :: P γ -> P γ
 splitDomains = \case
+  Power e k -> Power (splitDomains e) k
   Integrate d (splitDomains -> e) -> testCond d fs e
     where fs = filter ((SomeVar Get `elem`) . getConst . A.traverseVars getVars) (discontinuities e)
   Cond c e -> Cond c (splitDomains e)
   Add a b -> Add (splitDomains a) (splitDomains b) 
-  Div a b -> Div (splitDomains a) (splitDomains b) 
-  Ret x -> Ret x
+  Div a b -> Div (splitDomains a) (splitDomains b)
+  Scale k e -> Scale k (splitDomains e)
+  Done -> Done
 
 

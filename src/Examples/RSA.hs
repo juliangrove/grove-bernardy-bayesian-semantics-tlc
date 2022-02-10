@@ -11,8 +11,6 @@ import Models.Integrals
 import Models.Integrals.Approx4
 import TLC.Terms
 import TLC.Distributions
-import qualified Algebra.Morphism.Affine as A
-import qualified Algebra.Linear.Chebyshev as Chebyshev
 import qualified Algebra.Linear.Vector as V
 
 -- >>> toGnuPlot "test.dat" test2'
@@ -21,11 +19,11 @@ test2' :: V.Vec (V.Vec Double)
 test2' = approxTop test2
 
 test2 :: P (('Unit × 'R) × 'R)
-test2 = simplifyFun2 [] utilityl1
+test2 = simplifyFun2 [] utilitys1
 
 
 -- >>> maxima $ test2
--- charfun(53 - y <= 0)*charfun(-78 + y <= 0)*charfun(-x + y <= 0)*charfun(-83 + x <= 0)*(3*sqrt(2*%pi))^(-1)*1/25*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*z - 1/18*z^2), z, y, 83)/integrate((3*sqrt(2*%pi))^(-1)*1/25*exp(-2312/9 + 68/9*x - 1/18*x^2)/integrate((3*sqrt(2*%pi))^(-1)*exp(-2312/9 + 68/9*u - 1/18*u^2), u, z, 83), z, 53, min(78, x))
+-- charfun(53 - y <= 0)*charfun(-78 + y <= 0)*charfun(-x + y <= 0)*charfun(-83 + x <= 0)*(2*%pi)^(1/2*4)*25*(2*%pi)^(1/2*4)*3^8*(2*%pi)^(-1/2*4)*(1/3)^8*(2*%pi)^(-1/2*4)*1/25*exp(-1/2*(1/3*(68 - x))^2)^4*(1/exp(-1/2*(1/3*(68 - x))^2))^4*1/integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, y, 83), z, 0, 1)^4/integrate(1/integrate(integrate(exp(-1/2*(1/3*(68 - v))^2), v, z, 83), u, 0, 1)^4, z, 53, min(78, x))
 
 
 utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)

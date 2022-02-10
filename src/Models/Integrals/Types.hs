@@ -22,15 +22,13 @@ module Models.Integrals.Types (module Models.Integrals.Types, module TLC.Terms) 
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
 import qualified Algebra.Morphism.LinComb as LC
-import Algebra.Morphism.LinComb (LinComb)
-import qualified Algebra.Morphism.Polynomial.Multi as Multi
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
-                      , exp)
+                      , exp, (**))
 import Data.Complex
 import TLC.Terms (type (∈)(..), Type(..), type(×), type(⟶))
 import qualified Algebra.Expression as E
 import Data.Function (on)
-
+import Data.Foldable
 --------------------------------------------------------------------------------
 -- | Types
 
@@ -76,11 +74,13 @@ data Domain γ = Domain { domainLoBounds, domainHiBounds :: [Expr γ] }
 data P (γ :: Type) where
   Integrate :: Domain γ -> P (γ × 'R) -> P γ
   Cond :: Cond γ -> P γ -> P γ
+  Done :: P γ
   Add :: P γ -> P γ -> P γ
-  Div :: P γ -> P γ -> P γ
+  Div :: P γ -> P γ -> P γ -- replace this by Mul and Power -1
   -- Can Div be replaced by "factor"? No, because we do integration in
   -- these factors as well.
-  Ret :: Ret γ -> P γ
+  Power :: P γ -> Rat -> P γ
+  Scale :: Ret γ -> P γ -> P γ
   deriving (Ord, Eq)
 
 
@@ -102,12 +102,14 @@ instance VarTraversable Domain where
 
 instance VarTraversable P where
   varTraverse f = \case
+    Done -> pure Done
+    Power e k -> Power <$> varTraverse f e <*> pure k
     Div x y -> Div <$> varTraverse f x <*> varTraverse f y
     Integrate d e ->
       Integrate <$> (varTraverse f d) <*> (varTraverse (lift' f) e)
     Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> varTraverse f x
     Add x y  -> Add <$> varTraverse f x <*> varTraverse f y
-    Ret x -> Ret <$> traverse (varTraverse f) x
+    Scale x e -> Scale <$> traverse (varTraverse f) x <*> varTraverse f e
 
 instance VarTraversable Elem where
   varTraverse f = \case
@@ -143,7 +145,9 @@ t `greaterThan` u = u `lessThan` t
 -- Instances
 
 instance Multiplicative (P γ) where
-  one = Ret one
+  one = Done
+  Done * p = p
+  p * Done = p
   (Integrate d p1) * p2 = Integrate d $ p1 * wkP p2
   p2 * (Integrate d p1) = Integrate d $ p1 * wkP p2
   (Cond c p1) * p2 = Cond c (p1 * p2)
@@ -153,23 +157,24 @@ instance Multiplicative (P γ) where
   (Div p1 p1') * p2 = Div (p1 * p2) p1'
   p1 * (Div p2 p2') = Div (p1 * p2) p2'
   -- (Div p1 p1') * (Div p2 p2') = Div ((*) p1 p1') ((*) p2 p2') -- no need to regroup normalisation factors
-  Ret e1 * Ret e2 = Ret (e1 * e2)
+  Scale k e1 * e2 = Scale k (e1 * e2)
+  e1 * Scale k e2 = Scale k (e1 * e2)
+  _ * _ = error "P-type multiplication cannot handle Power. TODO: replace Div by Mul and Power -1" 
 
 instance AbelianAdditive (P γ)
 instance Group (P γ) where
-  negate = (* (Ret (negate one)))
+  negate = (negate (one :: Ret γ) *^)
 instance Scalable (Ret γ) (P γ) where
-  p *^ q = Ret p * q
-instance Additive (P γ) where
-  zero = Ret zero
-  (Ret (E.Sum [])) + x = x
-  x + (Ret (E.Sum [])) = x
-  x + y = Add x y
+  (*^) = Scale
 
-instance Division (P γ) where
-  (Ret (E.Sum [])) / _  = Ret $ zero
-  (Cond c n) / d = Cond c (n / d) -- this exposes conditions to the integrators in the denominator
-  p1 / p2 = Div p1 p2
+pattern PZero :: P γ
+pattern PZero <- Scale E.Zero _
+
+instance Additive (P γ) where
+  zero = Scale E.Zero Done
+  PZero + x = x
+  x + PZero = x
+  x + y = Add x y
 
 
 
@@ -203,29 +208,42 @@ wkP :: P γ -> P (γ × α)
 wkP = substP $ \i -> A.var (Weaken i) 
 
 substElem :: forall γ ζ. SubstE γ ζ -> Elem γ -> Ret ζ
-substElem v =
-  let evP :: Ret γ -> Ret ζ
-      evP = E.eval (substElem v) 
-  in \case Supremum dir es -> supremum dir (evP <$> es)
-           Vari x -> exprToPoly (v x)
+substElem v = \case
+  Supremum dir es -> supremum dir (substRet v <$> es)
+  Vari x -> exprToPoly (v x)
+
+substRet  :: forall γ ζ. SubstE γ ζ -> Ret γ -> Ret ζ
+substRet v = E.eval (substElem v)
 
 substP :: SubstE γ δ -> P γ -> P δ
 substP f p0 = case p0 of
-  Ret e -> Ret (e >>= substElem f)
+  Scale e p -> Scale (e >>= substElem f) (substP f p)
+  Done -> Done
+  Power p k -> Power (substP f p) k
   Add p1 p2 -> substP f p1 + substP f p2
-  Div p1 p2 -> substP f p1 / substP f p2
+  Div p1 p2 -> substP f p1 `Div` substP f p2
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p) -- integrations are never simplified by substitution
 
 wkExpr :: Expr γ -> Expr (γ × β)
 wkExpr = substExpr (A.var . Weaken) 
 
+condVars :: Cond γ -> [Var γ]
+condVars c = case condExpr c of
+   (A.Affine _ e) -> map fst (LC.toList e)
 
-deepest :: Cond γ -> SomeVar γ
-deepest c = case condExpr c of
-   (A.Affine _ e) -> case LC.toList e of
-     xs@(_:_) -> foldr1 minVar . map SomeVar . map fst $ xs
-     [] -> NoVar
+retVars :: Ret γ -> [Var γ]
+retVars x = concatMap elemVars (toList x)
+
+elemVars :: Elem γ -> [Var γ]
+elemVars = \case
+   Vari x -> [x]
+   Supremum _ es -> concatMap retVars es
+  
+            
+deepest :: [Var γ] -> SomeVar γ
+deepest [] = NoVar
+deepest xs = SomeVar (foldr1 minVar xs)
 
 shallower :: SomeVar γ -> SomeVar γ -> Bool
 SomeVar Get `shallower` _ = False
@@ -245,16 +263,10 @@ instance Eq (SomeVar γ) where
   NoVar == NoVar = True
   _ == _ = False
 
-minVar :: SomeVar γ -> SomeVar γ -> SomeVar γ
-minVar (SomeVar Get) _ = SomeVar Get
-minVar _ (SomeVar Get)  = SomeVar Get 
-minVar (SomeVar (Weaken x)) (SomeVar (Weaken y))
-  = case minVar (SomeVar x) (SomeVar y) of
-      SomeVar z -> SomeVar (Weaken z)
-      _ -> error "minVar: panic"
-minVar NoVar y = y
-minVar x NoVar = x
-
+minVar :: Var γ -> Var γ -> Var γ
+minVar Get _ = Get
+minVar _ Get  = Get 
+minVar (Weaken x) (Weaken y) =  Weaken (minVar x y)
 
 supremum :: Dir -> [Ret γ] -> Ret γ
 supremum _ [e] = e
@@ -273,6 +285,8 @@ constPoly (Number n) = (\case) <$> n
 varPoly :: 'R ∈ γ -> Ret γ
 varPoly = E.Var . Vari
 
+numberToRet :: Number -> Ret γ
+numberToRet (Number x) = fmap (\case) x
 exprToPoly :: Expr γ -> Ret γ
 exprToPoly = A.eval (fmap (\case) .fromNumber) (E.Var .  Vari)
 

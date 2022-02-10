@@ -226,6 +226,7 @@ data General α where
   Indi :: General ('T ⟶ 'R)
   Addi :: General ('R ⟶ 'R ⟶ 'R)
   Mult :: General ('R ⟶ 'R ⟶ 'R)
+  Expo :: General ('R ⟶ 'R ⟶ 'R)
   Divi :: General ('R ⟶ 'R ⟶ 'R)
   EqGen :: Equality α => General ((α × α) ⟶ 'R)
   EqRl :: General ('R ⟶ 'R ⟶ 'R)
@@ -258,6 +259,7 @@ instance Group (NF γ 'R) where
 instance Multiplicative (γ ⊢ 'R) where
   one = Con (General (Incl 1))
   x * y  = Con (General Mult) `App` x `App` y
+  x ^+ n = Con (General Expo) `App` x `App` Con (General (Incl (fromInteger n)))
 instance Multiplicative (NF γ 'R) where
   one = normalForm one
   x * y = normalForm (nf_to_λ x * nf_to_λ y)
@@ -265,10 +267,12 @@ instance Division (γ ⊢ 'R) where
   x / y  = Con (General Divi) `App` x `App` y
 instance Division (NF γ 'R) where
   x / y = normalForm (nf_to_λ x Algebra.Classes./ nf_to_λ y)
-
+instance Roots (γ ⊢ 'R) where
+  x ^/ n = Con (General Expo) `App` x `App` Con (General (Incl n))
 instance Show (General α) where
   show (Incl x) = showR x
   show Indi = "𝟙"
+  show Expo = "(^)"
   show Addi = "(+)"
   show Mult = "(*)"
   show Divi = "(/)"
