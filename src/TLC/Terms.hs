@@ -456,7 +456,7 @@ apply t u = case t of
                 -> normalForm x : listFromContext (normalForm c)
 
 toFinite :: [NF γ α] -> NF γ ((α ⟶ 'R) ⟶ 'R)
-toFinite [] = NFLam $ normalForm zero
+toFinite [t] = normalForm $ η $ nf_to_λ t
 toFinite (t:ts) = NFLam $ (Neu $ NeuApp (NeuVar Get) (wknNF t)) +
                   case toFinite (map wknNF ts) of
                     NFLam m -> substNF0 m (Neu (NeuVar Get))

@@ -84,7 +84,10 @@ evalLF' = \case
   Divide (NCon (General (Incl 0))) _ -> pure 0
   Divide (evalLF' -> x) (evalState . evalLF' -> y) ->
     flip (/) <$> state (\φs -> (y φs, φs)) <*> x
+  Expos (evalLF' -> x) (NCon (General (Incl y))) ->
+    fmap (Algebra.Classes.** (fromRational y)) x
   t -> error ("evalLF': don't know how to handle: " ++ (show . nf_to_λ) t)
+
 
 -- evalLF' :: NF γ 'R -> State [NF γ 'T] (P γ)
 -- evalLF' = \case

@@ -99,7 +99,7 @@ k1 :: γ ⊢ Context2
 k1 = Pair
      (Pair
       (Pair
-       (Pair TT (Con $ General $ Pi 0))
+       (Pair TT (Con $ General $ Pi 1))
        (prop 0))
       (entity 1))
      (entity 0)
