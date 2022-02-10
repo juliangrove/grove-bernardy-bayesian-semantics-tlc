@@ -8,7 +8,6 @@ module Examples.RSA where
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Integrals
-import Models.Integrals.Approx4
 import TLC.Terms
 import TLC.Distributions
 import qualified Algebra.Linear.Vector as V
@@ -21,9 +20,8 @@ test2' = approxTop test2
 test2 :: P (('Unit × 'R) × 'R)
 test2 = simplifyFun2 [] utilityl1
 
-
 -- >>> maxima test2
--- charfun(53 - y <= 0)*charfun(-83 + y <= 0)*charfun(-78 + y <= 0)*charfun(-83 + x <= 0)*charfun(-x + y <= 0)*exp(-1/2*(1/3*(68 - x))^2)*integrate(exp(-1/2*(1/3*(68 - z))^2)*integrate(integrate(exp(-1/2*(1/3*(68 - v))^2), v, u, 83)^(-4), u, 53, min(78, z))^(-1)*integrate(exp(-1/2*(1/3*(68 - u))^2), u, y, 83)^(-4), z, y, 83)^(-1)*integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, z, 83)^(-4), z, 53, min(78, x))^(-1)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, y, 83)^(-4)
+-- charfun(53 - y <= 0)*charfun(-83 + y <= 0)*charfun(-78 + y <= 0)*charfun(-x + y <= 0)*charfun(-83 + x <= 0)*integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, z, 83)^(-4), z, 53, min(78, x))^(-1)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, y, 83)^(-4)
 
 
 utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)

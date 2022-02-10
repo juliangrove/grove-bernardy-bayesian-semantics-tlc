@@ -28,10 +28,10 @@ compareKeys (Key x) (Key y) = if x == y then Just (unsafeCoerce Refl) else Nothi
 
 data Ctx γ where
   Entry :: Key a -> Ctx γ -> Ctx (γ × a)
-  Empty :: Ctx 'F.Unit
+  Nil :: Ctx 'F.Unit
 
 newkey :: Ctx γ -> Key a
-newkey Empty = Key 0
+newkey Nil = Key 0
 newkey (Entry (Key n) _) = Key (n+1)
 
 data Exp t where
@@ -50,7 +50,7 @@ lk :: Ctx γ -> Key x -> x ∈ γ
 lk (Entry k ρ) k' = case compareKeys k k' of
                       Just Refl -> F.Get
                       Nothing -> F.Weaken (lk ρ k')
-lk Empty _ = error "fromHOAS: panic: variable not found"
+lk Nil _ = error "fromHOAS: panic: variable not found"
 
 fromHOAS :: Exp t -> Ctx γ -> γ ⊢ t
 fromHOAS t0 k = case t0 of
@@ -65,7 +65,7 @@ fromHOAS t0 k = case t0 of
              where key = newkey k
 
 fromHoas :: Exp t -> 'Unit ⊢ t
-fromHoas e = fromHOAS e Empty
+fromHoas e = fromHOAS e Nil
 
 -- examples:
 identity :: Exp (b ⟶ b)
@@ -122,7 +122,7 @@ measure :: Exp ((α ⟶ 'R) ⟶ 'R) -> Exp 'R
 measure p = p @@ (Lam $ \_ -> one)
 
 distr :: Equality α => Exp ((α ⟶ 'R) ⟶ 'R) -> Exp α -> Exp 'R
-distr p x = p @@ (Lam $ \y -> x ≐ y) / measure p
+distr p x = p @@ (Lam $ \y -> y ≐ x) / measure p
 
 instance Additive (Exp 'R) where
   zero = Con (General (Incl 0))
@@ -133,6 +133,7 @@ instance Group (Exp 'R) where
 instance Multiplicative (Exp 'R) where
   one = Con (General (Incl 1))
   x * y  = Con (General Mult) @@ x @@ y
+  x ^+ y = Con (General Expo) @@ x @@ (fromInteger y)
 instance Division (Exp 'R) where
   x / y  = Con (General Divi) @@ x @@ y
 instance Scalable (Exp 'R) (Exp 'R) where
