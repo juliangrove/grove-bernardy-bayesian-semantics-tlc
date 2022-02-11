@@ -35,7 +35,7 @@ simplifyFun2 cs = simplify cs . absInversion . absInversion
 
 --------------------------------------------------------------------------------
 -- | Examples
-
+{-
 example0 :: P 'Unit
 example0 = Integrate full $ retPoly $ constPoly 10 + varPoly Get
 
@@ -156,3 +156,4 @@ example5 = Integrate full $
 -- >>> mathematica $ approxIntegrals 8 $ normalise example5 
 -- 9.523809523809527e-2*Exp[-9.0 - x^2] + 0.8773118952961091*Exp[-7.681980515339462 - x^2] + 0.8380952380952381*Exp[-4.499999999999999 - x^2] + 0.8380952380952381*Exp[-4.499999999999997 - x^2] + 1.0851535761614692*Exp[-1.318019484660537 - x^2] + 1.0851535761614692*Exp[-1.3180194846605355 - x^2] + 1.180952380952381*Exp[-4.930380657631324e-32 - x^2]
 
+-}
