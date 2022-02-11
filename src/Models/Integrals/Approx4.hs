@@ -46,8 +46,8 @@ size__ :: Int
 size__ = 128
 
 domLo, domHi :: RR
-domLo = 65 - 15
-domHi = 63 + 15
+domLo = 0
+domHi = 100
 
 type WithCache a = State (Map (P ('Unit × 'R)) (Vec RR)) a
 

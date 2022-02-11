@@ -14,10 +14,10 @@ import qualified Algebra.Linear.Vector as V
 
 
 test :: P (('Unit × 'R) × 'R)
-test = simplifyFun2 [] $ fromHoas (utilitys1 4)
+test = simplifyFun2 [] $ fromHoas (utilityl1 4)
 
 -- >>> maxima test
--- charfun(50 - y <= 0)*charfun(-80 + y <= 0)*charfun(50 - x <= 0)*charfun(-80 + x <= 0)*charfun(-x + y <= 0)*integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, z, 80)^(-4), z, 50, x)^(-1)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, y, 80)^(-4)
+-- charfun(-100 + y <= 0)*charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-100 + x <= 0)*exp(-1/2*(1/3*(68 - x))^2)*integrate(exp(-1/2*(1/3*(68 - z))^2)*integrate(integrate(exp(-1/2*(1/3*(68 - v))^2), v, u, 100)^(-4), u, 0, z)^(-1)*integrate(exp(-1/2*(1/3*(68 - u))^2), u, y, 100)^(-4), z, y, 100)^(-1)*integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, z, 100)^(-4), z, 0, x)^(-1)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, y, 100)^(-4)
 
 testSamples :: V.Vec (V.Vec Double)
 testSamples = approxTop test
@@ -27,8 +27,8 @@ testSamples = approxTop test
 k :: Exp ((Context0 ⟶ 'R) ⟶ 'R)
 k = uniform 0 1 ⋆ \θ ->
     normal 68 3 ⋆ \h ->
-           (observe (h ≥ fromInteger 50) >>
-           (observe (fromInteger 80 ≥ h) >>
+           (observe (h ≥ fromInteger 00) >>
+           (observe (fromInteger 100 ≥ h) >>
              (η (Pair
                  (Pair
                   (Pair
@@ -40,7 +40,7 @@ k = uniform 0 1 ⋆ \θ ->
                  (toHoas F.vlad)))))
 
 utts'' :: Exp (('U ⟶ 'R) ⟶ 'R)
-utts'' = uniform 50 80 ⋆ (\x -> η (u' x)) 
+utts'' = uniform 0 100 ⋆ (\x -> η (u' x)) 
 
 -- | Pragmatic speaker
 s1 :: Integer -> Exp Context0 -> Exp (('U ⟶ 'R) ⟶ 'R)
