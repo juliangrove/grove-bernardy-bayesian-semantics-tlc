@@ -63,7 +63,7 @@ makeBernoulli φ x = Lam $ App (Var Get) (wkn φ) * (wkn x) +
 tryProve' :: [FOL.Value] -> FOL.Value -> Status
 tryProve' = tryProve 10
 
-type Finite = Doc
+type Finite = E.Expr Double
 
 evalFL' :: NF γ 'R -> State [NF γ 'T] Finite
 evalFL' = \case
