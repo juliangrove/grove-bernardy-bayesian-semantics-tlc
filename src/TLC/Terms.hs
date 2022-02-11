@@ -305,13 +305,15 @@ pattern Human = Property 1
 pattern Theta = Degree 1
   
 instance Show (Special α) where
-  show JP = "jp"
-  show Vlad = "v"
+  show JP = "emacs"
+  show Vlad = "the_command"
   show (Entity n) = "entity" ++ show n
   show Height = "height"
   show (MeasureFun n) = "measurefun" ++ show n
-  show Human = "human"
+  show (Property 0) = "prepared"
+  show Human = "animate"
   show (Property n) = "property" ++ show n
+  show (Relation 0) = "wait_for"
   show (Relation n) = "relation" ++ show n
   show Theta = "θ"
   show (Degree n) = "degree" ++ show n
@@ -456,7 +458,7 @@ apply t u = case t of
                 -> normalForm x : listFromContext (normalForm c)
 
 toFinite :: [NF γ α] -> NF γ ((α ⟶ 'R) ⟶ 'R)
-toFinite ts = NFLam $ sum [apply (Neu (NeuVar Get)) (wknNF t) | t <- ts]
+toFinite ts = NFLam $ sum [ apply (Neu (NeuVar Get)) (wknNF t) | t <- ts ]
 
 makeUtts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0]) = \case
@@ -646,12 +648,7 @@ lft f = \case
 π (Weaken i) κ = π i (Fst κ)
 
 type Context0 = Unit × ('R ⟶ 'R ⟶ 'T) × 'R × ('E ⟶ 'T) × ('E ⟶ 'R) × 'E
-type Context1 = Unit ×
-                ('Γ ⟶ 'E) ×
-                ('Γ ⟶ 'E) ×
-                ('E ⟶ 'E ⟶ 'T) ×
-                ('E ⟶ 'E ⟶ 'T) ×
-                ('E ⟶ 'T) × 'E × 'E
+type Context1 = Unit × ('Γ ⟶ 'E) × ('Γ ⟶ 'E) × ('E ⟶ 'E ⟶ 'T) × 'E × 'E
 type Context2 = Unit × ('Γ ⟶ 'E) × ('E ⟶ 'T) × 'E × 'E
 
 data Nat where
@@ -678,11 +675,9 @@ findC = \case
   S Z -> \case
     Entity 0 -> Get
     Entity 1 -> Weaken Get
-    Property 0 -> Weaken (Weaken Get)
-    Relation 0 -> Weaken (Weaken (Weaken Get))
-    Relation 1 -> Weaken (Weaken (Weaken (Weaken Get)))
-    Sel 0 -> Weaken (Weaken (Weaken (Weaken (Weaken Get))))
-    Sel 1 -> Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))
+    Relation 0 -> Weaken (Weaken Get)
+    Sel 0 -> Weaken (Weaken (Weaken Get))
+    Sel 1 -> Weaken (Weaken (Weaken (Weaken Get)))
   S (S Z) -> \case
     Entity 0 -> Get
     Entity 1 -> Weaken Get
