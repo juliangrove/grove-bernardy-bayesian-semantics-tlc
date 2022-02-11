@@ -43,7 +43,6 @@ library
 
 executable test
   other-modules: Examples.Anaphora
-               , Models.Field
                , Models.Integrals
                , Models.Logical.FiniteLogical
                , TLC.Distributions

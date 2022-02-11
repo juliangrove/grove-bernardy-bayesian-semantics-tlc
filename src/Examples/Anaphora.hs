@@ -61,37 +61,41 @@ k (S (S Z)) =
   pis [0, 1] ⋆
   Lam (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) jp)))
        (Con $ General $ Incl 0.05) ⋆
-       Lam (observe' (Var Get) >>
-            (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) vlad)))
-             (Con $ General $ Incl 0.05) ⋆
-             Lam (observe' (Var Get) >>
-                  makeBernoulli (App (prop 0) jp)
+       Lam (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) vlad)))
+            (Con $ General $ Incl 0.05) ⋆
+             Lam (makeBernoulli (App (prop 0) jp)
                   (Con $ General $ Incl 0.05) ⋆
-                  Lam (observe' (Var Get) >>
-                       makeBernoulli (App (prop 0) vlad)
+                  Lam (makeBernoulli (App (prop 0) vlad)
                        (Con $ General $ Incl 0.05) ⋆
-                       Lam (observe' (Var Get) >>
-                            makeBernoulli (App (prop 1) jp)
+                       Lam (makeBernoulli (App (prop 1) jp)
                             (Con $ General $ Incl 0.2) ⋆
-                            Lam (observe' (Var Get) >>
-                                 makeBernoulli (App (prop 1) vlad)
+                            Lam (makeBernoulli (App (prop 1) vlad)
                                  (Con $ General $ Incl 0.2) ⋆
-                                 Lam (observe' (Var Get) >>
-                                      (observe'
+                                 Lam (observe'
+                                      (And'
+                                       (And' (Var Get)
+                                        (And' (Var (Weaken Get))
+                                         (And' (Var (Weaken (Weaken Get)))
+                                          (And' (Var (Weaken (Weaken (Weaken Get))))
+                                           (And' (Var (Weaken (Weaken (Weaken (Weaken Get)))))
+                                            (Var (Weaken (Weaken (Weaken (Weaken (Weaken Get)))))))))))
                                        (And'
                                         (And'
                                          (Forall' (Lam (Imp' (Exists' (Lam (App (App (rel 0) (Var Get)) (Var (Weaken Get))))) (App (prop 1) (Var Get)))))
                                          (Forall' (Lam (Imp' (App (prop 0) (Var Get)) (App (prop 1) (Var Get))))))
-                                        (App (App (rel 0) vlad) jp)) >>
+                                        (App (App (rel 0) vlad) jp))) >>
                                        η (Pair
                                           (Pair
                                            (Pair
                                             (Pair TT (Var (Weaken (Weaken (Weaken (Weaken (Weaken (Weaken Get))))))))
                                             (prop 0))
                                            (entity 1))
-                                          (entity 0)))))))))))
+                                          (entity 0)))))))))
 k _ = error "k: not defined yet."
 
+-- >>> :t k (S (S Z))
+-- k (S (S Z)) :: γ ⊢ ((Context2 ⟶ 'R) ⟶ 'R)
+ 
 k1 :: Int -> γ ⊢ Context2
 k1 i = Pair
        (Pair
