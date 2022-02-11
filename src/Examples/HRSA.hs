@@ -38,12 +38,9 @@ test = simplifyFun2 [] $ fromHoas (utilityl1 1000)
 
 plotData :: RSAOut -> IO ()
 plotData RSAOut {..} = do
-  putStrLn "l0..."
-  toGnuPlot "l0" l0Samples
-  putStrLn "s1..."
-  toGnuPlot "s1" s1Samples
-  putStrLn "l1..."
-  toGnuPlot "l1" l1Samples
+  putStrLn "l0..." ; toGnuPlot "l0.dat" l0Samples
+  putStrLn "s1..." ; toGnuPlot "s1.dat" s1Samples
+  putStrLn "l1..." ; toGnuPlot "l1.dat" l1Samples
   
 
 toMath :: RSAOut -> IO ()
