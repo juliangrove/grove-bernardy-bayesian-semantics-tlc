@@ -20,6 +20,7 @@ module TLC.Terms where
 import Algebra.Classes
 import Data.Ratio
 import Data.String.Utils
+import qualified FOL.FOL as FOL
 import Prelude hiding ((>>), Num(..), Sum(..), sum)
 
 
@@ -105,6 +106,8 @@ instance Equality 'Γ where
   equals (NCon (General Empty)) (NCon (General Empty)) = one
 instance Equality ('E ⟶ 'Γ ⟶ 'Γ) where
   equals (NCon (General Upd)) (NCon (General Upd)) = one
+instance Equality 'T where
+  equals ϕ ψ = if termToFol ϕ == termToFol ψ then one else zero 
 instance Equality ('Γ ⟶ 'E) where
   equals (NCon (Special (Sel i))) (NCon (Special (Sel j))) =
     case i == j of
@@ -114,6 +117,43 @@ instance Equality ('Γ ⟶ 'E) where
     case i == j of
       True -> one
       False -> NCon (General (Incl 0))
+
+--------------------------------------
+type ValueSubst = forall δ β. β ∈ δ -> FOL.Value
+
+viewApp :: ValueSubst -> γ ⊢ α -> Maybe (String, [FOL.Value])
+viewApp ρ = \case
+  TLC.Terms.Con c -> Just (show c, [])
+  App x y -> case viewApp ρ x of
+               Just (f, args) -> Just (f, args ++ [termToFol' ρ y])
+               _ -> Nothing
+  _ -> Nothing
+
+termToFol' :: ValueSubst -> γ ⊢ α -> FOL.Value
+termToFol' ρ t =
+  case t of
+    Var i -> ρ i
+    True' -> FOL.VTru
+    False' -> FOL.VFal
+    And' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) -> FOL.VAnd φ ψ
+    Imp' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) -> FOL.VOr (FOL.VNot φ) ψ
+    Or' (termToFol' ρ -> φ) (termToFol' ρ -> ψ) -> FOL.VOr φ ψ
+    Forall' f -> FOL.VAll (\x -> termToFol' (\case
+                                                Get -> x
+                                                Weaken i -> ρ i)
+                            (evalβ $ App (wkn f) (Var Get)))
+    Exists' f -> FOL.VExi (\x -> termToFol' (\case
+                                                Get -> x
+                                                Weaken i -> ρ i)
+                            (evalβ $ App (wkn f) (Var Get)))
+    _ -> case viewApp ρ t of
+                 Just (f, args) -> FOL.VApp f (args)
+                 Nothing -> error $ "termToFol': viewApp produced Nothing"
+
+termToFol :: NF γ α -> FOL.Value
+termToFol = termToFol' (\case) . nf_to_λ 
+------------------------------------------------------------------
+
 
 u :: Int -> γ ⊢ 'U
 u i = Con $ General $ Utt i
@@ -164,21 +204,21 @@ reduce1step = \case
   TT -> TT
   Pair (reduce1step -> m) (reduce1step -> n) -> Pair m n
 
-can'Reduce :: γ ⊢ α -> Bool
-can'Reduce = \case
+canReduce :: γ ⊢ α -> Bool
+canReduce = \case
   App (Con (General Mult)) (Con (General (Incl 1))) -> True
   App (App (Con (General Mult)) x) (Con (General (Incl 1))) -> True
   Var i -> False
   Con c -> False
-  App (can'Reduce -> m) (can'Reduce -> n) -> m || n
-  Lam m -> can'Reduce m
-  Fst m -> can'Reduce m
-  Snd m -> can'Reduce m
+  App (canReduce -> m) (canReduce -> n) -> m || n
+  Lam m -> canReduce m
+  Fst m -> canReduce m
+  Snd m -> canReduce m
   TT -> False
-  Pair (can'Reduce -> m) (can'Reduce -> n) -> m || n
+  Pair (canReduce -> m) (canReduce -> n) -> m || n
 
 reduce1s :: γ ⊢ α -> γ ⊢ α
-reduce1s m = if can'Reduce m then reduce1s (reduce1step m) else m
+reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
 
 clean :: γ ⊢ α -> γ ⊢ α
 clean = reduce1s . evalβ 
@@ -294,6 +334,7 @@ data Special α where
   MeasureFun :: Int -> Special ('E ⟶ 'R)
   Property :: Int -> Special ('E ⟶ 'T)
   Relation :: Int -> Special ('E ⟶ 'E ⟶ 'T)
+  Proposition :: Int -> Special 'T
   Degree :: Int -> Special 'R
   GTE :: Special ('R ⟶ 'R ⟶ 'T)
   Sel :: Int -> Special ('Γ ⟶ 'E)
@@ -311,6 +352,7 @@ instance Show (Special α) where
   show Height = "height"
   show (MeasureFun n) = "measurefun" ++ show n
   show (Property 0) = "prepared"
+  show (Proposition n) = "φ" ++ show n
   show Human = "animate"
   show (Property n) = "property" ++ show n
   show (Relation 0) = "wait_for"
@@ -649,7 +691,7 @@ lft f = \case
 
 type Context0 = Unit × ('R ⟶ 'R ⟶ 'T) × 'R × ('E ⟶ 'T) × ('E ⟶ 'R) × 'E
 type Context1 = Unit × ('Γ ⟶ 'E) × ('Γ ⟶ 'E) × ('E ⟶ 'E ⟶ 'T) × 'E × 'E
-type Context2 = Unit × ('Γ ⟶ 'E) × ('E ⟶ 'T) × 'E × 'E
+type Context2 = Unit × 'T × ('Γ ⟶ 'E) × ('E ⟶ 'T) × 'E × 'E
 
 data Nat where
   Zero :: Nat
@@ -683,6 +725,7 @@ findC = \case
     Entity 1 -> Weaken Get
     Property 0 -> Weaken (Weaken Get)
     Sel 0 -> Weaken (Weaken (Weaken Get))
+    Proposition 0 -> Weaken (Weaken (Weaken (Weaken Get)))
            
 rename :: (∀α. α ∈ γ -> α ∈ δ) -> γ ⊢ β -> δ ⊢ β
 rename f = \case
