@@ -45,9 +45,6 @@ evalFL = \case
   Expos (evalFL -> x) (evalFL -> y) -> x Algebra.Classes.** y
   t -> error ("evalFL: don't know how to handle: " ++ (show . nf_to_λ) t)
 
--- >>> tryProve' [] (termToFol $ normalForm (App (prop 0) jp))
--- Neutral
-
 evalFLState' :: NF γ 'R -> State [NF γ 'T] Finite
 evalFLState' = \case
   NCon (General (Incl x)) -> pure $ fromRational x
