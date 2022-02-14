@@ -14,7 +14,6 @@ import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
 
 
-<<<<<<< HEAD
 data RSAIn = forall context. Equality context => RSAIn {
     alpha :: Integer,
     contextDistribution    :: Exp ((context ⟶ 'R) ⟶ 'R),
@@ -28,13 +27,6 @@ data RSAOut = RSAOut {
     l0Expr, l1Expr, s1Expr :: P (('Unit × 'R) × 'R),
     l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double)
   }
-=======
-test :: P (('Unit × 'R) × 'R)
-test = simplifyFun2 [] $ fromHoas (utilityl1 1000)
-
--- >>> maxima test
--- charfun(-100 + y <= 0)*charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-100 + x <= 0)*exp(-1/2*(1/3*(68 - x))^2)*integrate(exp(-1/2*(1/3*(68 - z))^2)*integrate(integrate(exp(-1/2*(1/3*(68 - v))^2), v, u, 100)^(-1000), u, 0, z)^(-1)*integrate(exp(-1/2*(1/3*(68 - u))^2), u, y, 100)^(-1000), z, y, 100)^(-1)*integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, z, 100)^(-1000), z, 0, x)^(-1)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, y, 100)^(-1000)
->>>>>>> 2f998bb (Add stateless evaluator.)
 
 plotData :: RSAOut -> IO ()
 plotData RSAOut {..} = do
