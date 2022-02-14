@@ -14,13 +14,13 @@ import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
 
 
-data RSAIn = forall context. Equality context => RSAIn {
+data RSAIn = forall context utterance. (Equality context, Equality utterance) => RSAIn {
     alpha :: Integer,
     contextDistribution    :: Exp ((context ⟶ 'R) ⟶ 'R),
-    utteranceDistribution  ::  Exp (('U ⟶ 'R) ⟶ 'R),
+    utteranceDistribution  ::  Exp ((utterance ⟶ 'R) ⟶ 'R),
     realToCtx :: Exp 'R -> Exp context,
-    realToU ::  Exp 'R -> Exp 'U,
-    interpU :: Exp 'U -> Exp context -> Exp 'T
+    realToU ::  Exp 'R -> Exp utterance,
+    interpU :: Exp utterance -> Exp context -> Exp 'T
   }
 
 data RSAOut = RSAOut {
