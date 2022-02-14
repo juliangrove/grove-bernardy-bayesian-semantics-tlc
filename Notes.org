@@ -1,4 +1,10 @@
 
+** Viewing a .dat file
+-- To see output of this function, in gnuplot, run:
+-- set zrange [0:1]
+-- splot 'filename.dat' nonuniform matrix with pm3d
+
+
 ** Case 1
 - prior for θ uniform [0,1000]
 - prior height distribution normal(68,34)
