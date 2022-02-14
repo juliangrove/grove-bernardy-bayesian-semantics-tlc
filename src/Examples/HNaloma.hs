@@ -144,7 +144,7 @@ l0 n u u0 =
   observe
      ((Con (General (HMorph n (F.Proposition 0))) @@ k) ∧
       (Con (General (Interp n)) @@ u @@ k)
-      -- ∧ (Con (General (Interp n)) @@ u0 @@ k)
+      -- ∧ (Con (General (Interp n)) @@ u0 @@ k) -- naloma paper has this somehow?
      ) >>
   η k
 
