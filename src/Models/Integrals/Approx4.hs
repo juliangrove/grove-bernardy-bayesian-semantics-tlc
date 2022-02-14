@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
@@ -12,7 +13,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RebindableSyntax #-}
 
-module Models.Integrals.Approx4 (toGnuPlot, approxTop, KnownContext(..), Env, FUN) where
+module Models.Integrals.Approx4 (toGnuPlot, approxTop, KnownContext(..), Env, FUN, PlotOptions(..)) where
 
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
@@ -42,44 +43,49 @@ evalP = E.eval $ \case
 evalX :: Expr  'Unit -> RR
 evalX = A.eval evalNumber (\case)
 
-size__ :: Int
-size__ = 128
-
-domLo, domHi :: RR
-domLo = 0
-domHi = 100
-
-type WithCache a = State (Map (P ('Unit × 'R)) (Vec RR)) a
-
-point :: Int -> RR
-point i = domLo + (domHi - domLo) * (fromInt i/ fromInt (size__))
-
-
+data PlotOptions = PlotOptions {
+  plotResolution :: Int,
+  plotDomainLo, plotDomainHi :: RR
+  }
 fromInt :: Ring a => Int -> a
 fromInt = fromInteger . toInteger
 
-rng :: [Int]
-rng = [0..size__]
+data Eval'Options = Eval'Options {
+  size__ :: Int,
+  domHi, domLo :: RR,
+  resolution :: RR,
+  point :: Int -> RR,
+  rng :: [Int],
+  pts :: Vec RR,
+  ptsrng :: [RR]
+  }
+
+evalOptions :: PlotOptions -> Eval'Options
+evalOptions PlotOptions{..} = Eval'Options {..} where
+   size__ = plotResolution
+   domHi = plotDomainHi
+   domLo = plotDomainLo
+   pts = fromList ptsrng
+   ptsrng = fmap point rng
+   rng = [0..size__]
+   resolution :: RR
+   resolution = (domHi - domLo) / fromInt size__
+   point :: Int -> RR
+   point i = domLo + (domHi - domLo) * (fromInt i/ fromInt (size__))
+  
+
+type WithCache a = State (Map (P ('Unit × 'R)) (Vec RR)) a
 
 
-ptsrng :: [RR]
-ptsrng = fmap point rng
+-- >>> pts (evalOptions (PlotOptions 16 50 80))
+-- Vec [50.0,51.875,53.75,55.625,57.5,59.375,61.25,63.125,65.0,66.875,68.75,70.625,72.5,74.375,76.25,78.125,80.0]
 
-pts :: Vec RR
-pts = fromList ptsrng
+-- >>> resolution (evalOptions (PlotOptions 16 50 80))
+-- 1.875
 
--- >>> pts
--- Vec [50.0,51.75,53.5,55.25,57.0,58.75,60.5,62.25,64.0,65.75,67.5,69.25,71.0,72.75,74.5,76.25,78.0]
-
-resolution :: RR
-resolution = (domHi - domLo) / fromInt size__
-
--- >>> resolution
--- 1.75
-
-approxIntegralsWithCache :: P 'Unit -> WithCache RR
-approxIntegralsWithCache = 
-  let aa = approxIntegralsWithCache
+approxIntegralsWithCache :: Eval'Options -> P 'Unit -> WithCache RR
+approxIntegralsWithCache options@Eval'Options{..} = 
+  let aa = approxIntegralsWithCache options
   in \case
       Done -> pure one
       Power a k -> (** evalNumber k) <$> aa a
@@ -106,12 +112,12 @@ type family FUN γ x where
   FUN (a ':× 'R) x = Vec (FUN a x)
 
 class KnownContext (γ :: Type) where
-  approxFUN :: P γ -> WithCache (FUN γ RR)
+  approxFUN :: Eval'Options -> P γ -> WithCache (FUN γ RR)
 instance KnownContext 'Unit where
-  approxFUN x = approxIntegralsWithCache x
+  approxFUN o x = approxIntegralsWithCache o x
 instance KnownContext γ => KnownContext (γ × 'R) where
-  approxFUN e = flip traverse (fromList $ (point <$> rng)) $ \x ->
-                approxFUN $
+  approxFUN o@Eval'Options{..} e = flip traverse (fromList $ (point <$> rng)) $ \x ->
+                approxFUN o $
                 flip substP e $ \case
                    Get -> A.constant (Number (E.Flt x))
                    Weaken v -> A.var v
@@ -119,12 +125,12 @@ instance KnownContext γ => KnownContext (γ × 'R) where
 runWithCache :: WithCache x -> x
 runWithCache e = fst (runState e M.empty)
 
-approxTop :: KnownContext γ => P γ -> FUN γ RR
-approxTop e = runWithCache  (approxFUN e)
+approxTop :: KnownContext γ => PlotOptions -> P γ -> FUN γ RR
+approxTop o e = runWithCache (approxFUN (evalOptions o) e)
 
-
-toGnuPlot :: String -> Vec (Vec Double) -> IO ()
-toGnuPlot fn x = writeFile fn
+toGnuPlot :: PlotOptions -> String -> Vec (Vec Double) -> IO ()
+toGnuPlot o fn x = writeFile fn
             $   unlines $ fmap (unwords . fmap show) $
             (0 : ptsrng) :
             [ point i : toList (x ! i)  | i <- rng ]
+  where Eval'Options {..} = evalOptions o

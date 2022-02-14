@@ -20,20 +20,16 @@ data RSAIn = forall context utterance. (Equality context, Equality utterance) =>
     utteranceDistribution  ::  Exp ((utterance ⟶ 'R) ⟶ 'R),
     realToCtx :: Exp 'R -> Exp context,
     realToU ::  Exp 'R -> Exp utterance,
-    interpU :: Exp utterance -> Exp context -> Exp 'T
+    interpU :: Exp utterance -> Exp context -> Exp 'T,
+    plotOptions :: PlotOptions
   }
 
 data RSAOut = RSAOut {
     l0Expr, l1Expr, s1Expr :: P (('Unit × 'R) × 'R),
-    l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double)
+    l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double),
+    plotData :: IO ()
   }
 
-plotData :: RSAOut -> IO ()
-plotData RSAOut {..} = do
-  putStrLn "l0..." ; toGnuPlot "l0.dat" l0Samples
-  putStrLn "s1..." ; toGnuPlot "s1.dat" s1Samples
-  putStrLn "l1..." ; toGnuPlot "l1.dat" l1Samples
-  
 
 toMath :: RSAOut -> IO ()
 toMath RSAOut {..} = do
@@ -56,6 +52,10 @@ toMath RSAOut {..} = do
 
 example1 :: RSAOut
 example1 = evaluate $ RSAIn {realToCtx=heightToCtx,realToU=toAtLeastHeight,..} where
+    plotOptions = PlotOptions {..}
+    plotDomainLo = 0
+    plotDomainHi = 100
+    plotResolution = 128
     alpha = 4
     utteranceDistribution = uniform 0 100 ⋆ (\x -> η (u' x)) 
     heightToCtx :: Exp 'R -> Exp Context0
@@ -133,7 +133,13 @@ evaluate RSAIn{..} = RSAOut {..} where
   l1Expr = asExpression utilityl1
   s1Expr = asExpression utilitys1
 
-  l0Samples = approxTop l0Expr
-  l1Samples = approxTop l1Expr
-  s1Samples = approxTop s1Expr
+  l0Samples = approxTop plotOptions l0Expr
+  l1Samples = approxTop plotOptions l1Expr
+  s1Samples = approxTop plotOptions s1Expr
+
+  plotData :: IO ()
+  plotData = do
+    putStrLn "l0..." ; toGnuPlot plotOptions "l0.dat" l0Samples
+    putStrLn "s1..." ; toGnuPlot plotOptions "s1.dat" s1Samples
+    putStrLn "l1..." ; toGnuPlot plotOptions "l1.dat" l1Samples
 
