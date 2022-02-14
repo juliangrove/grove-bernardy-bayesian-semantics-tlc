@@ -40,15 +40,32 @@ toMath RSAOut {..} = do
   putStr "l1 = "
   maxima $ l1Expr
 
--- >>> toMath example1
--- l0 = charfun(-x <= 0)*charfun(-100 + x <= 0)*charfun(-x + y <= 0)*exp(-1/2*(1/3*(68 - x))^2)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, max(y, 0), 100)^(-1)
--- s1 = charfun(-y <= 0)*charfun(-100 + y <= 0)*charfun(-x <= 0)*charfun(-100 + x <= 0)*charfun(-x + y <= 0)*integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, z, 100)^(-4), z, 0, x)^(-1)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, y, 100)^(-4)
--- l1 = charfun(-100 + y <= 0)*charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-100 + x <= 0)*exp(-1/2*(1/3*(68 - x))^2)*integrate(exp(-1/2*(1/3*(68 - z))^2)*integrate(integrate(exp(-1/2*(1/3*(68 - v))^2), v, u, 100)^(-4), u, 0, z)^(-1)*integrate(exp(-1/2*(1/3*(68 - u))^2), u, y, 100)^(-4), z, y, 100)^(-1)*integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, z, 100)^(-4), z, 0, x)^(-1)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, y, 100)^(-4)
+-- >>> toMath exampleCookies
+-- l0 = charfun(-x + y <= 0)*charfun(-40 + x <= 0)*charfun(-x <= 0)*exp(-1/2*(1/5*(10 - x))^2)*integrate(exp(-1/2*(1/5*(10 - z))^2), z, max(y, 0), 40)^(-1)
+-- s1 = charfun(-y <= 0)*charfun(-40 + y <= 0)*charfun(-x + y <= 0)*charfun(-40 + x <= 0)*integrate(integrate(exp(-1/2*(1/5*(10 - u))^2), u, z, 40)^(-4), z, 0, x)^(-1)*integrate(exp(-1/2*(1/5*(10 - z))^2), z, y, 40)^(-4)
+-- l1 = charfun(-y <= 0)*charfun(-40 + y <= 0)*charfun(-x + y <= 0)*charfun(-40 + x <= 0)*exp(-1/2*(1/5*(10 - x))^2)*integrate(exp(-1/2*(1/5*(10 - z))^2)*integrate(integrate(exp(-1/2*(1/5*(10 - v))^2), v, u, 40)^(-4), u, 0, z)^(-1)*integrate(exp(-1/2*(1/5*(10 - u))^2), u, y, 40)^(-4), z, y, 40)^(-1)*integrate(integrate(exp(-1/2*(1/5*(10 - u))^2), u, z, 40)^(-4), z, 0, x)^(-1)*integrate(exp(-1/2*(1/5*(10 - z))^2), z, y, 40)^(-4)
 
--- >>> plotData example1
+-- >>> plotData exampleCookies
 -- l0...
 -- s1...
 -- l1...
+
+exampleCookies :: RSAOut
+exampleCookies = evaluate RSAIn {..} where
+  realToCtx = id
+  realToU = id
+  plotOptions = PlotOptions {..}
+  plotDomainLo = 0
+  plotDomainHi = 40
+  plotResolution = 128
+  alpha = 4
+  utteranceDistribution = uniform 0 40
+  interpU u nCookies = nCookies ≥ u
+  contextDistribution =
+      normal 40 5 ⋆ \nCookies ->
+             observe (nCookies ≥ fromInteger 0) >>
+             observe (fromInteger 40 ≥ nCookies) >>
+             η nCookies
 
 example1 :: RSAOut
 example1 = evaluate $ RSAIn {realToCtx=heightToCtx,realToU=toAtLeastHeight,..} where
