@@ -278,6 +278,7 @@ data General α where
   Qua :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Uni :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Interp :: Witness n -> General ('U ⟶ Context n ⟶ 'T)
+  HMorph :: Witness n -> Special x -> General (Context n ⟶ x)
   Empty :: General 'Γ
   Upd :: General ('E ⟶ 'Γ ⟶ 'Γ)
   Pi :: Int -> General ('Γ ⟶ 'E)
@@ -475,6 +476,7 @@ apply t u = case t of
                   True
                 _ -> False
       (NeuCon (General EqGen)) -> equals (fst' u) (snd' u)
+      (NeuCon (General (HMorph i s))) -> normalForm (App (hmorph i (Con (Special s))) (nf_to_λ u)) -- normalForm (hmorph i _)
       (NeuCon (General (Interp i))) -> case nf_to_λ u of
          Con (General (Utt 1)) -> morph $ App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
          Con (General (Utt 2)) -> morph $ App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'

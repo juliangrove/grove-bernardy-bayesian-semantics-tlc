@@ -138,24 +138,26 @@ context _ = error "k: not defined yet."
 
 
 -- | Literal listener
-l0 :: Witness n -> Exp ('U × 'U) -> Exp ((Context n ⟶ 'R) ⟶ 'R)
-l0 n u1u2 =
-       context n ⋆ \k -> (observe
-             ((Con (General (HMorph n (F.Proposition 0))) @@ k)
-              ∧ ((Con (General (Interp n)) @@ Fst u1u2) @@ k)
-              ∧ (Con (General (Interp n)) @@ Snd u1u2 @@ k))) >>
-             η k
+l0 :: Witness n -> Exp 'U -> Exp 'U -> Exp ((Context n ⟶ 'R) ⟶ 'R)
+l0 n u u0 =
+  context n ⋆ \k ->
+  observe
+     ((Con (General (HMorph n (F.Proposition 0))) @@ k) ∧
+      (Con (General (Interp n)) @@ u @@ k)
+      -- ∧ (Con (General (Interp n)) @@ u0 @@ k)
+     ) >>
+  η k
 
 -- | Pragmatic speaker
 s1' :: Equality (Context n)
-    => Witness n -> Rational -> Exp (Context n × 'U) -> Exp (('U ⟶ 'R) ⟶ 'R)
-s1' n α ctxU =
-  (Con (General $ MakeUtts n) @@ ctxU) ⋆ \u ->
-  factor (distr (l0 n (u `Pair` Snd (ctxU))) (Fst ctxU) ^/ α) >>
+    => Witness n -> Rational -> Exp (Context n) -> Exp 'U -> Exp (('U ⟶ 'R) ⟶ 'R)
+s1' n α ctx u0 =
+  (Con (General $ MakeUtts n) @@ (ctx `Pair` u0)) ⋆ \u ->
+  factor (distr (l0 n u u0) ctx ^/ α) >>
   η u
 
 s1 :: Equality (Context n)
-   => Witness n -> Exp (Context n × 'U) -> Exp (('U ⟶ 'R) ⟶ 'R)
+   => Witness n -> Exp (Context n) -> Exp 'U -> Exp (('U ⟶ 'R) ⟶ 'R)
 s1 n = s1' n 0
 
 -- | Pragmatic listener
@@ -163,7 +165,7 @@ l1' :: Equality (Context n)
    => Rational -> Witness n -> Exp 'U -> Exp ((Context n ⟶ 'R) ⟶ 'R)
 l1' α n u =
   context n ⋆ \ctx ->
-  factor (distr (s1' n α (ctx `Pair` u)) u) >>
+  factor (distr (s1' n α ctx u) u) >>
   η ctx
 
 l1 :: Equality (Context n) => Rational -> Witness n -> 'Unit ⊢ ('U ⟶ ((Context n ⟶ 'R) ⟶ 'R))
