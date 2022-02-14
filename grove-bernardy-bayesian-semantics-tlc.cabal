@@ -46,6 +46,7 @@ library
 executable test
   other-modules: Examples.Anaphora
                , Examples.Naloma
+               , Examples.HNaloma
                , Models.Integrals
                , Models.Logical.FiniteLogical
                , TLC.Distributions

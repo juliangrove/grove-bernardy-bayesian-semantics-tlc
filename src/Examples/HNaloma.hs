@@ -165,6 +165,9 @@ l1' :: Equality (Context n)
    => Rational -> Witness n -> Exp 'U -> Exp ((Context n ⟶ 'R) ⟶ 'R)
 l1' α n u =
   context n ⋆ \ctx ->
+  -- adding observation here has no effects
+  -- observe (interp u ctx)
+  -- sufficient condition for this having no effects: (ctx,u ⊢ ⊥) ⇒ (s1Distr ctx u = 0)
   factor (distr (s1' n α ctx u) u) >>
   η ctx
 

@@ -3,8 +3,8 @@
 
 module Main where
 
-import Examples.Anaphora
--- import Examples.Naloma
+-- import Examples.Anaphora
+import Examples.HNaloma (l1)
 import Models.Logical.FiniteLogical
 import Prelude hiding (Num(..), Fractional(..))
 import TLC.Distributions
@@ -24,4 +24,4 @@ main = do
         Lam (η (hmorph n
                 (Con (General EqGen) `App`
                  (sel' 0 (upd' jp (upd' vlad emp)) `Pair` jp)) `App` Var Get))
-  print (E.eval (\case) result :: Double)
+  print (E.eval id result :: Double)
