@@ -13,7 +13,7 @@ module TLC.HOAS (Exp(..), (@@), module TLC.Terms,
                 uniform, normal, u', (≥), measure, distr, observe, factor, fromHoas,
                 (⋆), (>>), η, toHoas, π) where
 
-import Prelude hiding ((>>), Num(..), (/))
+import Prelude hiding ((>>), Num(..), Fractional(..))
 import Algebra.Classes
 import qualified TLC.Terms as F
 import TLC.Terms (type (⊢), type(∈)(..), type (×),  type (⟶), Type(..), Con(..), General(..), Special(GTE),Equality)
@@ -136,10 +136,15 @@ instance Multiplicative (Exp 'R) where
   x ^+ y = Con (General Expo) @@ x @@ (fromInteger y)
 instance Division (Exp 'R) where
   x / y  = Con (General Divi) @@ x @@ y
+instance Field (Exp 'R) where
+  fromRational = Con . General . Incl 
 instance Scalable (Exp 'R) (Exp 'R) where
   (*^) = (*)
 instance Ring (Exp 'R) where
   fromInteger = Con . General . Incl . fromInteger
+instance Roots (Exp 'R) where
+  x ^/ y = Con (General Expo) @@ x @@ (fromRational y)
+  
 
 uniform :: Rational -> Rational -> Exp (('R ⟶ 'R) ⟶ 'R)
 uniform x y = App (Con $ General Uni) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))

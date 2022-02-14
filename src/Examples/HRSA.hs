@@ -15,7 +15,7 @@ import qualified Algebra.Linear.Vector as V
 
 
 data RSAIn = forall context utterance. (Equality context, Equality utterance) => RSAIn {
-    alpha :: Integer,
+    alpha :: Rational,
     contextDistribution    :: Exp ((context ⟶ 'R) ⟶ 'R),
     utteranceDistribution  ::  Exp ((utterance ⟶ 'R) ⟶ 'R),
     realToCtx :: Exp 'R -> Exp context,
@@ -96,7 +96,7 @@ evaluate RSAIn{..} = RSAOut {..} where
   
   -- s1 :: Exp context -> Exp (('U ⟶ 'R) ⟶ 'R)
   s1 ctx = utteranceDistribution ⋆ \u ->
-              factor ((distr (l0 u) ctx) ^+ α) >>
+              factor ((distr (l0 u) ctx) ^/ α) >>
               η u
 
   -- | Literal listener
