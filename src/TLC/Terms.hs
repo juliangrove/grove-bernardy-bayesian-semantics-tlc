@@ -82,7 +82,7 @@ instance Equality 'U where
           checkEquality (Just x : es0) (Just y : es1) =
             equals (NCon $ Special x) (NCon $ Special y) * checkEquality es0 es1
   equals m n = Neu $ (NeuCon $ General $ EqGen) `NeuApp` (NFPair m n)
-instance Equality Unit where
+instance Equality 'Unit where
   equals _ _ = one
 instance (Equality α, Equality β) => Equality (α × β) where
   equals (NFPair m n) (NFPair m' n') = equals m m' * equals n n'
