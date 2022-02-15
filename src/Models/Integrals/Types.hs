@@ -215,6 +215,12 @@ substP f p0 = case p0 of
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p) -- integrations are never simplified by substitution
 
+swap2P :: P (γ × α × β) -> P (γ × β × α)
+swap2P = substP $ \case
+  Get -> A.var (Weaken Get)
+  Weaken Get -> A.var Get
+  Weaken (Weaken x) -> A.var (Weaken (Weaken x))
+
 wkExpr :: Expr γ -> Expr (γ × β)
 wkExpr = substExpr (A.var . Weaken) 
 

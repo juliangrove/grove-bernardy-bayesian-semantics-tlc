@@ -13,7 +13,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RebindableSyntax #-}
 
-module Models.Integrals.Approx4 (toGnuPlot, approxTop, KnownContext(..), Env, FUN, PlotOptions(..)) where
+module Models.Integrals.Approx4 (toGnuPlot1d, toGnuPlot, approxTop, KnownContext(..), Env, FUN, PlotOptions(..)) where
 
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
@@ -133,4 +133,10 @@ toGnuPlot o fn x = writeFile fn
             $   unlines $ fmap (unwords . fmap show) $
             (0 : ptsrng) :
             [ point i : toList (x ! i)  | i <- rng ]
+  where Eval'Options {..} = evalOptions o
+
+toGnuPlot1d :: PlotOptions -> String -> Vec Double -> IO ()
+toGnuPlot1d o fn x = writeFile fn
+            $   unlines $ fmap (unwords . fmap show) $
+            [ [point i ,  (x ! i)]  | i <- rng ]
   where Eval'Options {..} = evalOptions o
