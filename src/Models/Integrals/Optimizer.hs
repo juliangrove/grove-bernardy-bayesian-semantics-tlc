@@ -35,8 +35,6 @@ import Models.Integrals.Types
 import Control.Applicative (Const(..))
 import Data.Maybe (catMaybes)
 import qualified Algebra.Expression as E
-import Data.Foldable
-  
 
 ---------------------------------------------------------
 -- Normalisation of integrals 
