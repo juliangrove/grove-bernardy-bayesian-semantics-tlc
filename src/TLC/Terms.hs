@@ -381,7 +381,7 @@ data γ ⊢ α where
   Lam :: (γ × α) ⊢ β -> γ ⊢ (α ⟶ β)
   Fst :: γ ⊢ (α × β) -> γ ⊢ α
   Snd :: γ ⊢ (α × β) -> γ ⊢ β
-  TT :: γ ⊢ Unit
+  TT :: γ ⊢ 'Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 
 infixl `App`
@@ -690,9 +690,9 @@ lft f = \case
 π Get κ = Snd κ
 π (Weaken i) κ = π i (Fst κ)
 
-type Context0 = Unit × ('R ⟶ 'R ⟶ 'T) × 'R × ('E ⟶ 'T) × ('E ⟶ 'R) × 'E
-type Context1 = Unit × 'T × ('Γ ⟶ 'E) × ('Γ ⟶ 'E) × ('E ⟶ 'E ⟶ 'T) × 'E × 'E
-type Context2 = Unit × 'T × ('Γ ⟶ 'E) × ('E ⟶ 'T) × 'E × 'E
+type Context0 = 'Unit × ('R ⟶ 'R ⟶ 'T) × 'R × ('E ⟶ 'T) × ('E ⟶ 'R) × 'E
+type Context1 = 'Unit × 'T × ('Γ ⟶ 'E) × ('Γ ⟶ 'E) × ('E ⟶ 'E ⟶ 'T) × 'E × 'E
+type Context2 = 'Unit × 'T × ('Γ ⟶ 'E) × ('E ⟶ 'T) × 'E × 'E
 
 data Nat where
   Zero :: Nat
