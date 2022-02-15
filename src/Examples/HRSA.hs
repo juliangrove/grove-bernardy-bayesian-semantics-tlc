@@ -21,8 +21,6 @@ data RSAIn = forall context utterance. (Equality context, Equality utterance) =>
     utteranceDistribution  :: Exp ((utterance ⟶ 'R) ⟶ 'R),
     interpU :: Exp utterance -> Exp context -> Exp 'T,
 
-    -- realToCtx :: Exp 'R -> Exp context,
-    -- realToU ::  Exp 'R -> Exp utterance,
     varsToSituation :: Exp 'R -> Exp 'R -> (Exp context, Exp utterance),
     plotOptions :: PlotOptions
   }
@@ -77,23 +75,34 @@ exampleTallThreshold = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
-  utteranceDistribution :: Exp ((('R ⟶ 'R ⟶ 'T) ⟶ 'R) ⟶ 'R)
-  isTall = (Lam $ \θ -> Lam $ \ h -> h ≥ θ)
-  utteranceDistribution = Lam $ \k -> k @@ (Lam $ \θ -> Lam $ \ h -> θ ≥ h)
-                                + k @@ isTall
-                                + k @@ (Lam $ \θ -> Lam $ \ h -> Con $ Logical F.Tru)
-  interpU :: Exp ('R ⟶ 'R ⟶ 'T) -> Exp ('R × 'R) -> Exp 'T
-  interpU u ctx = u @@ Fst ctx @@ Snd ctx
+  uu = Con . General . Utt 
+  utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
+  isTall = uu 1
+  utteranceDistribution = Lam $ \k -> k @@ (uu 1)
+                                + k @@ (uu 2)
+                                + k @@ (uu 3)
+  interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
+  interpU u ctx = Con (General (Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
+                                                         `Pair` Fst ctx
+                                                         `Pair` (Lam $ \_ -> Con (F.Logical (F.Tru)))
+                                                         `Pair` (Lam $ \_ -> Snd ctx)
+                                                         `Pair` Con (Special (F.Entity 0)))
   contextDistribution =
       normal 68 3 ⋆ \h ->
+             observe (h ≥ fromInteger 0) >>
+             observe (fromInteger 100 ≥ h) >>
       uniform 0 100 ⋆ \θ ->
-             -- observe (nCookies ≥ fromInteger 0) >>
-             -- observe (fromInteger 40 ≥ nCookies) >>
              η (θ `Pair` h)
 
 -- >>> toMath exampleTallThreshold
--- l0 = charfun(-100 + y <= 0)*charfun(-y <= 0)*charfun(-x + y <= 0)*1/100*1/3*(1/100)^(-1)*(1/3)^(-1)*exp(-1/2*(1/3*(68 - x))^2)*integrate(min(z, 100)*exp(-1/2*(1/3*(68 - z))^2), z, 0, inf)^(-1)
--- s1 = *** Exception: src/TLC/Terms.hs:104:3-56: Non-exhaustive patterns in function equals
+-- l0 = charfun(-100 + y <= 0)*charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-40 + x <= 0)*1/100*1/3*(1/100)^(-1)*(1/3)^(-1)*exp(-1/2*(1/3*(68 - x))^2)*integrate(min(z, 100)*exp(-1/2*(1/3*(68 - z))^2), z, 0, 40)^(-1)
+-- s1 = charfun(-100 + y <= 0)*charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-40 + x <= 0)*exp(-1/2*(1/3*(68 - x))^2)^4*integrate(min(z, 100)*exp(-1/2*(1/3*(68 - z))^2), z, 0, 40)^(-4)*(exp(-1/2*(1/3*(68 - x))^2)^4*integrate(min(z, 100)*exp(-1/2*(1/3*(68 - z))^2), z, 0, 40)^(-4) + 100^(-4)*exp(-1/2*(1/3*(68 - x))^2)^4*integrate(exp(-1/2*(1/3*(68 - z))^2), z, 0, 40)^(-4))^(-1)
+-- l1 = charfun(-100 + y <= 0)*charfun(-y <= 0)*charfun(-40 + x <= 0)*charfun(-x <= 0)*charfun(-x + y <= 0)*1/3*1/100*(2*%pi)^(-1/2)*exp(-1/2*(1/3*(68 - x))^2)^5*integrate(min(z, 100)*exp(-1/2*(1/3*(68 - z))^2), z, 0, 40)^(-4)*(exp(-1/2*(1/3*(68 - x))^2)^4*integrate(min(z, 100)*exp(-1/2*(1/3*(68 - z))^2), z, 0, 40)^(-4) + 100^(-4)*exp(-1/2*(1/3*(68 - x))^2)^4*integrate(exp(-1/2*(1/3*(68 - z))^2), z, 0, 40)^(-4))^(-1)*(1/3*1/100*(2*%pi)^(-1/2)*integrate(z^(-1)*exp(-1/2*(1/3*(68 - z))^2)^5*integrate(min(u, 100)*exp(-1/2*(1/3*(68 - u))^2), u, 0, 40)^(-4)*(exp(-1/2*(1/3*(68 - z))^2)^4*integrate(min(u, 100)*exp(-1/2*(1/3*(68 - u))^2), u, 0, 40)^(-4) + 100^(-4)*exp(-1/2*(1/3*(68 - z))^2)^4*integrate(exp(-1/2*(1/3*(68 - u))^2), u, 0, 40)^(-4))^(-1), z, 0, 40))^(-1)
+
+-- >>> plotData exampleTallThreshold
+-- l0...
+-- s1...
+-- l1...
 
 
 example1 :: RSAOut
