@@ -145,6 +145,7 @@ scal E.Zero _ = zero
 scal (E.Prod xs) e = foldr scal e xs -- split the product so that parts of it can commute with integrals
 scal k (Cond c e) = Cond c (scal k e)
 scal k (Add a b) = scal k a `Add` scal k b
+scal (E.Con x) (Scale (E.Con y) e) = scal (E.Con (x*y)) e
 scal c e0@(Scale c' e)
   | deepest (retVars c) > deepest (retVars c') = Scale c e0
   | deepest (retVars c) < deepest (retVars c') = scal c' (scal c e)
