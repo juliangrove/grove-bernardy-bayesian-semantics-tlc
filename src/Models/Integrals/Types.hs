@@ -29,6 +29,7 @@ import TLC.Terms (type (∈)(..), Type(..), type(×), type(⟶))
 import qualified Algebra.Expression as E
 import Data.Function (on)
 import Data.Foldable
+import Data.List
 --------------------------------------------------------------------------------
 -- | Types
 
@@ -191,8 +192,8 @@ substCond f = fmap (substExpr f)
 
 substDomain :: SubstE γ δ -> Domain γ -> Domain δ
 substDomain f (Domain lo hi) = Domain
-                                 (substExpr f <$> lo)
-                                 (substExpr f <$> hi)
+                                 (nub (substExpr f <$> lo))
+                                 (nub (substExpr f <$> hi))
 
 wkP :: P γ -> P (γ × α)
 wkP = substP $ \i -> A.var (Weaken i) 

@@ -39,13 +39,18 @@ import qualified Algebra.Expression as E
 ---------------------------------------------------------
 -- Normalisation of integrals 
 
+insertUniq :: Eq a => a -> [a] -> [a]
+insertUniq x [] = [x]
+insertUniq x (y:xs) | x == y = (y:xs)
+                   | otherwise = insertUniq x xs
+
 -- | Restrict the bounds in the domain according to some
 -- conditions. Also return conditions that ensure that the bounds are
 -- in the right order.
 restrictDomain :: Cond (γ × 'R) -> Domain γ -> (Domain γ, [Cond γ])
 restrictDomain c (Domain los his) = case solve' c of -- version with solver
-  (LT, e) -> (Domain los (e:his), [ lo `lessThan` e | lo <- los ])
-  (GT, e) -> (Domain (e:los) his, [ e `lessThan` hi | hi <- his ])
+  (LT, e) -> (Domain los (e `insertUniq` his), [ lo `lessThan` e | lo <- los ])
+  (GT, e) -> (Domain (e `insertUniq` los) his, [ e `lessThan` hi | hi <- his ])
   _ -> error "restrictDomain: cannot be called/(1) on equality condition"
 
 solveGet :: (x ~ Rat) => A.Affine (Var (γ × 'R)) x -> (Bool, Expr γ)
@@ -95,11 +100,13 @@ integrate d Done = Scale (hi-lo) Done
   where (lo,hi) = mkSuprema d -- ∫_lo^hi dx = (hi-lo)
 integrate d (Scale k e)
   | Just k' <- traverse (varTraverse noGet) k
+  -- integration variable does not occur in k
   = scal k' (integrate d e)
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> foldr cond (integrate d' e) cs
     where (d', cs) = restrictDomain c d
   Just c'' -> cond (IsNegative c'') (integrate d e)
+  -- integration variable does not occur in c'
 integrate d (Cond (IsZero c') e) = case occurExpr c' of
   Nothing ->
     -- We apply the rule: ∫ f(x) δ(c x + k) dx = f(-k/c)   
@@ -107,7 +114,7 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     -- HOWEVER, due to the way we generate the equalities, my hunch is
     -- that we already take into account this coefficient. To be
     -- investigated.)
-    substP (\case Get -> x0; Weaken i -> A.var i) $ conds_ (domainToConds d) e
+    substP (\case Get -> x0; Weaken i -> A.var i) $ foldr cond e (domainToConds d)
     where (_, x0) = solveGet c'
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
