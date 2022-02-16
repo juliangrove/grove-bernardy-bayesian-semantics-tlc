@@ -28,7 +28,7 @@ data RSAIn = forall context utterance. (Equality context, Equality utterance) =>
   }
 
 data RSAOut = RSAOut {
-    l0Expr, l1Expr, s1Expr :: P (('Unit × 'R) × 'R),
+    l0Expr, l1Expr, s1Expr :: P ('Unit × 'R × 'R),
     l0X,l0Y :: P ('Unit × 'R),
     l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double),
     l0xSamples,l0ySamples :: V.Vec Double,
@@ -47,6 +47,8 @@ toMath RSAOut {..} = do
 
   putStr "l0 marginalised in X "
   maxima $ l0X
+  putStr "l0 marginalised in Y "
+  maxima $ l0Y
 
 -- >>> toMath exampleCookies
 -- l0 = charfun(-40 + y <= 0)*charfun(-y <= 0)*charfun(x - y <= 0)*exp(-1/2*(1/5*(40 - y))^2)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, max(x, 0), 40)^(-1)
@@ -103,7 +105,7 @@ exampleTallThreshold = evaluate RSAIn {..} where
 exampleLassGood :: RSAOut
 exampleLassGood = evaluate RSAIn {..} where
   plotOptions = PlotOptions {..}
-  plotDomainLo = 4
+  plotDomainLo = 4.5
   plotDomainHi = 7
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
@@ -119,18 +121,19 @@ exampleLassGood = evaluate RSAIn {..} where
                                                          `Pair` (Lam $ \_ -> Snd ctx)
                                                          `Pair` Con (Special (F.Entity 0)))
   contextDistribution =
-    normal 5.75 0.6 ⋆ \h ->
-             observe (h ≥ fromInteger 0) >>
-             observe (fromInteger 100 ≥ h) >>
-      uniform 4 7 ⋆ \θ ->
+    normal 5.75 0.35 ⋆ \h ->
+             observe (h ≥ fromRational 4.5) >>
+             observe (fromInteger 7 ≥ h) >>
+      uniform 4.5 7 ⋆ \θ ->
              η (θ `Pair` h)
 
 
 -- >>> toMath exampleLassGood
--- l0 = charfun(-7 + y <= 0)*charfun(4 - y <= 0)*charfun(-x + y <= 0)*charfun(-100 + x <= 0)*1/3*5/3*(1/3)^(-1)*(5/3)^(-1)*exp(-1/2*(5/3*(23/4 - x))^2)*integrate((min(z, 7) - 4)*exp(-1/2*(5/3*(23/4 - z))^2), z, 4, 100)^(-1)
--- s1 = charfun(-7 + y <= 0)*charfun(4 - y <= 0)*charfun(-x + y <= 0)*charfun(-100 + x <= 0)*exp(-1/2*(5/3*(23/4 - x))^2)^4*integrate((min(z, 7) - 4)*exp(-1/2*(5/3*(23/4 - z))^2), z, 4, 100)^(-4)*(exp(-1/2*(5/3*(23/4 - x))^2)^4*integrate((min(z, 7) - 4)*exp(-1/2*(5/3*(23/4 - z))^2), z, 4, 100)^(-4) + 3^(-4)*exp(-1/2*(5/3*(23/4 - x))^2)^4*integrate(exp(-1/2*(5/3*(23/4 - z))^2), z, 0, 100)^(-4))^(-1)
--- l1 = charfun(-7 + y <= 0)*charfun(4 - y <= 0)*charfun(-100 + x <= 0)*charfun(-x <= 0)*charfun(-x + y <= 0)*5/3*1/3*(2*%pi)^(-1/2)*exp(-1/2*(5/3*(23/4 - x))^2)^5*integrate((min(z, 7) - 4)*exp(-1/2*(5/3*(23/4 - z))^2), z, 4, 100)^(-4)*(exp(-1/2*(5/3*(23/4 - x))^2)^4*integrate((min(z, 7) - 4)*exp(-1/2*(5/3*(23/4 - z))^2), z, 4, 100)^(-4) + 3^(-4)*exp(-1/2*(5/3*(23/4 - x))^2)^4*integrate(exp(-1/2*(5/3*(23/4 - z))^2), z, 0, 100)^(-4))^(-1)*(5/3*1/3*(2*%pi)^(-1/2)*integrate((min(z, 7) - 4)^(-1)*exp(-1/2*(5/3*(23/4 - z))^2)^5*integrate((min(u, 7) - 4)*exp(-1/2*(5/3*(23/4 - u))^2), u, 4, 100)^(-4)*(exp(-1/2*(5/3*(23/4 - z))^2)^4*integrate((min(u, 7) - 4)*exp(-1/2*(5/3*(23/4 - u))^2), u, 4, 100)^(-4) + 3^(-4)*exp(-1/2*(5/3*(23/4 - z))^2)^4*integrate(exp(-1/2*(5/3*(23/4 - u))^2), u, 0, 100)^(-4))^(-1), z, 4, 100))^(-1)
--- l0 marginalised in X charfun(-100 + x <= 0)*charfun(-7 + x <= 0)*charfun(4 - x <= 0)*1/3*5/3*(1/3)^(-1)*(5/3)^(-1)*integrate(exp(-1/2*(5/3*(23/4 - y))^2)*integrate((min(z, 7) - 4)*exp(-1/2*(5/3*(23/4 - z))^2), z, 4, 100)^(-1), y, max(x, 4), min(100, 7))
+-- l0 = charfun(-7 + y <= 0)*charfun(9/2 - y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*2/5*20/7*(2/5)^(-1)*(20/7)^(-1)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1)
+-- s1 = charfun(-7 + y <= 0)*charfun(9/2 - y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4) + (5/2)^(-4)*exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4))^(-1)
+-- l1 = charfun(-7 + y <= 0)*charfun(9/2 - y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*charfun(-x + y <= 0)*20/7*2/5*(2*%pi)^(-1/2)*exp(-1/2*(20/7*(23/4 - x))^2)^5*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4) + (5/2)^(-4)*exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4))^(-1)*(20/7*2/5*(2*%pi)^(-1/2)*integrate((z - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2)^5*integrate((min(u, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate((min(u, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-4) + (5/2)^(-4)*exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-4))^(-1), z, 9/2, 7))^(-1)
+-- l0 marginalised in X charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*2/5*20/7*(2/5)^(-1)*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, max(x, 9/2), min(7, 7))
+-- l0 marginalised in Y charfun(9/2 - x <= 0)*charfun(-7 + x <= 0)*2/5*20/7*(2/5)^(-1)*(20/7)^(-1)*(min(7, min(x, 7)) - 9/2)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate((min(y, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - y))^2), y, 9/2, 7)^(-1)
 
 -- >>> plotData exampleLassGood
 -- l0...
