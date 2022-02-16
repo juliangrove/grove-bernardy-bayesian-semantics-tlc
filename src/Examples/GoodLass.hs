@@ -10,7 +10,6 @@ import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Integrals
 import Models.Integrals.Types (P(..),Domain(..),swap2P)
-import TLC.Terms (Context0)
 import TLC.HOAS
 import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
@@ -31,9 +30,11 @@ toMath = do
   maxima $ l0Y
 
 -- >>> toMath
--- l0 = charfun(-40 + y <= 0)*charfun(-y <= 0)*charfun(x - y <= 0)*exp(-1/2*(1/5*(40 - y))^2)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, max(x, 0), 40)^(-1)
--- s1 = charfun(-40 + y <= 0)*charfun(-x <= 0)*charfun(-40 + x <= 0)*charfun(x - y <= 0)*integrate(integrate(exp(-1/2*(1/5*(40 - u))^2), u, z, 40)^(-4), z, 0, y)^(-1)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, x, 40)^(-4)
--- l1 = charfun(-40 + y <= 0)*charfun(-x <= 0)*charfun(-40 + x <= 0)*charfun(x - y <= 0)*exp(-1/2*(1/5*(40 - y))^2)*integrate(exp(-1/2*(1/5*(40 - z))^2)*integrate(integrate(exp(-1/2*(1/5*(40 - v))^2), v, u, 40)^(-4), u, 0, z)^(-1)*integrate(exp(-1/2*(1/5*(40 - u))^2), u, x, 40)^(-4), z, x, 40)^(-1)*integrate(integrate(exp(-1/2*(1/5*(40 - u))^2), u, z, 40)^(-4), z, 0, y)^(-1)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, x, 40)^(-4)
+-- l0 = charfun(-x + y <= 0)*charfun(-8 + x <= 0)*charfun(7/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(y, 7/2), 8)^(-1)
+-- s1 = charfun(-x + y <= 0)*charfun(-8 + x <= 0)*charfun(7/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(y, 7/2), 8)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(y, 7/2), 8)^(-4) + exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 7/2, 8)^(-4))^(-1)
+-- l1 = charfun(-8 + y <= 0)*charfun(7/2 - y <= 0)*charfun(-8 + x <= 0)*charfun(7/2 - x <= 0)*charfun(-x + y <= 0)*2/9*20/7*(2*%pi)^(-1/2)*exp(-1/2*(20/7*(23/4 - x))^2)^5*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, y, 8)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, y, 8)^(-4) + exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 7/2, 8)^(-4))^(-1)*(2/9*20/7*(2*%pi)^(-1/2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2)^5*integrate(integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, u, 8)^(-4)*(exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, u, 8)^(-4) + exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, 7/2, 8)^(-4))^(-1), u, 7/2, z), z, 7/2, 8))^(-1)
+-- l0 marginalised in X charfun(-8 + x <= 0)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(x, 7/2), 8)^(-1), y, max(x, max(7/2, 7/2)), min(8, 8))
+-- l0 marginalised in Y charfun(-8 + x <= 0)*charfun(7/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(y, 7/2), 8)^(-1), y, 7/2, min(x, 8))
 
 -- >>> plotData
 -- l0...
@@ -45,11 +46,18 @@ toMath = do
 -- l1y...
 
 
+domHi :: Rational
+domHi = 8
+
+domLo :: Rational
+domLo = 3.5
+
 plotOptions :: PlotOptions
 plotOptions = PlotOptions {..} where
-   plotDomainLo = 4.5
-   plotDomainHi = 7
+   plotDomainLo = fromRational domLo
+   plotDomainHi = fromRational domHi
    plotResolution = 128
+
 varsToSituation x y = (Pair x y,isTall)
 alpha = 4
 uu = Con . General . Utt 
@@ -65,23 +73,24 @@ interpU u ctx = Con (General (Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $
                                                        `Pair` Con (Special (F.Entity 0)))
 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
-linguisticParameterDistribution = uniform 4.5 7
+linguisticParameterDistribution = uniform domLo domHi
 
 worldDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 worldDistribution = normal 5.75 0.35 ⋆ \h ->
-           observe (h ≥ fromRational 4.5) >>
-           observe (fromInteger 7 ≥ h) >>
+           observe (h ≥ fromRational domLo) >>
+           observe (fromRational domHi ≥ h) >>
            η h
 
 contextDistribution :: Exp ((('R ':× 'R) ⟶ 'R) ⟶ 'R)
 contextDistribution =
     worldDistribution ⋆ \h ->
     linguisticParameterDistribution ⋆ \θ ->
-           η (θ `Pair` h)
+    η (θ `Pair` h)
 
 asExpression :: Exp ('R ⟶ 'R ⟶ 'R) -> P ('Unit × 'R × 'R)
 asExpression = simplifyFun2 [] . fromHoas
 
+α :: Rational
 α = alpha
 
 -- s1 :: Exp context -> Exp (('U ⟶ 'R) ⟶ 'R)
@@ -118,9 +127,11 @@ s1Distr :: Exp 'U -> Exp ('R ':× 'R) -> Exp 'R
 s1Distr u ctx = distr (s1 ctx) u
 
 -- l1Distr :: Exp 'U -> Exp context -> Exp 'R
+l1Distr :: Exp 'U -> Exp ('R ':× 'R) -> Exp 'R
 l1Distr u ctx = distr (l1 u) ctx
 
 -- twoDimFunOf :: (Exp utterance -> Exp context -> Exp 'R) -> Exp ('R ⟶ 'R ⟶ 'R)
+twoDimFunOf :: (Exp 'U -> Exp (a ':× b1) -> Exp b2) -> Exp (a ':-> (b1 ':-> b2))
 twoDimFunOf f = Lam $ \x -> Lam $ \y ->
    let (h,u) = varsToSituation x y
    in f u h
@@ -134,20 +145,24 @@ utilitys1 = twoDimFunOf s1Distr
 utilityl1 :: Exp ('R ⟶ 'R ⟶ 'R)
 utilityl1 = twoDimFunOf l1Distr
 
+l0Expr, l1Expr, s1Expr :: P (('Unit × 'R) × 'R)
 l0Expr = asExpression utilityl0
 l1Expr = asExpression utilityl1
 s1Expr = asExpression utilitys1
 
+l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double)
 l0Samples = approxTop plotOptions l0Expr
 l1Samples = approxTop plotOptions l1Expr
 s1Samples = approxTop plotOptions s1Expr
 
+l0xSamples, l0ySamples, l1xSamples, l1ySamples :: V.Vec Double
 l0xSamples = approxTop plotOptions l0X
 l0ySamples = approxTop plotOptions l0Y
 l1xSamples = approxTop plotOptions l1X
 l1ySamples = approxTop plotOptions l1Y
 
 
+integrateOnPlotDomain :: P (γ × 'R) -> P γ
 integrateOnPlotDomain  = Integrate (Domain
                   [A.constant (fromRational (toRational plotDomainLo))]
                   [A.constant (fromRational (toRational plotDomainHi))])
