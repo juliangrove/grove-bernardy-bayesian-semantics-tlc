@@ -111,7 +111,7 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     where (_, x0) = solveGet c'
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
-integrate d e | Just z' <- varTraverse noGet e = scal (recip (hi-lo)) z'  
+integrate d e | Just z' <- varTraverse noGet e = scal (hi-lo) z'  
   where (lo,hi) = mkSuprema d
 --- NOTE: the above causes many traversals. To avoid it we'd need to compute the unused
 --- variables at every stage in this function, and record the result
