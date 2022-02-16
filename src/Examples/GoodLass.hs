@@ -47,10 +47,10 @@ toMath = do
 
 
 domHi :: Rational
-domHi = 8
+domHi = 7
 
 domLo :: Rational
-domLo = 3.5
+domLo = 4.5
 
 plotOptions :: PlotOptions
 plotOptions = PlotOptions {..} where
