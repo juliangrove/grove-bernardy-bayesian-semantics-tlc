@@ -64,22 +64,27 @@ plotOptions = PlotOptions {..} where
    plotDomainHi = fromRational domHi
    plotResolution = 128
 
+varsToSituation :: Exp a -> Exp b -> (Exp (a ':× b), Exp 'U)
 varsToSituation x y = (Pair x y,isTall)
+alpha :: Rational
 alpha = 4
+uu :: Int -> Exp 'U
 uu = Con . General . Utt 
+isTall :: Exp 'U
 isTall = uu 1
 
 utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
 utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)
-interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
-interpU u ctx = Con (General (Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
-                                                       `Pair` Fst ctx
-                                                       `Pair` (Lam $ \_ -> Con (F.Logical (F.Tru)))
-                                                       `Pair` (Lam $ \_ -> Snd ctx)
-                                                       `Pair` Con (Special (F.Entity 0)))
 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 linguisticParameterDistribution = uniform domLo domHi
+
+interpU :: Exp 'U -> Exp 'R -> Exp 'R -> Exp 'T
+interpU u θ h = Con (General (Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
+                                                       `Pair` θ
+                                                       `Pair` (Lam $ \_ -> Con (F.Logical (F.Tru)))
+                                                       `Pair` (Lam $ \_ -> h)
+                                                       `Pair` Con (Special (F.Entity 0)))
 
 worldDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 worldDistribution = normal 5.75 0.35 ⋆ \h ->
@@ -111,7 +116,7 @@ s1 ctx = utteranceDistribution ⋆ \u ->
 -- l0 ::  Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
 l0 :: Exp 'R -> Exp 'U -> Exp (('R ⟶ 'R) ⟶ 'R)
 l0 θ u = worldDistribution ⋆ \h ->
-         observe (interpU u (θ `Pair` h)) >>
+         observe (interpU u θ h) >>
          η h
 
 -- | Pragmatic listener
@@ -169,28 +174,16 @@ l1ySamples = approxTop plotOptions l1Y
 
 
 integrateOnPlotDomain :: P (γ × 'R) -> P γ
-integrateOnPlotDomain  = Integrate (Domain
+integrateOnPlotDomain  = normalise . Integrate (Domain
                   [A.constant (fromRational (toRational plotDomainLo))]
                   [A.constant (fromRational (toRational plotDomainHi))])
  where PlotOptions{..} = plotOptions
                          
-l0X = normalise $
-      integrateOnPlotDomain
-      l0Expr
-
-l0Y = normalise $
-      integrateOnPlotDomain $
-      swap2P $
-      l0Expr
-
-l1X = normalise $
-      integrateOnPlotDomain
-      l1Expr
-
-l1Y = normalise $
-      integrateOnPlotDomain $
-      swap2P $
-      l1Expr
+l0X,l0Y,l1X,l1Y :: P ('Unit × 'R)
+l0X = integrateOnPlotDomain l0Expr
+l1X = integrateOnPlotDomain l1Expr
+l0Y = integrateOnPlotDomain $ swap2P $ l0Expr
+l1Y = integrateOnPlotDomain $ swap2P $ l1Expr
 
 
 plotData :: IO ()
