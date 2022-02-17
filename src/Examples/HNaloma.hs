@@ -10,7 +10,6 @@ module Examples.HNaloma where
 
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..), sum)
-import Models.Logical.FiniteLogical hiding (makeBernoulli)
 import TLC.Terms (Context, Witness (..))
 import TLC.HOAS
 import qualified TLC.Terms as F
@@ -111,6 +110,7 @@ context :: Witness n -> Exp ((Context n ⟶ 'R) ⟶ 'R)
                                              (entity 0))))))))))
 -}
 
+(∧) :: Exp 'T -> Exp 'T -> Exp 'T
 (∧) = and'
 
 context (S (S Z)) =
