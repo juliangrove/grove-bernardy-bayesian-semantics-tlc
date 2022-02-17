@@ -69,7 +69,7 @@ varsToSituation x y = (Pair x y,isTall)
 alpha :: Rational
 alpha = 4
 uu :: Int -> Exp 'U
-uu = Con . General . Utt 
+uu = Con . Utt 
 isTall :: Exp 'U
 isTall = uu 1
 
@@ -80,11 +80,11 @@ linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 linguisticParameterDistribution = uniform domLo domHi
 
 interpU :: Exp 'U -> Exp 'R -> Exp 'R -> Exp 'T
-interpU u θ h = Con (General (Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
+interpU u θ h = Con ((Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                        `Pair` θ
-                                                       `Pair` (Lam $ \_ -> Con (F.Logical (F.Tru)))
+                                                       `Pair` (Lam $ \_ -> Con ((F.Tru)))
                                                        `Pair` (Lam $ \_ -> h)
-                                                       `Pair` Con (Special (F.Entity 0)))
+                                                       `Pair` Con ((F.Entity 0)))
 
 worldDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 worldDistribution = normal 5.75 0.35 ⋆ \h ->
