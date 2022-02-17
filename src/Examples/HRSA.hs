@@ -84,16 +84,16 @@ exampleTallThreshold = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
-  uu = Con . General . Utt 
+  uu = Con . Utt
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
   isTall = uu 1
   utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)
   interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
-  interpU u ctx = Con (General (Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
-                                                         `Pair` Fst ctx
-                                                         `Pair` (Lam $ \_ -> Con (F.Logical (F.Tru)))
-                                                         `Pair` (Lam $ \_ -> Snd ctx)
-                                                         `Pair` Con (Special (F.Entity 0)))
+  interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
+                                               `Pair` Fst ctx
+                                               `Pair` (Lam $ \_ -> Con (F.Tru))
+                                               `Pair` (Lam $ \_ -> Snd ctx)
+                                               `Pair` Con (F.Entity 0))
   contextDistribution =
       normal 68 10 ⋆ \h ->
              observe (h ≥ fromInteger 0) >>
@@ -110,16 +110,16 @@ exampleLassGood = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
-  uu = Con . General . Utt 
+  uu = Con . Utt 
   isTall = uu 1
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
   utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)
   interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
-  interpU u ctx = Con (General (Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
+  interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                          `Pair` Fst ctx
-                                                         `Pair` (Lam $ \_ -> Con (F.Logical (F.Tru)))
+                                                         `Pair` (Lam $ \_ -> Con (F.Tru))
                                                          `Pair` (Lam $ \_ -> Snd ctx)
-                                                         `Pair` Con (Special (F.Entity 0)))
+                                                         `Pair` Con (F.Entity 0))
   contextDistribution =
     normal 5.75 0.35 ⋆ \h ->
              observe (h ≥ fromRational 4.5) >>
@@ -166,8 +166,8 @@ example1 = evaluate $ RSAIn {..} where
                         (toHoas F.vlad))
 
     toAtLeastHeight :: Exp 'R -> Exp 'U
-    toAtLeastHeight r = Con (General Utt') @@ r
-    interpU = \u ctx -> Con (General (Interp F.Z)) @@ u @@ ctx
+    toAtLeastHeight r = Con Utt' @@ r
+    interpU = \u ctx -> Con (Interp F.Z) @@ u @@ ctx
     contextDistribution =
         uniform 0 1 ⋆ \θ ->
         normal 68 3 ⋆ \h ->

@@ -15,6 +15,7 @@ library
   exposed-modules: Examples.Anaphora
                  , Examples.Naloma
                  , Examples.RSA
+                 , Examples.HRSA
                  , Models.Integrals
                  , Models.Logical.FiniteLogical
                  , TLC.Distributions
