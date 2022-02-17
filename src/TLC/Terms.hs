@@ -21,7 +21,7 @@ import Algebra.Classes
 import Data.Ratio
 import Data.String.Utils
 import qualified FOL.FOL as FOL
-import Prelude hiding ((>>), Num(..), Sum(..), sum)
+import Prelude hiding ((>>), Num(..), sum)
 
 
 data Type = E | T | R | U | Γ
@@ -49,7 +49,9 @@ noOccur = \case
   Get -> Nothing
   Weaken x -> Just x
 
+pattern NCon :: forall (γ :: Type) (α :: Type). Con α -> NF γ α
 pattern NCon x = Neu (NeuCon x)
+pattern NVar :: forall (γ :: Type) (α :: Type). (α ∈ γ) -> NF γ α
 pattern NVar x = Neu (NeuVar x)
 class Equality α where
   equals :: forall γ. NF γ α -> NF γ α -> NF γ 'R
@@ -164,8 +166,11 @@ u' = App $ Con Utt'
 u'' :: [Maybe (Con 'E)] -> NF γ 'U
 u'' as = Neu $ NeuCon $ Utt'' as
 
+prop :: Int -> γ ⊢ ('E ⟶ 'T)
 prop i = Con $ Property i
+rel :: Int -> γ ⊢ ('E ⟶ ('E ⟶ 'T))
 rel i = Con $ Relation i
+vlad :: γ ⊢ 'E
 vlad = Con Vlad
 jp = Con JP
 entity i = Con $ Entity i
@@ -284,13 +289,17 @@ special = \case
   Sel _ -> True
   _ -> False
   
+pattern True',False' :: () => (α ~ 'T) => γ ⊢ α
 pattern True' = Con Tru
 pattern False' = Con Fal
+pattern And', Or',Imp'  :: () => (α ~ 'T) => (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ α
 pattern And' φ ψ = App (App (Con And) φ) ψ
 pattern Or' φ ψ = Con Or `App` φ `App` ψ
 pattern Imp' φ ψ = Con Imp `App` φ `App` ψ
+pattern Forall',Exists' :: () => ((α ~ 'T)) => (γ ⊢ (β ⟶ 'T)) -> γ ⊢ α
 pattern Forall' f = Con Forall `App` f
 pattern Exists' f = Con Exists `App` f
+pattern Equals' :: (γ ⊢ α) -> (γ ⊢ α) -> (γ ⊢ 'T)
 pattern Equals' m n = Con Equals `App` m `App` n
 
 instance Show (Con α) where
@@ -364,10 +373,14 @@ instance Division (NF γ 'R) where
 instance Roots (γ ⊢ 'R) where
   x ^/ n = Con (Expo) `App` x `App` Con (Incl n)
 
+pattern JP,Vlad :: forall (α :: Type). () => (α ~ 'E) => Con α
 pattern JP = Entity 0
 pattern Vlad = Entity 1
+pattern Height :: forall (α :: Type). () => (α ~ ('E ':-> 'R)) => Con α
 pattern Height = MeasureFun 1
+pattern Human :: forall (α :: Type). () => (α ~ ('E ':-> 'T)) => Con α
 pattern Human = Property 1
+pattern Theta :: forall (α :: Type). () => (α ~ 'R) => Con α
 pattern Theta = Degree 1
   
 -- Well-typed terms.
@@ -382,6 +395,7 @@ data γ ⊢ α where
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 
 infixl `App`
+(@@) :: (γ ⊢ (α ⟶ β)) -> (γ ⊢ α) -> γ ⊢ β
 (@@) = App
 
 absInversion :: γ ⊢ ('R ⟶ α) -> (γ × 'R) ⊢ α
@@ -395,7 +409,7 @@ data Neutral γ α where
   NeuApp :: Neutral γ (α ⟶ β) -> NF γ α -> Neutral γ β
   NeuFst :: Neutral γ (α × β) -> Neutral γ α
   NeuSnd :: Neutral γ (α × β) -> Neutral γ β
-  NeuTT :: Neutral γ Unit
+  NeuTT :: Neutral γ 'Unit
 
 -- Terms in normal form.
 data NF γ α where
@@ -616,14 +630,14 @@ instance Show (γ ⊢ α) where
 displayDB :: γ ⊢ α -> IO ()
 displayDB t = putStrLn $ show t
 
-displayVs :: Unit ⊢ α -> IO ()
+displayVs :: 'Unit ⊢ α -> IO ()
 displayVs t = putStrLn $ replace "%" "/" $ displayVs' freshes (\case) t
 
 freshes :: [String]
 freshes = "" : map show ints >>= \i -> map (:i) ['x', 'y', 'z', 'u', 'v', 'w']
   where ints = 1 : map succ ints
 
-displayVs1 :: (Unit × β)  ⊢ α -> String
+displayVs1 :: ('Unit × β)  ⊢ α -> String
 displayVs1 t = case freshes of
   [] -> error "displayVs1: panic"
   f:fs -> displayVs' fs (\case Get -> f; Weaken _ -> "γ") t
@@ -789,5 +803,5 @@ hmorph n (hmorph0 n -> m) = Lam m
 (⋆) :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ (α ⟶ ((β ⟶ 'R) ⟶ 'R)) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
 m ⋆ k = Lam (App (wkn m) (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
 
-(>>) :: γ ⊢ ((Unit ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
+(>>) :: γ ⊢ (('Unit ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
 m >> k = m ⋆ Lam (wkn k)
