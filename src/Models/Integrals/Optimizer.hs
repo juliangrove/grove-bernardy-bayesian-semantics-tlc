@@ -42,8 +42,8 @@ import qualified Algebra.Expression as E
 insertUniq :: Eq a => a -> [a] -> [a]
 insertUniq x [] = [x]
 insertUniq x (y:xs) | x == y = (y:xs)
-                   | otherwise = insertUniq x xs
-
+                    | otherwise = y : insertUniq x xs
+                   
 -- | Restrict the bounds in the domain according to some
 -- conditions. Also return conditions that ensure that the bounds are
 -- in the right order.
