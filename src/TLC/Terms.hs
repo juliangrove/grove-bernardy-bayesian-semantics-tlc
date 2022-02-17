@@ -34,7 +34,7 @@ data (α :: Type) ∈ (γ :: Type) where
   Weaken :: α ∈ γ -> α ∈ (γ × β)
 deriving instance Show (α ∈ γ)
 deriving instance Eq (α ∈ γ)
-deriving instance Ord (α ∈ γ) -- do not change this instance, it is used for testing deepness of variables
+deriving instance Ord (α ∈ γ) -- do not chane this instance, it is used for testin deepness of variables
 
 type α × β = α ':× β
 type α ⟶ β = α ':-> β
@@ -42,7 +42,7 @@ infixr ⟶
 infixr :->
 
 (≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ 'R
-m ≐ n = App (Con (General EqGen)) (Pair m n)
+m ≐ n = App (Con (EqGen)) (Pair m n)
 
 noOccur :: (α ∈ (γ × x)) -> Maybe (α ∈ γ)
 noOccur = \case
@@ -54,69 +54,69 @@ pattern NVar x = Neu (NeuVar x)
 class Equality α where
   equals :: forall γ. NF γ α -> NF γ α -> NF γ 'R
 instance Equality 'E where
-  equals (NCon (Special (Entity m))) (NCon (Special (Entity n))) =
-    NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
-  equals x y = Neu $ NeuApp (NeuCon (General EqGen)) (NFPair x y) 
+  equals (NCon (Entity m)) (NCon (Entity n)) =
+    NCon $ Incl $ case m == n of True -> 1; False -> 0
+  equals x y = Neu $ NeuApp (NeuCon EqGen) (NFPair x y) 
 instance Equality 'R where
-  equals (NCon (General (Incl x))) (NCon (General (Incl y)))
+  equals (NCon (Incl x)) (NCon (Incl y))
     = case x == y of
         True -> one
-        False -> NCon $ General $ Incl 0
-  equals (NCon (Special (Degree m))) (NCon (Special (Degree n))) =
-          NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
-  equals x y = Neu $ NeuCon (General EqRl) `NeuApp` x `NeuApp` y
+        False -> NCon $ Incl 0
+  equals (NCon (Degree m)) (NCon (Degree n)) =
+          NCon $ Incl $ case m == n of True -> 1; False -> 0
+  equals x y = Neu $ NeuCon EqRl `NeuApp` x `NeuApp` y
 instance Equality 'U where
-  equals (NCon (General (Utt i))) (NCon (General (Utt j))) = case i == j of
+  equals (NCon (Utt i)) (NCon (Utt j)) = case i == j of
                              True -> one
-                             False -> NCon (General (Incl 0))
-  equals (Neu (NeuApp (NeuCon (General Utt')) x))
-    (Neu (NeuApp (NeuCon (General Utt')) y)) = equals x y
-  equals (NCon (General (Utt'' es0))) (NCon (General (Utt'' es1))) =
+                             False -> NCon (Incl 0)
+  equals (Neu (NeuApp (NeuCon Utt') x))
+    (Neu (NeuApp (NeuCon Utt') y)) = equals x y
+  equals (NCon (Utt'' es0)) (NCon (Utt'' es1)) =
     checkEquality es0 es1
-    where checkEquality :: [Maybe (Special 'E)] -> [Maybe (Special 'E)]
+    where checkEquality :: [Maybe (Con 'E)] -> [Maybe (Con 'E)]
                         -> NF γ 'R
           checkEquality [] [] = one
           checkEquality (Nothing:es0) (Nothing:es1) = checkEquality es0 es1
-          checkEquality (Just _ : _) (Nothing:_) = NCon (General (Incl 0))
-          checkEquality (Nothing:_) (Just _ : _) = NCon (General (Incl 0))
+          checkEquality (Just _ : _) (Nothing:_) = NCon (Incl 0)
+          checkEquality (Nothing:_) (Just _ : _) = NCon (Incl 0)
           checkEquality (Just x : es0) (Just y : es1) =
-            equals (NCon $ Special x) (NCon $ Special y) * checkEquality es0 es1
-  equals m n = Neu $ (NeuCon $ General $ EqGen) `NeuApp` (NFPair m n)
+            equals (NCon x) (NCon y) * checkEquality es0 es1
+  equals m n = Neu $ (NeuCon EqGen) `NeuApp` (NFPair m n)
 instance Equality 'Unit where
   equals _ _ = one
 instance (Equality α, Equality β) => Equality (α × β) where
   equals (NFPair m n) (NFPair m' n') = equals m m' * equals n n'
-  equals m n = Neu $ (NeuCon $ General $ EqGen) `NeuApp` (NFPair m n)
+  equals m n = Neu $ (NeuCon EqGen) `NeuApp` (NFPair m n)
 instance Equality ('E ⟶ 'R) where
   equals :: forall γ. NF γ ('E ⟶ 'R) -> NF γ ('E ⟶ 'R) -> NF γ 'R
-  equals (NCon (Special (MeasureFun m))) (NCon (Special (MeasureFun n))) =
-    NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
+  equals (NCon (MeasureFun m)) (NCon (MeasureFun n)) =
+    NCon $ Incl $ case m == n of True -> 1; False -> 0
   equals (NFLam m) (NFLam n)
     | Just x <- traverseNF noOccur (equals m n) = x
-  equals t u = Neu ((NeuCon $ General $ EqGen) `NeuApp` (NFPair t u))
+  equals t u = Neu ((NeuCon EqGen) `NeuApp` (NFPair t u))
 instance Equality ('E ⟶ 'T) where
-  equals (NCon (Special (Property m))) (NCon (Special (Property n))) =
-    NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
+  equals (NCon (Property m)) (NCon (Property n)) =
+    NCon $ Incl $ case m == n of True -> 1; False -> 0
 instance Equality ('E ⟶ 'E ⟶ 'T) where
-  equals (NCon (Special (Relation m))) (NCon (Special (Relation n))) =
-    NCon $ General $ Incl $ case m == n of True -> 1; False -> 0
+  equals (NCon (Relation m)) (NCon (Relation n)) =
+    NCon $ Incl $ case m == n of True -> 1; False -> 0
 instance Equality ('R ⟶ 'R ⟶ 'T) where
-  equals (NCon (Special GTE)) (NCon (Special GTE)) = one
+  equals (NCon GTE) (NCon GTE) = one
 instance Equality 'Γ where
-  equals (NCon (General Empty)) (NCon (General Empty)) = one
+  equals (NCon Empty) (NCon Empty) = one
 instance Equality ('E ⟶ 'Γ ⟶ 'Γ) where
-  equals (NCon (General Upd)) (NCon (General Upd)) = one
+  equals (NCon Upd) (NCon Upd) = one
 instance Equality 'T where
   equals ϕ ψ = if termToFol ϕ == termToFol ψ then one else zero 
 instance Equality ('Γ ⟶ 'E) where
-  equals (NCon (Special (Sel i))) (NCon (Special (Sel j))) =
+  equals (NCon (Sel i)) (NCon (Sel j)) =
     case i == j of
       True -> one
-      False -> NCon (General (Incl 0))
-  equals (NCon (General (Pi i))) (NCon (General (Pi j))) =
+      False -> NCon (Incl 0)
+  equals (NCon (Pi i)) (NCon (Pi j)) =
     case i == j of
       True -> one
-      False -> NCon (General (Incl 0))
+      False -> NCon (Incl 0)
 
 --------------------------------------
 type ValueSubst = forall δ β. β ∈ δ -> FOL.Value
@@ -147,54 +147,54 @@ termToFol' ρ t =
                                                 Weaken i -> ρ i)
                             (evalβ $ App (wkn f) (Var Get)))
     _ -> case viewApp ρ t of
-                 Just (f, args) -> FOL.VApp f (args)
+                 Just (f, args) -> FOL.VApp f args
                  Nothing -> error $ "termToFol': viewApp produced Nothing"
 
 termToFol :: NF γ α -> FOL.Value
 termToFol = termToFol' (\case) . nf_to_λ 
-------------------------------------------------------------------
+-- ------------------------------------------------------------------
 
 
 u :: Int -> γ ⊢ 'U
-u i = Con $ General $ Utt i
+u i = Con $ Utt i
 
 u' :: γ ⊢ 'R -> γ ⊢ 'U
-u' = App $ Con $ General Utt'
+u' = App $ Con Utt'
 
-u'' :: [Maybe (Special 'E)] -> NF γ 'U
-u'' as = Neu $ NeuCon $ General $ Utt'' as
+u'' :: [Maybe (Con 'E)] -> NF γ 'U
+u'' as = Neu $ NeuCon $ Utt'' as
 
-prop i = Con $ Special $ Property i
-rel i = Con $ Special $ Relation i
-vlad = Con $ Special Vlad
-jp = Con $ Special JP
-entity i = Con $ Special $ Entity i
-height = Con $ Special Height
-human = Con $ Special Human
-θ = Con $ Special Theta
-(≥) = Con $ Special GTE
-emp = Con $ General Empty
-upd = Con $ General Upd
+prop i = Con $ Property i
+rel i = Con $ Relation i
+vlad = Con Vlad
+jp = Con JP
+entity i = Con $ Entity i
+heiht = Con Height
+human = Con Human
+θ = Con Theta
+(≥) = Con GTE
+emp = Con Empty
+upd = Con Upd
 upd' x c = upd `App` x `App` c
-sel n = Con $ Special $ Sel n
+sel n = Con $ Sel n
 sel' n c = sel n `App` c
 
 (/\) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
-p /\ q = App (App (Con (Logical And)) p) q
+p /\ q = App (App (Con And) p) q
 
 (\/) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
-p \/ q = App (App (Con (Logical Or)) p) q
+p \/ q = App (App (Con Or) p) q
 
 (-->) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
-p --> q = App (App (Con (Logical Imp)) p) q
+p --> q = App (App (Con Imp) p) q
 
 exists :: γ ⊢ (α ⟶ 'T) -> γ ⊢ 'T
-exists φ = App (Con (Logical Exists)) φ
+exists φ = App (Con (Exists)) φ
 
 reduce1step :: γ ⊢ α -> γ ⊢ α
 reduce1step = \case
-  App (App (Con (General Mult)) (Con (General (Incl 1)))) (reduce1step -> n) -> n
-  App (App (Con (General Mult)) (reduce1step -> m)) (Con (General (Incl 1))) -> m
+  App (App (Con Mult) (Con (Incl 1))) (reduce1step -> n) -> n
+  App (App (Con Mult) (reduce1step -> m)) (Con (Incl 1)) -> m
   Var i -> Var i
   Con c -> Con c
   App (reduce1step -> m) (reduce1step -> n) -> App m n
@@ -206,8 +206,8 @@ reduce1step = \case
 
 canReduce :: γ ⊢ α -> Bool
 canReduce = \case
-  App (Con (General Mult)) (Con (General (Incl 1))) -> True
-  App (App (Con (General Mult)) x) (Con (General (Incl 1))) -> True
+  App (Con Mult) (Con (Incl 1)) -> True
+  App (App (Con Mult) x) (Con (Incl 1)) -> True
   Var i -> False
   Con c -> False
   App (canReduce -> m) (canReduce -> n) -> m || n
@@ -219,7 +219,6 @@ canReduce = \case
 
 reduce1s :: γ ⊢ α -> γ ⊢ α
 reduce1s m = if canReduce m then reduce1s (reduce1step m) else m
-
 clean :: γ ⊢ α -> γ ⊢ α
 clean = reduce1s . evalβ 
 
@@ -230,26 +229,71 @@ showR (\x -> (numerator x, denominator x) -> (num, den))
       (_, 1) -> show num
       (_, _) -> "(" ++ show num ++ " / " ++ show den ++ ")"
 
-data Logical α where
-  Tru :: Logical 'T
-  Fal :: Logical 'T
-  And :: Logical ('T ⟶ 'T ⟶ 'T)
-  Or :: Logical ('T ⟶ 'T ⟶ 'T)
-  Imp :: Logical ('T ⟶ 'T ⟶ 'T)
-  Forall :: Logical ((α ⟶ 'T) ⟶ 'T)
-  Exists :: Logical ((α ⟶ 'T) ⟶ 'T)
-  Equals :: Logical (α ⟶ α ⟶ 'T)
+data Con α where
+  -- constants
+  Tru :: Con 'T
+  Fal :: Con 'T
+  And :: Con ('T ⟶ 'T ⟶ 'T)
+  Or :: Con ('T ⟶ 'T ⟶ 'T)
+  Imp :: Con ('T ⟶ 'T ⟶ 'T)
+  Forall :: Con ((α ⟶ 'T) ⟶ 'T)
+  Exists :: Con ((α ⟶ 'T) ⟶ 'T)
+  Equals :: Con (α ⟶ α ⟶ 'T)
+  -- purpose stuff
+  Incl :: Rational -> Con 'R
+  Indi :: Con ('T ⟶ 'R)
+  Addi :: Con ('R ⟶ 'R ⟶ 'R)
+  Mult :: Con ('R ⟶ 'R ⟶ 'R)
+  Expo :: Con ('R ⟶ 'R ⟶ 'R)
+  Divi :: Con ('R ⟶ 'R ⟶ 'R)
+  EqGen :: Equality α => Con ((α × α) ⟶ 'R)
+  EqRl :: Con ('R ⟶ 'R ⟶ 'R)
+  Utt :: Int -> Con 'U
+  Utt' :: Con ('R ⟶ 'U)
+  Utt'' :: [Maybe (Con 'E)] -> Con 'U
+  MakeUtts :: Witness n -> Con ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
+  Cau :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Les :: Con (('R ⟶ 'R) ⟶ 'R)
+  Nml :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Qua :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Uni :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Interp :: Witness n -> Con ('U ⟶ Context n ⟶ 'T)
+  HMorph :: Witness n -> Con x -> Con (Context n ⟶ x)
+  Empty :: Con 'Γ
+  Upd :: Con ('E ⟶ 'Γ ⟶ 'Γ)
+  Pi :: Int -> Con ('Γ ⟶ 'E)
+  -- Special constants (may take on distributions)
+  Entity :: Int -> Con 'E
+  MeasureFun :: Int -> Con ('E ⟶ 'R)
+  Property :: Int -> Con ('E ⟶ 'T)
+  Relation :: Int -> Con ('E ⟶ 'E ⟶ 'T)
+  Proposition :: Int -> Con 'T
+  Degree :: Int -> Con 'R
+  GTE :: Con ('R ⟶ 'R ⟶ 'T)
+  Sel :: Int -> Con ('Γ ⟶ 'E)
 
-pattern True' = Con (Logical Tru)
-pattern False' = Con (Logical Fal)
-pattern And' φ ψ = App (App (Con (Logical And)) φ) ψ
-pattern Or' φ ψ = App (App (Con (Logical Or)) φ) ψ
-pattern Imp' φ ψ = App (App (Con (Logical Imp)) φ) ψ
-pattern Forall' f = App (Con (Logical Forall)) f
-pattern Exists' f = App (Con (Logical Exists)) f
-pattern Equals' m n = App (App (Con (Logical Equals)) m) n
+special :: Con α -> Bool
+special = \case
+  Entity _ -> True
+  MeasureFun _ -> True
+  Property _ -> True
+  Relation _ -> True
+  Proposition _ -> True
+  Degree _ -> True
+  GTE -> True
+  Sel _ -> True
+  _ -> False
+  
+pattern True' = Con Tru
+pattern False' = Con Fal
+pattern And' φ ψ = App (App (Con And) φ) ψ
+pattern Or' φ ψ = Con Or `App` φ `App` ψ
+pattern Imp' φ ψ = Con Imp `App` φ `App` ψ
+pattern Forall' f = Con Forall `App` f
+pattern Exists' f = Con Exists `App` f
+pattern Equals' m n = Con Equals `App` m `App` n
 
-instance Show (Logical α) where
+instance Show (Con α) where
   show Tru = "⊤"
   show Fal = "⊥"
   show And = "(∧)"
@@ -258,57 +302,6 @@ instance Show (Logical α) where
   show Forall = "∀"
   show Exists = "∃"
   show Equals = "(=)"
- 
-data General α where
-  Incl :: Rational -> General 'R
-  Indi :: General ('T ⟶ 'R)
-  Addi :: General ('R ⟶ 'R ⟶ 'R)
-  Mult :: General ('R ⟶ 'R ⟶ 'R)
-  Expo :: General ('R ⟶ 'R ⟶ 'R)
-  Divi :: General ('R ⟶ 'R ⟶ 'R)
-  EqGen :: Equality α => General ((α × α) ⟶ 'R)
-  EqRl :: General ('R ⟶ 'R ⟶ 'R)
-  Utt :: Int -> General 'U
-  Utt' :: General ('R ⟶ 'U)
-  Utt'' :: [Maybe (Special 'E)] -> General 'U
-  MakeUtts :: Witness n -> General ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
-  Cau :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Les :: General (('R ⟶ 'R) ⟶ 'R)
-  Nml :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Qua :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Uni :: General (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Interp :: Witness n -> General ('U ⟶ Context n ⟶ 'T)
-  HMorph :: Witness n -> Special x -> General (Context n ⟶ x)
-  Empty :: General 'Γ
-  Upd :: General ('E ⟶ 'Γ ⟶ 'Γ)
-  Pi :: Int -> General ('Γ ⟶ 'E)
-
-instance Additive (γ ⊢ 'R) where
-  zero = Con (General (Incl 0))
-  x + y  = Con (General Addi) `App` x `App` y
-instance Additive (NF γ 'R) where
-  zero = normalForm zero
-  x + y = normalForm (nf_to_λ x + nf_to_λ y)
-instance AbelianAdditive (γ ⊢ 'R)
-instance AbelianAdditive (NF γ 'R)
-instance Group (γ ⊢ 'R) where
-  negate = App (App (Con (General Mult)) (Con (General (Incl (-1)))))
-instance Group (NF γ 'R) where
-  negate = normalForm . negate . nf_to_λ
-instance Multiplicative (γ ⊢ 'R) where
-  one = Con (General (Incl 1))
-  x * y  = Con (General Mult) `App` x `App` y
-  x ^+ n = Con (General Expo) `App` x `App` Con (General (Incl (fromInteger n)))
-instance Multiplicative (NF γ 'R) where
-  one = normalForm one
-  x * y = normalForm (nf_to_λ x * nf_to_λ y)
-instance Division (γ ⊢ 'R) where
-  x / y  = Con (General Divi) `App` x `App` y
-instance Division (NF γ 'R) where
-  x / y = normalForm (nf_to_λ x Algebra.Classes./ nf_to_λ y)
-instance Roots (γ ⊢ 'R) where
-  x ^/ n = Con (General Expo) `App` x `App` Con (General (Incl n))
-instance Show (General α) where
   show (Incl x) = showR x
   show Indi = "𝟙"
   show Expo = "(^)"
@@ -318,7 +311,7 @@ instance Show (General α) where
   show Nml = "Normal"
   show Uni = "Uniform"
   show Cau = "Cauchy"
-  show Les = "Lesbegue"
+  show Les = "Lesbeue"
   show EqGen = "(≐)"
   show EqRl = "(≡)"
   show (Utt i) = "'U" ++ show i
@@ -329,28 +322,10 @@ instance Show (General α) where
   show Upd = "(∷)"
   show (Pi n) = "π" ++ show n
   show (MakeUtts _) = "MakeUtts"
-
-data Special α where
-  Entity :: Int -> Special 'E
-  MeasureFun :: Int -> Special ('E ⟶ 'R)
-  Property :: Int -> Special ('E ⟶ 'T)
-  Relation :: Int -> Special ('E ⟶ 'E ⟶ 'T)
-  Proposition :: Int -> Special 'T
-  Degree :: Int -> Special 'R
-  GTE :: Special ('R ⟶ 'R ⟶ 'T)
-  Sel :: Int -> Special ('Γ ⟶ 'E)
-
-pattern JP = Entity 0
-pattern Vlad = Entity 1
-pattern Height = MeasureFun 1
-pattern Human = Property 1
-pattern Theta = Degree 1
-  
-instance Show (Special α) where
   show JP = "emacs"
   show Vlad = "the_command"
   show (Entity n) = "entity" ++ show n
-  show Height = "height"
+  show Height = "heiht"
   show (MeasureFun n) = "measurefun" ++ show n
   show (Property 0) = "prepared"
   show (Proposition n) = "φ" ++ show n
@@ -359,20 +334,42 @@ instance Show (Special α) where
   show (Relation 0) = "wait_for"
   show (Relation n) = "relation" ++ show n
   show Theta = "θ"
-  show (Degree n) = "degree" ++ show n
+  show (Degree n) = "deree" ++ show n
   show GTE = "(≥)"
   show (Sel n) = "sel" ++ show n
 
-data Con α where
-  Logical :: Logical α -> Con α
-  General :: General α -> Con α
-  Special :: Special α -> Con α
+instance Additive (γ ⊢ 'R) where
+  zero = Con (Incl 0)
+  x + y  = Con Addi `App` x `App` y
+instance Additive (NF γ 'R) where
+  zero = normalForm zero
+  x + y = normalForm (nf_to_λ x + nf_to_λ y)
+instance AbelianAdditive (γ ⊢ 'R)
+instance AbelianAdditive (NF γ 'R)
+instance Group (γ ⊢ 'R) where
+  negate = App (App (Con Mult) (Con (Incl (-1))))
+instance Group (NF γ 'R) where
+  negate = normalForm . negate . nf_to_λ
+instance Multiplicative (γ ⊢ 'R) where
+  one = Con (Incl 1)
+  x * y  = Con Mult `App` x `App` y
+  x ^+ n = Con (Expo) `App` x `App` Con ((Incl (fromInteger n)))
+instance Multiplicative (NF γ 'R) where
+  one = normalForm one
+  x * y = normalForm (nf_to_λ x * nf_to_λ y)
+instance Division (γ ⊢ 'R) where
+  x / y  = Con Divi `App` x `App` y
+instance Division (NF γ 'R) where
+  x / y = normalForm (nf_to_λ x Algebra.Classes./ nf_to_λ y)
+instance Roots (γ ⊢ 'R) where
+  x ^/ n = Con (Expo) `App` x `App` Con (Incl n)
 
-instance Show (Con α) where
-  show (Logical c) = show c
-  show (General c) = show c
-  show (Special c) = show c
-
+pattern JP = Entity 0
+pattern Vlad = Entity 1
+pattern Height = MeasureFun 1
+pattern Human = Property 1
+pattern Theta = Degree 1
+  
 -- Well-typed terms.
 data γ ⊢ α where
   Var :: α ∈ γ -> γ ⊢ α
@@ -385,12 +382,13 @@ data γ ⊢ α where
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 
 infixl `App`
+(@@) = App
 
 absInversion :: γ ⊢ ('R ⟶ α) -> (γ × 'R) ⊢ α
 absInversion (Lam f) = f
 absInversion t = App (wkn t) (Var Get)
 
--- Neutral terms (no constructors, except in arguments).
+-- Neutral terms (no constructors, except in aruments).
 data Neutral γ α where
   NeuVar :: α ∈ γ -> Neutral γ α
   NeuCon :: Con α -> Neutral γ α
@@ -457,8 +455,8 @@ apply :: NF γ (α1 ⟶ α2) -> NF γ α1 -> NF γ α2
 apply t u = case t of
     NFLam m' -> substNF0 m' u -- β rule
     Neu m' -> case m' of      -- δ rules
-      (NeuCon (General (Pi i))) -> listFromContext u !! i
-      (NeuCon (General (MakeUtts n))) ->
+      (NeuCon ((Pi i))) -> listFromContext u !! i
+      (NeuCon ((MakeUtts n))) ->
         case u of
           NFPair k (Neu (NeuCon u''))
             -> if checkk n k
@@ -467,33 +465,33 @@ apply t u = case t of
           _ -> deflt
         where checkk :: Witness n -> NF γ (Context n) -> Bool
               checkk (S Z) = \case
-                NFPair (NFPair (NFPair (NFPair (NFPair _ (NCon (General _)))
-                                        (NCon (General _))) _) _) _ ->
+                NFPair (NFPair (NFPair (NFPair (NFPair _ (NCon (_)))
+                                        (NCon (_))) _) _) _ ->
                   True
                 _ -> False
               checkk (S (S Z)) = \case
-                NFPair (NFPair (NFPair (NFPair _ (NCon (General _))) _) _) _ ->
+                NFPair (NFPair (NFPair (NFPair _ (NCon (_))) _) _) _ ->
                   True
                 _ -> False
-      (NeuCon (General EqGen)) -> equals (fst' u) (snd' u)
-      (NeuCon (General (HMorph i s))) -> normalForm (App (hmorph i (Con (Special s))) (nf_to_λ u)) -- normalForm (hmorph i _)
-      (NeuCon (General (Interp i))) -> case nf_to_λ u of
-         Con (General (Utt 1)) -> morph $ App (App (≥) (App height vlad)) θ -- 'Vlad is tall'
-         Con (General (Utt 2)) -> morph $ App (App (≥) θ) (App height vlad) -- 'Vlad is not tall'
-         Con (General (Utt 3)) -> morph $ Con $ Logical Tru -- silence
-         App (Con (General Utt')) x ->
-           morph $ App (App (≥) (App height vlad)) x
-         Con (General (Utt'' [Nothing])) -> morph $ App (prop 0) (sel' 0 ctx)
-         Con (General (Utt'' [Just e0])) ->
-           morph $ App (prop 0) (Con $ Special e0)
-         Con (General (Utt'' [Nothing, Nothing]))
+      (NeuCon (EqGen)) -> equals (fst' u) (snd' u)
+      (NeuCon ((HMorph i s))) -> normalForm (App (hmorph i (Con (s))) (nf_to_λ u)) -- normalForm (hmorph i _)
+      (NeuCon (Interp i)) -> case nf_to_λ u of
+         Con (Utt 1) -> morph $ App (App (≥) (App heiht vlad)) θ -- 'Vlad is tall'
+         Con (Utt 2) -> morph $ App (App (≥) θ) (App heiht vlad) -- 'Vlad is not tall'
+         Con (Utt 3) -> morph $ Con $ Tru -- silence
+         App (Con (Utt')) x ->
+           morph $ App (App (≥) (App heiht vlad)) x
+         Con (Utt'' [Nothing]) -> morph $ App (prop 0) (sel' 0 ctx)
+         Con (Utt'' [Just e0]) ->
+           morph $ App (prop 0) (Con $ e0)
+         Con (Utt'' [Nothing, Nothing])
            -> morph $ App (App (rel 0) (sel' 0 ctx)) (sel' 1 ctx)
-         Con (General (Utt'' [Just e0, Nothing])) ->
-           morph $ App (App (rel 0) (Con $ Special e0)) (sel' 1 ctx)
-         Con (General (Utt'' [Nothing, Just e1])) ->
-           morph $ App (App (rel 0) (sel' 0 ctx)) (Con $ Special e1)
-         Con (General (Utt'' [Just e0, Just e1])) ->
-           morph $ App (App (rel 0) (Con $ Special e0)) (Con $ Special e1)
+         Con (Utt'' [Just e0, Nothing]) ->
+           morph $ App (App (rel 0) (Con e0)) (sel' 1 ctx)
+         Con (Utt'' [Nothing, Just e1]) ->
+           morph $ App (App (rel 0) (sel' 0 ctx)) (Con e1)
+         Con (Utt'' [Just e0, Just e1]) ->
+           morph $ App (App (rel 0) (Con e0)) (Con e1)
          _ -> deflt
         where morph = normalForm . hmorph i
       _ -> deflt
@@ -501,41 +499,42 @@ apply t u = case t of
             ctx = upd' jp (upd' vlad emp)
             listFromContext :: NF γ 'Γ -> [NF γ 'E]
             listFromContext u = case nf_to_λ u of
-              Con (General Empty) -> []
-              App (App (Con (General Upd)) x) c
+              Con Empty -> []
+              App (App (Con Upd) x) c
                 -> normalForm x : listFromContext (normalForm c)
 
 toFinite :: [NF γ α] -> NF γ ((α ⟶ 'R) ⟶ 'R)
 toFinite ts = NFLam $ sum [ apply (Neu (NeuVar Get)) (wknNF t) | t <- ts ]
 
-makeUtts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> General 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
+makeUtts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> Con 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0]) = \case
   Utt'' [Nothing] -> toFinite $ [ u'' [Nothing]
                                 , u'' [Just e0] ]
-  u@(Utt'' [Just _]) -> normalForm $ η $ Con $ General u  
-  where NCon (Special e0) = normalForm (sel0 `App` ctx)
+  u@(Utt'' [Just _]) -> normalForm $ η $ Con $ u  
+  where NCon (e0) = normalForm (sel0 `App` ctx)
 makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0, sel1]) = \case
   Utt'' [Nothing, Nothing] -> toFinite $ [ u'' [Nothing, Nothing]
                                          , u'' [Just e0, Nothing]
                                          , u'' [Nothing, Just e1]
-                                         , u'' [Just e0, Just e1] ]
+                                         , u'' [Just e0, Just e1]
+                                         ]
   Utt'' [Just e0', Nothing] -> toFinite $ [ u'' [Just e0', Nothing]
                                           , u'' [Just e0', Just e1] ]
   Utt'' [Nothing, Just e1'] -> toFinite $ [ u'' [Nothing, Just e1']
                                           , u'' [Just e0, Just e1'] ]
-  u@(Utt'' [Just _, Just _]) -> normalForm $ η $ Con $ General u
-  where NCon (Special e0) = normalForm (sel0 `App` ctx)
-        NCon (Special e1) = normalForm (sel1 `App` ctx)
+  u@(Utt'' [Just _, Just _]) -> normalForm $ η $ Con $ u
+  where NCon (e0) = normalForm (sel0 `App` ctx)
+        NCon (e1) = normalForm (sel1 `App` ctx)
 
 makeUtts' :: Witness n
           -> NF γ 'Γ -> NF γ (Context n) -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts' (S Z) ctx k u =
   let Pair (Pair (Pair (Pair (Pair _ sel1) sel0) _) _) _ = nf_to_λ k
-      Con (General u') = nf_to_λ u
+      Con (u') = nf_to_λ u
   in makeUtts ctx [normalForm sel0, normalForm sel1] u'
 makeUtts' (S (S Z)) ctx k u =
   let Pair (Pair (Pair (Pair _ sel0) _) _) _ = nf_to_λ k
-      Con (General u') = nf_to_λ u
+      Con (u') = nf_to_λ u
   in makeUtts ctx [normalForm sel0] u'
 
 normalForm :: γ ⊢ α -> NF γ α
@@ -583,28 +582,28 @@ instance Show (γ ⊢ α) where
   show = replace "%" "/" . \case
     Var Get -> "x"
     Var (Weaken i) -> show (Var i) ++ "'"
-    App (App (Con (Logical And)) (show -> p)) (show -> q)
+    App (App (Con And) (show -> p)) (show -> q)
       -> "(" ++ p ++ " ∧ " ++ q ++ ")"
-    App (App (Con (Logical Or)) (show -> p)) (show -> q)
+    App (App (Con Or) (show -> p)) (show -> q)
       -> "(" ++ p ++ " ∨ " ++ q ++ ")"
-    App (App (Con (Logical Imp)) (show -> p)) (show -> q)
+    App (App (Con Imp) (show -> p)) (show -> q)
       -> "(" ++ p ++ " → " ++ q ++ ")"
-    App (App (Con (Logical Equals)) (show -> m)) (show -> n)
+    App (App (Con (Equals)) (show -> m)) (show -> n)
       -> "(" ++ m ++ " = " ++ n ++ ")"
-    App (App (Con (General Addi)) (show -> m)) (show -> n)
+    App (App (Con Addi) (show -> m)) (show -> n)
       -> "(" ++ m ++ " + " ++ n ++ ")"
-    App (App (Con (General Mult)) (show -> m)) (show -> n)
+    App (App (Con Mult) (show -> m)) (show -> n)
       -> "(" ++ m ++ " * " ++ n ++ ")"
-    App (App (Con (General Divi)) (show -> m)) (show -> n)
+    App (App (Con Divi) (show -> m)) (show -> n)
       -> "(" ++ m ++ " / " ++ n ++ ")"
-    App (Con (General EqGen)) (Pair (show -> m) (show -> n))
+    App (Con (EqGen)) (Pair (show -> m) (show -> n))
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-    App (App (Con (General EqRl)) (show -> m)) (show -> n)
+    App (App (Con EqRl) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-    App (Con (General (Interp n))) (show -> u) -> "⟦" ++ u ++ "⟧"
-    App (App (Con (General Upd)) (show -> m)) (show -> n)
+    App (Con (Interp n)) (show -> u) -> "⟦" ++ u ++ "⟧"
+    App (App (Con Upd) (show -> m)) (show -> n)
       -> m ++ "∷" ++ n
-    App (App (Con (Special GTE)) (show -> m)) (show -> n)
+    App (App (Con GTE) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≥ " ++ n ++ ")"
     App (show -> m) (show -> n) -> m ++ "(" ++ n ++ ")"
     Con (show -> c) -> c
@@ -636,28 +635,28 @@ displayVs' fs ρ t =
      dd = displayVs' fs ρ
  in case t of
   Var v -> ρ v
-  App (App (Con (Logical And)) (dd -> p)) (dd -> q)
+  App (App (Con And) (dd -> p)) (dd -> q)
     -> "(" ++ p ++ " ∧ " ++ q ++ ")"
-  App (App (Con (Logical Or)) (dd -> p)) (dd -> q)
+  App (App (Con Or) (dd -> p)) (dd -> q)
     -> "(" ++ p ++ " ∨ " ++ q ++ ")"
-  App (App (Con (Logical Imp)) (dd -> p)) (dd -> q)
+  App (App (Con Imp) (dd -> p)) (dd -> q)
     -> "(" ++ p ++ " → " ++ q ++ ")"
-  App (App (Con (Logical Equals)) (dd -> m)) (dd -> n)
+  App (App (Con (Equals)) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " = " ++ n ++ ")"
-  App (App (Con (General Addi)) (dd -> m)) (dd -> n)
+  App (App (Con Addi) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " + " ++ n ++ ")"
-  App (App (Con (General Mult)) (dd -> m)) (dd -> n)
+  App (App (Con Mult) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " * " ++ n ++ ")"
-  App (App (Con (General Divi)) (dd -> m)) (dd -> n)
+  App (App (Con Divi) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " / " ++ n ++ ")"
-  App (Con (General EqGen)) (Pair (dd -> m) (dd -> n))
+  App (Con (EqGen)) (Pair (dd -> m) (dd -> n))
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-  App (App (Con (General EqRl)) (dd -> m)) (dd -> n)
+  App (App (Con EqRl) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
-  App (Con (General (Interp n))) (dd -> u) -> "⟦" ++ u ++ "⟧"
-  App (App (Con (General Upd)) (dd -> m)) (dd -> n)
+  App (Con (Interp n)) (dd -> u) -> "⟦" ++ u ++ "⟧"
+  App (App (Con Upd) (dd -> m)) (dd -> n)
     -> m ++ "∷" ++ n
-  App (App (Con (Special GTE)) (dd -> m)) (dd -> n)
+  App (App (Con GTE) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " ≥ " ++ n ++ ")"
   App (dd -> m) n@(dd -> n') -> m ++ case n of
                                        Lam _ -> n'
@@ -677,7 +676,7 @@ displayVs' fs ρ t =
   Pair (dd -> m) (dd -> n) -> "⟨" ++ m ++ ", " ++ n ++ "⟩"
 
 lft' :: Applicative f => (forall v. v ∈ γ -> f (v ∈ δ)) -> (forall v. v ∈ (γ × α) -> f (v ∈ (δ × α)))
-lft' _ (Get) = pure Get
+lft' _ Get = pure Get
 lft' f (Weaken x) = Weaken <$> (f x)
 
 
@@ -707,14 +706,14 @@ type family Context (n :: Nat) where
   Context ('Succ 'Zero) = Context1
   Context ('Succ ('Succ 'Zero)) = Context2
 
-findC :: Witness n -> Special α -> α ∈ Context n
+findC :: Witness n -> Con α -> α ∈ Context n
 findC = \case
   Z -> \case
     Vlad -> Get
     Height -> Weaken Get
     Human -> Weaken (Weaken Get)
     Theta -> Weaken (Weaken (Weaken Get))
-    GTE -> Weaken (Weaken (Weaken (Weaken (Get))))
+    GTE -> Weaken (Weaken (Weaken (Weaken Get)))
   S Z -> \case
     Entity 0 -> Get
     Entity 1 -> Weaken Get
@@ -772,7 +771,7 @@ contr = rename $ \case
 hmorph0 :: Witness n -> γ ⊢ α -> (γ × Context n) ⊢ α
 hmorph0 n = \case
   Var i -> Var $ Weaken i
-  Con (Special c) -> π (findC n c) (Var Get)
+  Con c | special c -> π (findC n c) (Var Get)
   Con c -> Con c
   App (hmorph0 n -> m) (hmorph0 n -> n) -> App m n
   Lam (hmorph0 n -> m) -> Lam $ exch m

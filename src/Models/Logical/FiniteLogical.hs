@@ -34,8 +34,8 @@ type Finite = E.Expr Double
 
 evalFL :: NF γ 'R -> Finite
 evalFL = \case
-  NCon (General (Incl x)) -> fromRational x
-  Neu (NeuApp (NeuCon (General Indi)) φ) ->
+  NCon ((Incl x)) -> fromRational x
+  Neu (NeuApp (NeuCon (Indi)) φ) ->
     case tryProve' [] (termToFol φ) of
       Contradiction -> zero
       _ -> one
@@ -47,8 +47,8 @@ evalFL = \case
 
 evalFLState' :: NF γ 'R -> State [NF γ 'T] Finite
 evalFLState' = \case
-  NCon (General (Incl x)) -> pure $ fromRational x
-  Neu (NeuApp (NeuCon (General Indi)) ψ) -> state $ \φs ->
+  NCon ((Incl x)) -> pure $ fromRational x
+  Neu (NeuApp (NeuCon (Indi)) ψ) -> state $ \φs ->
     case tryProve' (map termToFol φs) (termToFol ψ) of
       Contradiction -> (zero, [normalForm False'])
       _ -> (one, ψ:φs)
@@ -57,7 +57,7 @@ evalFLState' = \case
     state $ \φs -> (x φs + y φs, φs)
   Divide (evalFLState' -> x) (evalState . evalFLState' -> y) ->
     flip (/) <$> state (\φs -> (y φs, φs)) <*> x
-  Expos (evalFLState' -> x) (NCon (General (Incl y))) ->
+  Expos (evalFLState' -> x) (NCon ((Incl y))) ->
     fmap (Algebra.Classes.** (fromRational y)) x
   t -> error ("evalFLState': don't know how to handle: " ++ (show . nf_to_λ) t)
 

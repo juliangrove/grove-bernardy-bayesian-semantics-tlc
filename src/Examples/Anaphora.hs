@@ -17,24 +17,24 @@ import TLC.Terms
 
 
 pis :: [Int] -> γ ⊢ ((('Γ ⟶ 'E) ⟶ 'R) ⟶ 'R)
-pis ns = Lam $ sum [ App (Var Get) (Con $ General $ Pi i) | i <- ns ]
+pis ns = Lam $ sum [ App (Var Get) (Con $ Pi i) | i <- ns ]
 
 k :: Witness n -> γ ⊢ ((Context n ⟶ 'R) ⟶ 'R)
 k (S Z) =
   pis [0, 1] ⋆
   Lam (pis [0, 1] ⋆
        Lam (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) jp)))
-            (Con $ General $ Incl 0.05) ⋆
+            (Con $ Incl 0.05) ⋆
             Lam (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) vlad)))
-                 (Con $ General $ Incl 0.05) ⋆
+                 (Con $ Incl 0.05) ⋆
                  Lam (makeBernoulli (Exists' (Lam (App (App (rel 1) (Var Get)) jp)))
-                      (Con $ General $ Incl 0.05) ⋆
+                      (Con $ Incl 0.05) ⋆
                       Lam (makeBernoulli (Exists' (Lam (App (App (rel 1) (Var Get)) vlad)))
-                           (Con $ General $ Incl 0.05) ⋆
+                           (Con $ Incl 0.05) ⋆
                            Lam (makeBernoulli (App (prop 0) jp)
-                                (Con $ General $ Incl 0.9) ⋆
+                                (Con $ Incl 0.9) ⋆
                                 Lam (makeBernoulli (App (prop 0) vlad)
-                                     (Con $ General $ Incl 0.9) ⋆
+                                     (Con $ Incl 0.9) ⋆
                                      Lam (η (And'
                                              (And' (Var Get)
                                               (And' (Var (Weaken Get))
@@ -62,17 +62,17 @@ k (S Z) =
 k (S (S Z)) =
   pis [0, 1] ⋆
   Lam (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) jp)))
-       (Con $ General $ Incl 0.05) ⋆
+       (Con $ Incl 0.05) ⋆
        Lam (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) vlad)))
-            (Con $ General $ Incl 0.05) ⋆
+            (Con $ Incl 0.05) ⋆
              Lam (makeBernoulli (App (prop 0) jp)
-                  (Con $ General $ Incl 0.05) ⋆
+                  (Con $ Incl 0.05) ⋆
                   Lam (makeBernoulli (App (prop 0) vlad)
-                       (Con $ General $ Incl 0.05) ⋆
+                       (Con $ Incl 0.05) ⋆
                        Lam (makeBernoulli (App (prop 1) jp)
-                            (Con $ General $ Incl 0.2) ⋆
+                            (Con $ Incl 0.2) ⋆
                             Lam (makeBernoulli (App (prop 1) vlad)
-                                 (Con $ General $ Incl 0.2) ⋆
+                                 (Con $ Incl 0.2) ⋆
                                  Lam (η
                                       (And'
                                        (And' (Var Get)
@@ -102,8 +102,8 @@ k _ = error "k: not defined yet."
 l0 :: Witness n -> γ ⊢ ('U ⟶ (Context n ⟶ 'R) ⟶ 'R)
 l0 n = Lam (k n ⋆
             Lam (observe'
-                 (hmorph n (Con $ Special $ Proposition 0) `App` Var Get
-                  `And'` (Con (General (Interp n)) `App`
+                 (hmorph n (Con $ Proposition 0) `App` Var Get
+                  `And'` (Con ((Interp n)) `App`
                           Var (Weaken Get) `App` Var Get)) >>
                  η (Var Get)))
 
@@ -111,7 +111,7 @@ l0 n = Lam (k n ⋆
 s1' :: Equality (Context n)
     => Witness n -> Rational -> γ ⊢ ((Context n × 'U) ⟶ ('U ⟶ 'R) ⟶ 'R)
 s1' n α =
-  Lam (Con (General $ MakeUtts n) `App` Var Get ⋆
+  Lam (Con (MakeUtts n) `App` Var Get ⋆
        Lam (factor'
             (distr (l0 n `App` Var Get) `App` Fst (Var (Weaken Get)) ^/ α) >>
             η (Var Get)))

@@ -11,58 +11,58 @@ module Examples.HNaloma where
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..), sum)
 import Models.Logical.FiniteLogical hiding (makeBernoulli)
-import TLC.Terms (Context, Witness (..),Logical(..) )
+import TLC.Terms (Context, Witness (..))
 import TLC.HOAS
 import qualified TLC.Terms as F
 
 true' :: Exp 'T
-true' = Con (Logical Tru)
+true' = Con (Tru)
 false' :: Exp 'T
-false' = Con (Logical Fal)
+false' = Con (Fal)
 and' :: Exp 'T -> Exp 'T -> Exp 'T
-and' φ ψ = App (App (Con (Logical And)) φ) ψ
+and' φ ψ = App (App (Con (And)) φ) ψ
 or' :: Exp 'T -> Exp 'T -> Exp 'T
-or' φ ψ = App (App (Con (Logical Or)) φ) ψ
+or' φ ψ = App (App (Con (Or)) φ) ψ
 imp' :: Exp 'T -> Exp 'T -> Exp 'T
-imp' φ ψ = App (App (Con (Logical Imp)) φ) ψ
+imp' φ ψ = App (App (Con (Imp)) φ) ψ
 forall' :: Exp (α1 ⟶ 'T) -> Exp 'T
-forall' f = App (Con (Logical Forall)) f
+forall' f = App (Con (Forall)) f
 exists' :: Exp (α1 ⟶ 'T) -> Exp 'T
-exists' f = App (Con (Logical Exists)) f
+exists' f = App (Con (Exists)) f
 equals' :: Exp a -> Exp a -> Exp 'T
-equals' m n = App (App (Con (Logical Equals)) m) n
+equals' m n = App (App (Con (Equals)) m) n
 
 
 prop :: Int -> Exp ('E ':-> 'T)
-prop i = Con $ Special $ F.Property i
+prop i = Con $ F.Property i
 rel :: Int -> Exp ('E ':-> ('E ⟶ 'T))
-rel i = Con $ Special $ F.Relation i
+rel i = Con $ F.Relation i
 vlad :: Exp 'E
-vlad = Con $ Special F.Vlad
+vlad = Con $ F.Vlad
 jp :: Exp 'E
-jp = Con $ Special F.JP
+jp = Con $ F.JP
 entity :: Int -> Exp 'E
-entity i = Con $ Special $ F.Entity i
+entity i = Con $ F.Entity i
 height :: Exp ('E ':-> 'R)
-height = Con $ Special F.Height
+height = Con $ F.Height
 human :: Exp ('E ':-> 'T)
-human = Con $ Special F.Human
+human = Con $ F.Human
 θ :: Exp 'R
-θ = Con $ Special F.Theta
+θ = Con $ F.Theta
 emp :: Exp 'Γ
-emp = Con $ General Empty
+emp = Con $ Empty
 upd :: Exp ('E ':-> ('Γ ⟶ 'Γ))
-upd = Con $ General Upd
+upd = Con $ Upd
 upd' :: Exp 'E -> Exp 'Γ -> Exp 'Γ
 upd' x c = upd @@ x @@ c
 sel :: Int -> Exp ('Γ ':-> 'E)
-sel n = Con $ Special $ F.Sel n
+sel n = Con $ F.Sel n
 sel' :: Int -> Exp 'Γ -> Exp 'E
 sel' n c = sel n @@ c
 
 
 pis :: [Int] -> Exp ((('Γ ⟶ 'E) ⟶ 'R) ⟶ 'R)
-pis ns = Lam $ \k -> sum [ k @@ (Con $ General $ Pi i) | i <- ns ]
+pis ns = Lam $ \k -> sum [ k @@ (Con $ Pi i) | i <- ns ]
 
 makeBernoulli :: Exp 'T -> Exp 'R -> Exp (('T ⟶ 'R) ⟶ 'R)
 makeBernoulli φ x = Lam $ \k -> (k @@ φ) * x +
@@ -74,17 +74,17 @@ context :: Witness n -> Exp ((Context n ⟶ 'R) ⟶ 'R)
   pis [0, 1] ⋆
   Lam (pis [0, 1] ⋆
        Lam (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) jp)))
-            (Con $ General $ Incl 0.05) ⋆
+            (Con $ Incl 0.05) ⋆
             Lam (makeBernoulli (Exists' (Lam (App (App (rel 0) (Var Get)) vlad)))
-                 (Con $ General $ Incl 0.05) ⋆
+                 (Con $ Incl 0.05) ⋆
                  Lam (makeBernoulli (Exists' (Lam (App (App (rel 1) (Var Get)) jp)))
-                      (Con $ General $ Incl 0.05) ⋆
+                      (Con $ Incl 0.05) ⋆
                       Lam (makeBernoulli (Exists' (Lam (App (App (rel 1) (Var Get)) vlad)))
-                           (Con $ General $ Incl 0.05) ⋆
+                           (Con $ Incl 0.05) ⋆
                            Lam (makeBernoulli (App (prop 0) jp)
-                                (Con $ General $ Incl 0.9) ⋆
+                                (Con $ Incl 0.9) ⋆
                                 Lam (makeBernoulli (App (prop 0) vlad)
-                                     (Con $ General $ Incl 0.9) ⋆
+                                     (Con $ Incl 0.9) ⋆
                                      Lam (η (And'
                                              (And' (Var Get)
                                               (And' (Var (Weaken Get))
@@ -142,9 +142,9 @@ l0 :: Witness n -> Exp 'U -> Exp 'U -> Exp ((Context n ⟶ 'R) ⟶ 'R)
 l0 n u u0 =
   context n ⋆ \k ->
   observe
-     ((Con (General (HMorph n (F.Proposition 0))) @@ k) ∧
-      (Con (General (Interp n)) @@ u @@ k)
-      -- ∧ (Con (General (Interp n)) @@ u0 @@ k) -- naloma paper has this somehow?
+     ((Con ((HMorph n (F.Proposition 0))) @@ k) ∧
+      (Con ((Interp n)) @@ u @@ k)
+      -- ∧ (Con ((Interp n)) @@ u0 @@ k) -- naloma paper has this somehow?
      ) >>
   η k
 
@@ -152,7 +152,7 @@ l0 n u u0 =
 s1' :: Equality (Context n)
     => Witness n -> Rational -> Exp (Context n) -> Exp 'U -> Exp (('U ⟶ 'R) ⟶ 'R)
 s1' n α ctx u0 =
-  (Con (General $ MakeUtts n) @@ (ctx `Pair` u0)) ⋆ \u ->
+  (Con (MakeUtts n) @@ (ctx `Pair` u0)) ⋆ \u ->
   factor (distr (l0 n u u0) ctx ^/ α) >>
   η u
 

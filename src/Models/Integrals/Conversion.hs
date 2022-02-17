@@ -24,38 +24,38 @@ pattern App2 f x y = Neu (NeuApp (NeuApp f x) y)
 pattern NNVar :: Available (α) (γ) -> NF γ α
 pattern NNVar i <- Neu (NeuVar (i))
 pattern Equ :: NF γ 'R -> NF γ 'R -> NF γ 'R
-pattern Equ x y = App2 (NeuCon (General EqRl)) x y
+pattern Equ x y = App2 (NeuCon (EqRl)) x y
 pattern EqVars :: Available 'R (γ) -> Available 'R (γ)  -> NF γ 'R
 pattern EqVars i j <- Equ (NNVar i) (NNVar j)
 pattern Mults, Expos :: NF γ 'R -> NF γ 'R -> NF γ 'R
-pattern Mults x y = App2 (NeuCon (General Mult)) x y
-pattern Expos x y = App2 (NeuCon (General Expo)) x y
+pattern Mults x y = App2 (NeuCon (Mult)) x y
+pattern Expos x y = App2 (NeuCon (Expo)) x y
 pattern Adds :: NF γ 'R -> NF γ 'R -> NF γ 'R
-pattern Adds x y = App2 (NeuCon (General Addi)) x y
+pattern Adds x y = App2 (NeuCon (Addi)) x y
 pattern InEqVars :: Available 'R (γ) -> Available 'R (γ) -> NF γ 'R
 pattern InEqVars i j <- InEq (NNVar i) (NNVar j)
 pattern InEq :: NF γ 'R -> NF γ 'R -> NF γ 'R
-pattern InEq x y = Neu (NeuApp (NeuCon (General Indi))
-                            (Neu (NeuApp (NeuApp (NeuCon (Special GTE))
+pattern InEq x y = Neu (NeuApp (NeuCon (Indi))
+                            (Neu (NeuApp (NeuApp (NeuCon (GTE))
                                           x) y)))
 pattern Normal :: Field x=> x -> x -> NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Normal x y f <- Neu (NeuApp (NeuApp (NeuCon (General Nml))
+pattern Normal x y f <- Neu (NeuApp (NeuApp (NeuCon (Nml))
                                     (NFPair (NNCon x) (NNCon y))) f)
 pattern Cauchy :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Cauchy x y f <- Neu (NeuApp (NeuApp (NeuCon (General Cau))
+pattern Cauchy x y f <- Neu (NeuApp (NeuApp (NeuCon (Cau))
                                     (NFPair (NNCon x) (NNCon y))) f)
 pattern Quartic :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Quartic x y f <- Neu (NeuApp (NeuApp (NeuCon (General Qua))
+pattern Quartic x y f <- Neu (NeuApp (NeuApp (NeuCon (Qua))
                                     (NFPair (NNCon x) (NNCon y))) f)
 pattern Uniform :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Uniform x y f <- Neu (NeuApp (NeuApp (NeuCon (General Uni))
+pattern Uniform x y f <- Neu (NeuApp (NeuApp (NeuCon (Uni))
                                      (NFPair (NNCon x) (NNCon y))) f)
 pattern Lesbegue :: NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Lesbegue f = Neu (NeuApp (NeuCon (General Les)) f)
+pattern Lesbegue f = Neu (NeuApp (NeuCon (Les)) f)
 pattern Divide :: NF γ 'R -> NF γ 'R -> NF γ 'R
-pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (General Divi)) x) y)
+pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (Divi)) x) y)
 pattern NNCon :: Field x => x -> NF γ 'R
-pattern NNCon x <- Neu (NeuCon (General (Incl (fromRational -> x))))
+pattern NNCon x <- Neu (NeuCon ((Incl (fromRational -> x))))
 
 retPoly :: Ret γ -> P γ
 retPoly x = Scale x Done
@@ -67,8 +67,8 @@ evalP = evalP'
 evalP' :: NF γ 'R -> P (γ)
 evalP' = \case
   NNCon x -> retPoly $ constPoly (fromRational x)
-  Neu (NeuApp (NeuCon (General Indi)) (Neu (NeuCon (Logical Tru)))) -> Done
-  Neu (NeuApp (NeuApp (NeuCon (General EqRl))
+  Neu (NeuApp (NeuCon (Indi)) (Neu (NeuCon (Tru)))) -> Done
+  Neu (NeuApp (NeuApp (NeuCon (EqRl))
                (Adds (NNVar i) (NNVar j))) (NNVar k)) ->
     Cond (IsZero $ A.var i + A.var j - A.var k) Done
   EqVars i j -> Cond (IsZero $ A.var i - A.var j) Done

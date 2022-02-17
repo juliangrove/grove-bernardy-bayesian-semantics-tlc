@@ -16,7 +16,7 @@ module TLC.HOAS (Exp(..), (@@), module TLC.Terms,
 import Prelude hiding ((>>), Num(..), Fractional(..))
 import Algebra.Classes
 import qualified TLC.Terms as F
-import TLC.Terms (type (⊢), type(∈)(..), type (×),  type (⟶), Type(..), Con(..), General(..), Special(GTE),Equality)
+import TLC.Terms (type (⊢), type(∈)(..), type (×),  type (⟶), Type(..), Con(..), Equality)
 
 import Unsafe.Coerce (unsafeCoerce)
 import Type.Reflection ((:~:)(..))
@@ -112,7 +112,7 @@ m ⋆ k = Lam $ \f -> m @@ (Lam $ \x -> k x @@ f)
 m >> k = m ⋆ (\_ -> k) 
 
 (≐) :: Equality α => Exp α -> Exp α -> Exp 'R
-m ≐ n = Con (General EqGen) @@ (Pair m n)
+m ≐ n = Con (EqGen) @@ (Pair m n)
 
 infixl @@
 (@@) :: Exp (a ⟶ b) -> Exp a -> Exp b
@@ -125,46 +125,45 @@ distr :: Equality α => Exp ((α ⟶ 'R) ⟶ 'R) -> Exp α -> Exp 'R
 distr p x = p @@ (Lam $ \y -> y ≐ x) / measure p
 
 instance Additive (Exp 'R) where
-  zero = Con (General (Incl 0))
-  x + y  = Con (General Addi) @@ x @@ y
+  zero = Con (Incl 0)
+  x + y  = Con (Addi) @@ x @@ y
 instance AbelianAdditive (Exp 'R)
 instance Group (Exp 'R) where
-  negate = App (App (Con (General Mult)) (Con (General (Incl (-1)))))
+  negate = App (App (Con Mult) (Con (Incl (-1))))
 instance Multiplicative (Exp 'R) where
-  one = Con (General (Incl 1))
-  x * y  = Con (General Mult) @@ x @@ y
-  x ^+ y = Con (General Expo) @@ x @@ (fromInteger y)
+  one = Con (Incl 1)
+  x * y  = Con Mult @@ x @@ y
+  x ^+ y = Con Expo @@ x @@ fromInteger y
 instance Division (Exp 'R) where
-  x / y  = Con (General Divi) @@ x @@ y
+  x / y  = Con Divi @@ x @@ y
 instance Field (Exp 'R) where
-  fromRational = Con . General . Incl 
+  fromRational = Con . Incl 
 instance Scalable (Exp 'R) (Exp 'R) where
   (*^) = (*)
 instance Ring (Exp 'R) where
-  fromInteger = Con . General . Incl . fromInteger
+  fromInteger = Con . Incl . fromInteger
 instance Roots (Exp 'R) where
-  x ^/ y = Con (General Expo) @@ x @@ (fromRational y)
-  
+  x ^/ y = Con Expo @@ x @@ fromRational y
 
 uniform :: Rational -> Rational -> Exp (('R ⟶ 'R) ⟶ 'R)
-uniform x y = App (Con $ General Uni) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
+uniform x y = App (Con Uni) (Pair (Con $ Incl x) (Con $ Incl y))
 
 normal :: Rational -> Rational -> Exp (('R ⟶ 'R) ⟶ 'R)
-normal x y = App (Con $ General Nml) (Pair (Con $ General $ Incl x) (Con $ General $ Incl y))
+normal x y = App (Con Nml) (Pair (Con $ Incl x) (Con $ Incl y))
 
 factor :: Exp 'R -> Exp (('Unit ⟶ 'R) ⟶ 'R)
 factor x = Lam (\k -> (k @@ TT) * x)
 
 observe :: Exp 'T -> Exp (('Unit ⟶ 'R) ⟶ 'R)
-observe x = factor (Con (General Indi) @@ x)  
+observe x = factor (Con Indi @@ x)  
 
 (≥) :: Exp 'R -> Exp 'R -> Exp 'T
-x ≥ y = (Con (Special GTE)) @@ x @@ y
+x ≥ y = Con GTE @@ x @@ y
 
 u' :: Exp 'R -> Exp 'U
-u' = App $ Con $ General Utt'
+u' = App $ Con $ Utt'
+  
 
 π :: α ∈ κ -> Exp κ -> Exp α
 π Get κ = Snd κ
 π (Weaken i) κ = π i (Fst κ)
-

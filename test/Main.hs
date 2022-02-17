@@ -22,6 +22,6 @@ main = do
       result = evalFL $ normalForm $ expectedValue $
         l1 α n `App` nf_to_λ (u'' [Nothing]) ⋆
         Lam (η (hmorph n
-                (Con (General EqGen) `App`
+                (Con EqGen `App`
                  (sel' 0 (upd' jp (upd' vlad emp)) `Pair` jp)) `App` Var Get))
   print (E.eval id result :: Double)
