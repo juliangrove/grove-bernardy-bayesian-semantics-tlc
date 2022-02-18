@@ -142,10 +142,10 @@ l0 :: Witness n -> Exp 'U -> Exp 'U -> Exp ((Context n ⟶ 'R) ⟶ 'R)
 l0 n u u0 =
   context n ⋆ \k ->
   observe
-     ((Con ((HMorph n (F.Proposition 0))) @@ k) ∧
-      (Con ((Interp n)) @@ u @@ k)
+  (Con (HMorph n (F.Proposition 0)) @@ k ∧
+   (Con (Interp n) @@ u @@ k)
       -- ∧ (Con ((Interp n)) @@ u0 @@ k) -- naloma paper has this somehow?
-     ) >>
+  ) >>
   η k
 
 -- | Pragmatic speaker
