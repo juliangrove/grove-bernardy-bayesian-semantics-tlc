@@ -127,9 +127,12 @@ probGain p f = measure (p `marginBy'` (observe . f)) / measure p
 -- expectedBits x = exp (negate x ^ fromInteger 2)
 
 -- example
-expectProb :: (Roots a, Group a) => Rational -> Rational -> a -> a
-expectProb α β x = (x ^/ (α-one)) * ((one-x) ^/ (β-one))
+beta :: (Roots a, Group a) => Rational -> Rational -> a -> a
+beta α β x = (x ^/ (α-one)) * ((one-x) ^/ (β-one))
 
+expectProb :: Group a => Roots a => a -> a
+-- expectProb = beta 5 2 -- favour more probable statements (smallish info gain)
+expectProb = beta 2 5 -- favour less probable statements (largish info gain)
 
 marginBy :: Exp ((β ⟶ 'R) ⟶ 'R) -> (Exp β -> Exp 'R) -> Exp ((β ⟶ 'R) ⟶ 'R)
 p `marginBy` f = p `marginBy'` (factor . f)
@@ -141,7 +144,7 @@ l1 :: Exp ((Θ ⟶ 'R) ⟶ 'R)
 l1 = linguisticParameterDistribution ⋆ \θ -> 
          -- factor (expectedBits (infoGain (l0 θ) worldDistribution)) >>
          -- factor (expectedBits (infoGain'' worldDistribution (interpU θ))) >>
-         factor (expectProb 5 5 (probGain worldDistribution (interpU θ))) >>
+         factor (expectProb (probGain worldDistribution (interpU θ))) >>
          η θ
 
 l0Expr :: P (('Unit × 'R) × 'R)
