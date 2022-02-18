@@ -9,9 +9,9 @@ module Examples.InformationalPragmatism where
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..), (^))
 import Models.Integrals
-import Models.Integrals.Types (P(..),Domain(..),swap2P)
+-- import Models.Integrals.Types (P(..),Domain(..),swap2P)
 import TLC.HOAS
-import qualified TLC.Terms as F
+-- import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
 
 toMath :: IO ()
@@ -22,17 +22,13 @@ toMath = do
   maxima $ l1Expr
 
 -- >>> toMath
--- l0 = charfun(-7 + y <= 0)*charfun(9/2 - y <= 0)*charfun(x - y <= 0)*exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, x), 7)^(-1)
--- l1 = *** Exception: evalP': don't know how to handle: *** Exception: src/TLC/Terms.hs:(308,3)-(350,32): Non-exhaustive patterns in function show
+-- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, y), 7)^(-1)
+-- l1 = charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7)^4*(1 - 20/7*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7))^4*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)^4*(1 - 20/7*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7))^4, y, 9/2, 7)^(-1)
+
 
 -- >>> plotData
 -- l0...
--- s1...
--- l1...
--- l0x...
--- l0y...
 -- l1x...
--- l1y...
 
 
 domHi :: Rational
@@ -49,8 +45,6 @@ plotOptions = PlotOptions {..} where
 
 varsToSituation :: Exp a -> Exp b -> (Exp (a ':× b), Exp 'U)
 varsToSituation x y = (Pair x y,isTall)
-alpha :: Rational
-alpha = 4
 uu :: Int -> Exp 'U
 uu = Con . Utt
 isTall :: Exp 'U
@@ -87,13 +81,10 @@ asExpression1 = simplifyFun [] . fromHoas
 -- asExpression' :: Exp ('R ⟶ 'R) -> P ('Unit × 'R)
 -- asExpression' = simplifyFun [] . fromHoas
 
-α :: Rational
-α = alpha
-
 -- | Literal listener
 -- l0 ::  Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
 l0 :: Exp 'R -> Exp (('R ⟶ 'R) ⟶ 'R)
-l0 θ = worldDistribution `marginBy` (observe . (interpU θ))
+l0 θ = worldDistribution `marginBy'` (observe . interpU θ)
 
 -- | Pragmatic listener
 -- l1 :: Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
@@ -101,28 +92,60 @@ l0 θ = worldDistribution `marginBy` (observe . (interpU θ))
 type Θ = 'R
 type W = 'R
 
-infoGain :: Exp ((W ⟶ 'R) ⟶ 'R) -> Exp ((W ⟶ 'R) ⟶ 'R) -> Exp 'R
-infoGain p q = average (p ⋆ \w -> factor (Con Log @@ ((dp w) / (dq w) )) >> η w)
-  where dp = distr p
-        dq = distr q
+-- -- information gain from q to p.
+-- infoGain :: Exp ((W ⟶ 'R) ⟶ 'R) -> Exp ((W ⟶ 'R) ⟶ 'R) -> Exp 'R
+-- infoGain p q = average (p ⋆ \w -> factor (log ((dp w) / (dq w) )) >> η w)
+--   where dp = distr p
+--         dq = distr q
 
-(∘) :: Exp (a1 ⟶ b) -> Exp (a2 ⟶ a1) -> Exp (a2 ⟶ b)
-f ∘ g = Lam $ \x -> f @@ (g @@ x)
+-- Theorem 1: infoGain (q `marginBy` f) q = infoGain' q f
 
-expectedBits :: Exp 'R -> Exp 'R
-expectedBits x = Con Exp @@ (negate x ^ fromInteger 2)
+-- Proof sketch: let P(x) = f(x) . Q(x)
+-- D(P|Q)
+--  = ∫ P(x) (log (P(x) / Q(x))) dx
+--  = ∫ P(x) (log (f(x) P(x) / P(x))) dx
+--  = ∫ P(x) (log (f(x))) dx
+--  = ∫ P(x) log(f(x)) dx
 
-marginBy :: Exp ((β ⟶ r) ⟶ r) -> (Exp β -> Exp (('Unit ⟶ r) ⟶ r)) -> Exp ((β ⟶ r) ⟶ r)
-p `marginBy` f = p ⋆ \x -> f x >> η x
+
+-- infoGain' :: Exp ((W ⟶ 'R) ⟶ 'R) -> (Exp W -> Exp 'R) -> Exp 'R
+-- infoGain' p f = average (p ⋆ \w -> factor (f w) >> η (negate (log (f w))))
+
+
+-- Theorem 2: infoGain' q (indicator ∘ f) = infoGain'' q f
+-- Corrolary 3: infoGain (q `marginBy` f) q = infoGain'' q f
+
+-- infoGain'' :: Exp ((W ⟶ 'R) ⟶ 'R) -> (Exp W -> Exp 'T) -> Exp 'R
+-- infoGain'' p f = log (measure p) - log (measure (p `marginBy'` (observe . f)))
+
+-- as infoGain'', but in probability rather than logits
+probGain :: Exp ((W ⟶ 'R) ⟶ 'R) -> (Exp W -> Exp 'T) -> Exp 'R
+probGain p f = measure (p `marginBy'` (observe . f)) / measure p
+
+-- example
+-- expectedBits :: Exp 'R -> Exp 'R
+-- expectedBits x = exp (negate x ^ fromInteger 2)
+
+-- example
+expectProb :: (Roots a, Group a) => Rational -> Rational -> a -> a
+expectProb α β x = (x ^/ (α-one)) * ((one-x) ^/ (β-one))
+
+
+marginBy :: Exp ((β ⟶ 'R) ⟶ 'R) -> (Exp β -> Exp 'R) -> Exp ((β ⟶ 'R) ⟶ 'R)
+p `marginBy` f = p `marginBy'` (factor . f)
+
+marginBy' :: Exp ((β ⟶ r) ⟶ r) -> (Exp β -> Exp (('Unit ⟶ r) ⟶ r)) -> Exp ((β ⟶ r) ⟶ r)
+p `marginBy'` f = p ⋆ \x -> (f x) >> η x
 
 l1 :: Exp ((Θ ⟶ 'R) ⟶ 'R)
 l1 = linguisticParameterDistribution ⋆ \θ -> 
-         factor (expectedBits (infoGain (l0 θ)
-                               worldDistribution)) >>
+         -- factor (expectedBits (infoGain (l0 θ) worldDistribution)) >>
+         -- factor (expectedBits (infoGain'' worldDistribution (interpU θ))) >>
+         factor (expectProb 5 5 (probGain worldDistribution (interpU θ))) >>
          η θ
 
 l0Expr :: P (('Unit × 'R) × 'R)
-l0Expr = asExpression (Lam $ \h -> Lam $ \θ -> distr (l0 θ) h)
+l0Expr = asExpression (Lam $ \θ -> Lam $ \h -> distr (l0 θ) h)
 
 l1Expr :: P ('Unit × 'R)
 l1Expr = asExpression1 (Lam $ \θ -> distr l1 θ)

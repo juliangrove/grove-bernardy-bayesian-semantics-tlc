@@ -10,7 +10,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module TLC.HOAS (Exp(..), (@@), module TLC.Terms,
-                uniform, normal, u', (≥), measure, distr, observe, factor, fromHoas,
+                uniform, normal, u', (≥), measure, distr, average, observe, factor, fromHoas,
                 (⋆), (>>), η, toHoas, π) where
 
 import Prelude hiding ((>>), Num(..), Fractional(..))
@@ -118,8 +118,16 @@ infixl @@
 (@@) :: Exp (a ⟶ b) -> Exp a -> Exp b
 (@@) = App
 
+
+(∘) :: Exp (a1 ⟶ b) -> Exp (a2 ⟶ a1) -> Exp (a2 ⟶ b)
+f ∘ g = Lam $ \x -> f @@ (g @@ x)
+
+
 measure :: Exp ((α ⟶ 'R) ⟶ 'R) -> Exp 'R
 measure p = p @@ (Lam $ \_ -> one)
+
+average :: Exp (('R ⟶ 'R) ⟶ 'R) -> Exp 'R
+average p = p @@ (Lam $ \x -> x)
 
 distr :: Equality α => Exp ((α ⟶ 'R) ⟶ 'R) -> Exp α -> Exp 'R
 distr p x = p @@ (Lam $ \y -> y ≐ x) / measure p
