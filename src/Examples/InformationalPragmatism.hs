@@ -23,7 +23,7 @@ toMath = do
 
 -- >>> toMath
 -- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, y), 7)^(-1)
--- l1 = charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7)^4*(1 - 20/7*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7))^4*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)^4*(1 - 20/7*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7))^4, y, 9/2, 7)^(-1)
+-- l1 = charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7)^7*(1 - 20/7*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7))*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)^7*(1 - 20/7*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)), y, 9/2, 7)^(-1)
 
 
 -- >>> plotData
@@ -126,13 +126,21 @@ probGain p f = measure (p `marginBy'` (observe . f)) / measure p
 -- expectedBits :: Exp 'R -> Exp 'R
 -- expectedBits x = exp (negate x ^ fromInteger 2)
 
+-- | Beta distribution with mean (μ) and sample size (ν)
+betaμν μ ν = beta (μ*ν) ((1-μ)*ν)
+
+-- | Beta distribution with mode (ω) and concentration (κ).  (High concentration means low variance)
+betaωκ ω κ = beta (ω*(κ-2)+1) ((1-ω)*(κ-2)+1)
+
 -- example
 beta :: (Roots a, Group a) => Rational -> Rational -> a -> a
 beta α β x = (x ^/ (α-one)) * ((one-x) ^/ (β-one))
 
 expectProb :: Group a => Roots a => a -> a
--- expectProb = beta 5 2 -- favour more probable statements (smallish info gain)
-expectProb = beta 2 5 -- favour less probable statements (largish info gain)
+-- expectProb = beta 0.5 0.5 -- favour nothing (fisher prior for beta distribution)
+-- expectProb = betaμν 0.5 10 -- favour 1 bit of information
+expectProb = betaμν 0.8 10 -- favour more probable statements (smaller info gain)
+-- expectProb = betaμν 0.25 10 -- expect 2 bits of information (with some variance)
 
 marginBy :: Exp ((β ⟶ 'R) ⟶ 'R) -> (Exp β -> Exp 'R) -> Exp ((β ⟶ 'R) ⟶ 'R)
 p `marginBy` f = p `marginBy'` (factor . f)
