@@ -72,6 +72,10 @@ uu :: Int -> Exp 'U
 uu = Con . Utt 
 isTall :: Exp 'U
 isTall = uu 1
+isShort :: Exp 'U
+isShort = uu 2
+vaccuous :: Exp 'U
+vaccuous = uu 3
 
 utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
 utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)
