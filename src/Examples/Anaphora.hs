@@ -101,16 +101,16 @@ ktx (T.S T.Z) =
      (entity 0))
 ktx (T.S (T.S T.Z)) =
   pis [0, 1] ⋆ \π ->
-  makeBernoulli (exists' (\x -> rel 0 @@ x @@ jp)) (incl 0.05) ⋆ \φ0 ->
-  makeBernoulli (exists' (\x -> rel 0 @@ x @@ vlad)) (incl 0.05) ⋆ \φ1 ->
+  makeBernoulli (exists' (\x -> rel 1 @@ x @@ jp)) (incl 0.05) ⋆ \φ0 ->
+  makeBernoulli (exists' (\x -> rel 1 @@ x @@ vlad)) (incl 0.05) ⋆ \φ1 ->
   makeBernoulli (prop 0 @@ jp) (incl 0.05) ⋆ \φ2 ->
   makeBernoulli (prop 0 @@ vlad) (incl 0.05) ⋆ \φ3 ->
   makeBernoulli (prop 1 @@ jp) (incl 0.2) ⋆ \φ2 ->
   makeBernoulli (prop 1 @@ vlad) (incl 0.2) ⋆ \φ3 ->
   η (φ0 ∧ φ1 ∧ φ2 ∧ φ3 ∧
-    forall' (\x -> exists' (\y -> rel 0 @@ y @@ x) → (prop 1 @@ x)) ∧
+    forall' (\x -> exists' (\y -> rel 1 @@ y @@ x) → (prop 1 @@ x)) ∧
     forall' (\x -> prop 0 @@ x → (prop 1 @@ x)) ∧
-    (rel 0 @@ vlad @@ jp)) ⋆ \φ6 ->
+    (rel 1 @@ vlad @@ jp)) ⋆ \φ6 ->
   η (Pair
      (Pair
       (Pair

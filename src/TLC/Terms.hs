@@ -68,9 +68,9 @@ instance Equality 'R where
           NCon $ Incl $ case m == n of True -> 1; False -> 0
   equals x y = Neu $ NeuCon EqRl `NeuApp` x `NeuApp` y
 instance Equality 'U where
-  equals (NCon (Utt i)) (NCon (Utt j)) = case i == j of
+  equals (NCon (Utt s0)) (NCon (Utt s1)) = case s0 == s1 of
                              True -> one
-                             False -> NCon (Incl 0)
+                             False -> incl 0
   equals (Neu (NeuApp (NeuCon Utt') x))
     (Neu (NeuApp (NeuCon Utt') y)) = equals x y
   equals (NCon (Utt'' es0)) (NCon (Utt'' es1)) =
@@ -157,8 +157,8 @@ termToFol = termToFol' (\case) . nf_to_λ
 -- ------------------------------------------------------------------
 
 
-u :: Int -> γ ⊢ 'U
-u i = Con $ Utt i
+u :: NLExp 'SP -> γ ⊢ 'U
+u s = Con $ Utt s
 
 u' :: γ ⊢ 'R -> γ ⊢ 'U
 u' = App $ Con Utt'
@@ -174,7 +174,7 @@ vlad :: γ ⊢ 'E
 vlad = Con Vlad
 jp = Con JP
 entity i = Con $ Entity i
-heiht = Con Height
+height = Con Height
 human = Con Human
 θ = Con Theta
 (≥) = Con GTE
@@ -183,6 +183,7 @@ upd = Con Upd
 upd' x c = upd `App` x `App` c
 sel n = Con $ Sel n
 sel' n c = sel n `App` c
+incl n = NCon $ Incl n
 
 (/\) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
 p /\ q = App (App (Con And) p) q
@@ -253,7 +254,8 @@ data Con α where
   Divi :: Con ('R ⟶ 'R ⟶ 'R)
   EqGen :: Equality α => Con ((α × α) ⟶ 'R)
   EqRl :: Con ('R ⟶ 'R ⟶ 'R)
-  Utt :: Int -> Con 'U
+  Utt :: NLExp 'SP -> Con 'U
+  Silence :: Con 'U
   Utt' :: Con ('R ⟶ 'U)
   Utt'' :: [Maybe (Con 'E)] -> Con 'U
   MakeUtts :: Witness n -> Con ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
@@ -288,18 +290,86 @@ special = \case
   GTE -> True
   Sel _ -> True
   _ -> False
+
+data Cat = N | NP | SP | Cat :/: Cat | Cat :\: Cat
+
+type family SemType (α :: Cat) where
+  SemType 'N = 'E ⟶ 'T
+  SemType 'NP = 'E
+  SemType 'SP = 'T
+  SemType (β ':/: α) = SemType α ⟶ SemType β
+  SemType (α ':\: β) = SemType α ⟶ SemType β
+
+data NLExp (c :: Cat) where
+  -- Applicative combinators
+  MergeLft :: NLExp (β ':/: α) -> NLExp α -> NLExp β
+  MergeRgt :: NLExp α -> NLExp (α ':\: β) -> NLExp β
+  -- Noun phrases
+  Jp :: NLExp 'NP
+  Vl :: NLExp 'NP
+  Emacs :: NLExp 'NP
+  TheCmnd :: NLExp 'NP
+  Pn :: Int -> NLExp 'NP
+  -- Intransitive predicates
+  IsTall :: NLExp ('NP ':\: 'SP)
+  IsShort :: NLExp ('NP ':\: 'SP)
+  IsThisTall :: Rational -> NLExp ('NP ':\: 'SP)
+  IsPrepared :: NLExp ('NP ':\: 'SP)
+  -- Transitive predicates
+  Saw :: NLExp (('NP ':\: SP) ':/: NP)
+  IsWaitingFor :: NLExp (('NP ':\: SP) ':/: NP)
+deriving instance Show (NLExp c)
+
+compareNLExp :: (NLExp α, NLExp β) -> Bool
+compareNLExp = \case
+  (MergeLft e0 e1, MergeLft e0' e1') ->
+    compareNLExp (e0, e0') && compareNLExp (e1, e1')
+  (MergeRgt e0 e1, MergeRgt e0' e1') ->
+    compareNLExp (e0, e0') && compareNLExp (e1, e1')
+  (Jp, Jp) -> True
+  (Vl, Vl) -> True
+  (Emacs, Emacs) -> True
+  (TheCmnd, TheCmnd) -> True
+  (Pn i, Pn j) -> i == j
+  (IsTall, IsTall) -> True
+  (IsShort, IsShort) -> True
+  (IsThisTall m, IsThisTall n) -> m == n
+  (IsPrepared, IsPrepared) -> True
+  (Saw, Saw) -> True
+  (IsWaitingFor, IsWaitingFor) -> True
+  _ -> False
   
-pattern True',False' :: () => (α ~ 'T) => γ ⊢ α
+instance Eq (NLExp c) where
+  e0 == e1 = compareNLExp (e0, e1)
+
+-- >>> displayVs $ interp $ MergeRgt Jp (MergeLft IsWaitingFor Vl) 
+-- relation1(the_command)(emacs)
+
+interp :: NLExp α -> γ ⊢ SemType α
+interp = \case
+  MergeLft (interp -> m0) (interp -> m1) -> m0 @@ m1
+  MergeRgt (interp -> m0) (interp -> m1) -> m1 @@ m0
+  Jp -> jp
+  Vl -> vlad
+  Emacs -> jp
+  TheCmnd -> vlad
+  Pn i -> sel' i ctx
+  IsTall -> Lam ((≥) @@ (height @@ Var Get) @@ θ)
+  IsShort -> Lam ((≥) @@ θ @@ (height @@ Var Get))
+  IsThisTall d -> Lam ((≥) @@ (height @@ Var Get) @@ nf_to_λ (incl d))
+  IsPrepared -> prop 0
+  Saw -> rel 0
+  IsWaitingFor -> rel 1
+  where ctx = upd' jp (upd' vlad emp)
+
 pattern True' = Con Tru
 pattern False' = Con Fal
-pattern And', Or',Imp'  :: () => (α ~ 'T) => (γ ⊢ α) -> (γ ⊢ α) -> γ ⊢ α
 pattern And' φ ψ = App (App (Con And) φ) ψ
 pattern Or' φ ψ = Con Or `App` φ `App` ψ
 pattern Imp' φ ψ = Con Imp `App` φ `App` ψ
-pattern Forall',Exists' :: () => ((α ~ 'T)) => (γ ⊢ (β ⟶ 'T)) -> γ ⊢ α
 pattern Forall' f = Con Forall `App` f
 pattern Exists' f = Con Exists `App` f
-pattern Equals' :: (γ ⊢ α) -> (γ ⊢ α) -> (γ ⊢ 'T)
+pattern Equals' :: γ ⊢ α -> γ ⊢ α -> γ ⊢ 'T
 pattern Equals' m n = Con Equals `App` m `App` n
 
 instance Show (Con α) where
@@ -323,7 +393,7 @@ instance Show (Con α) where
   show Les = "Lesbeue"
   show EqGen = "(≐)"
   show EqRl = "(≡)"
-  show (Utt i) = "'U" ++ show i
+  show (Utt s) = show s
   show Utt' = "'U"
   show (Utt'' as) = "U" ++ show as
   show (Interp _) = "⟦⟧"
@@ -334,7 +404,7 @@ instance Show (Con α) where
   show JP = "emacs"
   show Vlad = "the_command"
   show (Entity n) = "entity" ++ show n
-  show Height = "heiht"
+  show Height = "height"
   show (MeasureFun n) = "measurefun" ++ show n
   show (Property 0) = "prepared"
   show (Proposition n) = "φ" ++ show n
@@ -373,14 +443,14 @@ instance Division (NF γ 'R) where
 instance Roots (γ ⊢ 'R) where
   x ^/ n = Con (Expo) `App` x `App` Con (Incl n)
 
-pattern JP,Vlad :: forall (α :: Type). () => (α ~ 'E) => Con α
+name :: Con 'E -> NLExp 'NP
+name = \case
+  JP -> Jp
+  Vlad -> Vl
 pattern JP = Entity 0
 pattern Vlad = Entity 1
-pattern Height :: forall (α :: Type). () => (α ~ ('E ':-> 'R)) => Con α
 pattern Height = MeasureFun 1
-pattern Human :: forall (α :: Type). () => (α ~ ('E ':-> 'T)) => Con α
 pattern Human = Property 1
-pattern Theta :: forall (α :: Type). () => (α ~ 'R) => Con α
 pattern Theta = Degree 1
   
 -- Well-typed terms.
@@ -490,23 +560,22 @@ apply t u = case t of
       (NeuCon (EqGen)) -> equals (fst' u) (snd' u)
       (NeuCon ((HMorph i s))) -> normalForm (App (hmorph i (Con (s))) (nf_to_λ u)) -- normalForm (hmorph i _)
       (NeuCon (Interp i)) -> case nf_to_λ u of
-         Con (Utt 1) -> morph $ App (App (≥) (App heiht vlad)) θ -- 'Vlad is tall'
-         Con (Utt 2) -> morph $ App (App (≥) θ) (App heiht vlad) -- 'Vlad is not tall'
-         Con (Utt 3) -> morph $ Con $ Tru -- silence
-         App (Con (Utt')) x ->
-           morph $ App (App (≥) (App heiht vlad)) x
-         Con (Utt'' [Nothing]) -> morph $ App (prop 0) (sel' 0 ctx)
-         Con (Utt'' [Just e0]) ->
-           morph $ App (prop 0) (Con $ e0)
-         Con (Utt'' [Nothing, Nothing])
-           -> morph $ App (App (rel 0) (sel' 0 ctx)) (sel' 1 ctx)
-         Con (Utt'' [Just e0, Nothing]) ->
-           morph $ App (App (rel 0) (Con e0)) (sel' 1 ctx)
-         Con (Utt'' [Nothing, Just e1]) ->
-           morph $ App (App (rel 0) (sel' 0 ctx)) (Con e1)
-         Con (Utt'' [Just e0, Just e1]) ->
-           morph $ App (App (rel 0) (Con e0)) (Con e1)
-         _ -> deflt
+        Con (Utt e) -> morph $ interp e
+        Con Silence -> morph True'
+         -- App (Con (Utt')) x ->
+           -- morph $ App (App (≥) (App height vlad)) x
+         -- Con (Utt'' [Nothing]) -> morph $ App (prop 0) (sel' 0 ctx)
+         -- Con (Utt'' [Just e0]) ->
+           -- morph $ App (prop 0) (Con $ e0)
+         -- Con (Utt'' [Nothing, Nothing])
+           -- -> morph $ App (App (rel 0) (sel' 0 ctx)) (sel' 1 ctx)
+         -- Con (Utt'' [Just e0, Nothing]) ->
+           -- morph $ App (App (rel 0) (Con e0)) (sel' 1 ctx)
+         -- Con (Utt'' [Nothing, Just e1]) ->
+           -- morph $ App (App (rel 0) (sel' 0 ctx)) (Con e1)
+         -- Con (Utt'' [Just e0, Just e1]) ->
+           -- morph $ App (App (rel 0) (Con e0)) (Con e1)
+        _ -> deflt
         where morph = normalForm . hmorph i
       _ -> deflt
       where deflt = Neu (NeuApp m' u)
@@ -514,31 +583,37 @@ apply t u = case t of
             listFromContext :: NF γ 'Γ -> [NF γ 'E]
             listFromContext u = case nf_to_λ u of
               Con Empty -> []
-              App (App (Con Upd) x) c
-                -> normalForm x : listFromContext (normalForm c)
+              App (App (Con Upd) x) c ->
+                normalForm x : listFromContext (normalForm c)
 
 toFinite :: [NF γ α] -> NF γ ((α ⟶ 'R) ⟶ 'R)
 toFinite ts = NFLam $ sum [ apply (Neu (NeuVar Get)) (wknNF t) | t <- ts ]
 
 makeUtts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> Con 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
 makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0]) = \case
-  Utt'' [Nothing] -> toFinite $ [ u'' [Nothing]
-                                , u'' [Just e0] ]
-  u@(Utt'' [Just _]) -> normalForm $ η $ Con $ u  
-  where NCon (e0) = normalForm (sel0 `App` ctx)
-makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0, sel1]) = \case
-  Utt'' [Nothing, Nothing] -> toFinite $ [ u'' [Nothing, Nothing]
-                                         , u'' [Just e0, Nothing]
-                                         , u'' [Nothing, Just e1]
-                                         , u'' [Just e0, Just e1]
+  Utt (MergeRgt (Pn i) pred) -> toFinite [ NCon $ Utt $ MergeRgt (Pn i) pred
+                                         , NCon $ Utt $ MergeRgt (name e0) pred
                                          ]
-  Utt'' [Just e0', Nothing] -> toFinite $ [ u'' [Just e0', Nothing]
-                                          , u'' [Just e0', Just e1] ]
-  Utt'' [Nothing, Just e1'] -> toFinite $ [ u'' [Nothing, Just e1']
-                                          , u'' [Just e0, Just e1'] ]
-  u@(Utt'' [Just _, Just _]) -> normalForm $ η $ Con $ u
-  where NCon (e0) = normalForm (sel0 `App` ctx)
-        NCon (e1) = normalForm (sel1 `App` ctx)
+  u -> normalForm $ η $ Con u
+  where NCon e0 = normalForm (sel0 @@ ctx)
+makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0, sel1]) = \case
+  Utt (MergeRgt (Pn i) (MergeLft pred (Pn j))) ->
+    toFinite [ NCon $ Utt $ (MergeRgt (Pn i) (MergeLft pred (Pn j)))
+             , NCon $ Utt $ (MergeRgt (name e0) (MergeLft pred (Pn j)))
+             , NCon $ Utt $ (MergeRgt (Pn i) (MergeLft pred (name e1)))
+             , NCon $ Utt $ (MergeRgt (name e0) (MergeLft pred (name e1)))
+             ]
+  Utt (MergeRgt (Pn i) (MergeLft pred e1')) ->
+    toFinite [ NCon $ Utt $ (MergeRgt (Pn i) (MergeLft pred e1'))
+             , NCon $ Utt $ (MergeRgt (name e0) (MergeLft pred e1'))
+             ]
+  Utt (MergeRgt e0' (MergeLft pred (Pn j))) ->
+    toFinite [ NCon $ Utt $ (MergeRgt e0' (MergeLft pred (Pn j)))
+             , NCon $ Utt $ (MergeRgt e0' (MergeLft pred (name e1)))
+             ]
+  u -> normalForm $ η $ Con $ u
+  where NCon e0 = normalForm (sel0 @@ ctx)
+        NCon e1 = normalForm (sel1 @@ ctx)
 
 makeUtts' :: Witness n
           -> NF γ 'Γ -> NF γ (Context n) -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)

@@ -10,13 +10,14 @@
 {-# LANGUAGE LambdaCase #-}
 
 module TLC.HOAS (Exp(..), (@@), module TLC.Terms,
-                uniform, normal, u', (≥), measure, distr, average, observe, factor, fromHoas,
-                (⋆), (>>), η, toHoas, π) where
+                uniform, normal, u', (≥), measure, distr, average, observe,
+                factor, fromHoas, (⋆), (>>), η, toHoas, π) where
 
 import Prelude hiding ((>>), Num(..), Fractional(..))
 import Algebra.Classes
 import qualified TLC.Terms as F
-import TLC.Terms (type (⊢), type(∈)(..), type (×),  type (⟶), Type(..), Con(..), Equality)
+import TLC.Terms (type (⊢), type(∈)(..), type (×),  type (⟶), Type(..), Con(..),
+                  Equality)
 
 import Unsafe.Coerce (unsafeCoerce)
 import Type.Reflection ((:~:)(..))
@@ -24,7 +25,9 @@ import Type.Reflection ((:~:)(..))
 data Key (a :: F.Type) = Key Int
 
 compareKeys :: Key a -> Key b -> Maybe (a :~: b)
-compareKeys (Key x) (Key y) = if x == y then Just (unsafeCoerce Refl) else Nothing
+compareKeys (Key x) (Key y) = if x == y
+                              then Just (unsafeCoerce Refl)
+                              else Nothing
 
 data Ctx γ where
   Entry :: Key a -> Ctx γ -> Ctx (γ × a)
@@ -32,7 +35,7 @@ data Ctx γ where
 
 newkey :: Ctx γ -> Key a
 newkey Nil = Key 0
-newkey (Entry (Key n) _) = Key (n+1)
+newkey (Entry (Key n) _) = Key (n + 1)
 
 data Exp t where
   TT  :: Exp 'F.Unit
