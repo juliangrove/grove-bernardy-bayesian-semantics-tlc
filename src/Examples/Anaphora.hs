@@ -73,6 +73,9 @@ pis ns = Lam $ \k -> sum [ k @@ (Con $ Pi i) | i <- ns ]
 makeBernoulli :: Exp 'T -> Exp 'R -> Exp (('T ⟶ 'R) ⟶ 'R)
 makeBernoulli φ x = Lam $ \k -> (k @@ φ) * x + (k @@ (φ → false')) * (one - x)
 
+hmorph' :: T.Witness n -> Exp α -> Exp (T.Context n ⟶ α)
+hmorph' n = toHoas . T.hmorph n . fromHoas
+
 ktx :: T.Witness n -> Exp ((T.Context n ⟶ 'R) ⟶ 'R)
 ktx (T.S T.Z) =
   pis [0, 1] ⋆ \π ->
@@ -123,12 +126,14 @@ ktx (T.S (T.S T.Z)) =
      (entity 0))
 ktx _ = error "k: not defined yet."
 
+
+
 -- | Literal listener
 l0 :: T.Witness n -> Exp ('U ⟶ (T.Context n ⟶ 'R) ⟶ 'R)
 l0 n =
   Lam $ \u ->
   ktx n ⋆ \k ->
-  observe (Con (HMorph n (T.Proposition 0)) @@ k ∧
+  observe (hmorph' n (Con (T.Proposition 0)) @@ k ∧
            (Con (Interp n) @@ u @@ k)) >>
   η k
   

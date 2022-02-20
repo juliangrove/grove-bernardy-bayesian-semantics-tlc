@@ -88,7 +88,7 @@ exampleTallThreshold = evaluate RSAIn {..} where
   plotDomainLo = 0
   plotDomainHi = 100
   plotResolution = 128
-  varsToSituation x y = (Pair x y,isTall)
+  varsToSituation x y = (Pair x y, isTall)
   alpha = 4
   uu = Con . uttNumber
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)

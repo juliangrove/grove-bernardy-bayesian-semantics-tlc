@@ -14,6 +14,7 @@ import TLC.Terms (Context, Witness (..))
 import TLC.HOAS
 import qualified TLC.Terms as F
 
+
 true' :: Exp 'T
 true' = Con (Tru)
 false' :: Exp 'T
@@ -67,6 +68,8 @@ makeBernoulli :: Exp 'T -> Exp 'R -> Exp (('T ⟶ 'R) ⟶ 'R)
 makeBernoulli φ x = Lam $ \k -> (k @@ φ) * x +
                                 (k @@ (imp' φ false')) * (one - x)
 
+hmorph' :: F.Witness n -> Exp α -> Exp (F.Context n ⟶ α)
+hmorph' n = toHoas . F.hmorph n . fromHoas
 
 context :: Witness n -> Exp ((Context n ⟶ 'R) ⟶ 'R)
 {-k (S Z) =
@@ -142,7 +145,7 @@ l0 :: Witness n -> Exp 'U -> Exp 'U -> Exp ((Context n ⟶ 'R) ⟶ 'R)
 l0 n u u0 =
   context n ⋆ \k ->
   observe
-  (Con (HMorph n (F.Proposition 0)) @@ k ∧
+  (hmorph' n (Con (F.Proposition 0)) @@ k ∧
    (Con (Interp n) @@ u @@ k)
       -- ∧ (Con ((Interp n)) @@ u0 @@ k) -- naloma paper has this somehow?
   ) >>

@@ -78,7 +78,6 @@ data Con α where
   Qua :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Uni :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Interp :: Witness n -> Con ('U ⟶ Context n ⟶ 'T)
-  HMorph :: Witness n -> Con x -> Con (Context n ⟶ x)
   Empty :: Con 'Γ
   Upd :: Con ('E ⟶ 'Γ ⟶ 'Γ)
   Pi :: Int -> Con ('Γ ⟶ 'E)
@@ -566,23 +565,9 @@ apply t u = case t of
                   True
                 _ -> False
       (NeuCon EqGen) -> equals (fst' u) (snd' u)
-      (NeuCon (HMorph i s)) -> normalForm (App (hmorph i (Con (s))) (nf_to_λ u)) -- normalForm (hmorph i _)
       (NeuCon (Interp i)) -> case nf_to_λ u of
         Con (Utt e) -> morph $ interp e
         Con Silence -> morph True'
-         -- App (Con (Utt')) x ->
-           -- morph $ App (App (≥) (App height vlad)) x
-         -- Con (Utt'' [Nothing]) -> morph $ App (prop 0) (sel' 0 ctx)
-         -- Con (Utt'' [Just e0]) ->
-           -- morph $ App (prop 0) (Con $ e0)
-         -- Con (Utt'' [Nothing, Nothing])
-           -- -> morph $ App (App (rel 0) (sel' 0 ctx)) (sel' 1 ctx)
-         -- Con (Utt'' [Just e0, Nothing]) ->
-           -- morph $ App (App (rel 0) (Con e0)) (sel' 1 ctx)
-         -- Con (Utt'' [Nothing, Just e1]) ->
-           -- morph $ App (App (rel 0) (sel' 0 ctx)) (Con e1)
-         -- Con (Utt'' [Just e0, Just e1]) ->
-           -- morph $ App (App (rel 0) (Con e0)) (Con e1)
         _ -> deflt
         where morph = normalForm . hmorph i
       _ -> deflt

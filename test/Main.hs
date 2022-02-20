@@ -3,8 +3,8 @@
 
 module Main where
 
-import Examples.Anaphora (l1)
--- import Examples.HNaloma (l1)
+-- import Examples.Anaphora (l1)
+import Examples.HNaloma (l1)
 import Models.Logical.FiniteLogical
 import Prelude hiding (Num(..), Fractional(..))
 import TLC.Distributions
