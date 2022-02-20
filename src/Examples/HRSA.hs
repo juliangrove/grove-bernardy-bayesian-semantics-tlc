@@ -1,7 +1,8 @@
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Examples.HRSA where
@@ -35,6 +36,11 @@ data RSAOut = RSAOut {
     plotData, plotMarginalisedData :: IO ()
     }
 
+uttNumber :: Int -> Con 'U
+uttNumber = \case
+  1 -> Utt $ F.MergeRgt F.Vl F.IsTall
+  2 -> Utt $ F.MergeRgt F.Vl F.IsShort
+  3 -> Silence
 
 toMath :: RSAOut -> IO ()
 toMath RSAOut {..} = do
@@ -84,7 +90,7 @@ exampleTallThreshold = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
-  uu = Con . Utt
+  uu = Con . uttNumber
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
   isTall = uu 1
   utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)
@@ -101,7 +107,6 @@ exampleTallThreshold = evaluate RSAIn {..} where
       uniform 0 100 ⋆ \θ ->
              η (θ `Pair` h)
 
-
 exampleLassGood :: RSAOut
 exampleLassGood = evaluate RSAIn {..} where
   plotOptions = PlotOptions {..}
@@ -110,7 +115,7 @@ exampleLassGood = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
-  uu = Con . Utt 
+  uu = Con . uttNumber
   isTall = uu 1
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
   utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)

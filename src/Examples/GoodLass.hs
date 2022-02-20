@@ -1,7 +1,8 @@
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Examples.GoodLass where
@@ -9,7 +10,7 @@ module Examples.GoodLass where
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Integrals
-import Models.Integrals.Types (P(..),Domain(..),swap2P)
+import Models.Integrals.Types (P(..), Domain(..), swap2P)
 import TLC.HOAS
 import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
@@ -69,13 +70,19 @@ varsToSituation x y = (Pair x y,isTall)
 alpha :: Rational
 alpha = 4
 uu :: Int -> Exp 'U
-uu = Con . Utt 
+uu = Con . uttNumber
 isTall :: Exp 'U
 isTall = uu 1
 isShort :: Exp 'U
 isShort = uu 2
 vaccuous :: Exp 'U
 vaccuous = uu 3
+
+uttNumber :: Int -> Con 'U
+uttNumber = \case
+  1 -> Utt $ F.MergeRgt F.Vl F.IsTall
+  2 -> Utt $ F.MergeRgt F.Vl F.IsShort
+  3 -> Silence
 
 utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
 utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)

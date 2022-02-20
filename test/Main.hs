@@ -3,7 +3,7 @@
 
 module Main where
 
-import qualified Examples.Anaphora as A
+import Examples.Anaphora (l1)
 -- import Examples.HNaloma (l1)
 import Models.Logical.FiniteLogical
 import Prelude hiding (Num(..), Fractional(..))
@@ -20,7 +20,7 @@ main = do
   let n = S (S Z)
       α = toRational (read temp :: Double)
       result = evalFL $ normalForm $ expectedValue $
-        A.l1 α n @@ Con (Utt (MergeRgt (Pn 0) IsPrepared)) ⋆
+        l1 α n @@ Con (Utt (MergeRgt (Pn 0) IsPrepared)) ⋆
         Lam (η (hmorph n
                 (Con EqGen `App`
                  (sel' 0 (upd' jp (upd' vlad emp)) `Pair` jp)) `App` Var Get))

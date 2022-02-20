@@ -24,23 +24,103 @@ import qualified FOL.FOL as FOL
 import Prelude hiding ((>>), Num(..), sum)
 
 
+--------------------------------------------------------------------------------
+-- | λ-calculus types and terms
+
+-- | Atomic types for entities, truth values, real numbers, utterances, and
+-- discourse referent contexts. Products and arrows.
 data Type = E | T | R | U | Γ
           | Type :-> Type
           | Unit
           | Type :× Type
-
-data (α :: Type) ∈ (γ :: Type) where
-  Get :: α ∈ (γ × α)
-  Weaken :: α ∈ γ -> α ∈ (γ × β)
-deriving instance Show (α ∈ γ)
-deriving instance Eq (α ∈ γ)
-deriving instance Ord (α ∈ γ) -- do not chane this instance, it is used for testin deepness of variables
 
 type α × β = α ':× β
 type α ⟶ β = α ':-> β
 infixr ⟶
 infixr :->
 
+-- | Variables
+data (α :: Type) ∈ (γ :: Type) where
+  Get :: α ∈ (γ × α)
+  Weaken :: α ∈ γ -> α ∈ (γ × β)
+deriving instance Show (α ∈ γ)
+deriving instance Eq (α ∈ γ)
+deriving instance Ord (α ∈ γ) -- Used to test depth of variables.
+
+-- | Constants
+data Con α where
+  -- constants
+  Tru :: Con 'T
+  Fal :: Con 'T
+  And :: Con ('T ⟶ 'T ⟶ 'T)
+  Or :: Con ('T ⟶ 'T ⟶ 'T)
+  Imp :: Con ('T ⟶ 'T ⟶ 'T)
+  Forall :: Con ((α ⟶ 'T) ⟶ 'T)
+  Exists :: Con ((α ⟶ 'T) ⟶ 'T)
+  Equals :: Con (α ⟶ α ⟶ 'T)
+  -- purpose stuff
+  Incl :: Rational -> Con 'R
+  Indi :: Con ('T ⟶ 'R)
+  Addi :: Con ('R ⟶ 'R ⟶ 'R)
+  Mult :: Con ('R ⟶ 'R ⟶ 'R)
+  Expo :: Con ('R ⟶ 'R ⟶ 'R)
+  Divi :: Con ('R ⟶ 'R ⟶ 'R)
+  EqGen :: Equality α => Con ((α × α) ⟶ 'R)
+  EqRl :: Con ('R ⟶ 'R ⟶ 'R)
+  Utt :: NLExp 'SP -> Con 'U
+  Silence :: Con 'U
+  Utt' :: Con ('R ⟶ 'U)
+  Utt'' :: [Maybe (Con 'E)] -> Con 'U
+  MakeUtts :: Witness n -> Con ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
+  Cau :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Les :: Con (('R ⟶ 'R) ⟶ 'R)
+  Nml :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Qua :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Uni :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
+  Interp :: Witness n -> Con ('U ⟶ Context n ⟶ 'T)
+  HMorph :: Witness n -> Con x -> Con (Context n ⟶ x)
+  Empty :: Con 'Γ
+  Upd :: Con ('E ⟶ 'Γ ⟶ 'Γ)
+  Pi :: Int -> Con ('Γ ⟶ 'E)
+  -- Special constants (may take on distributions)
+  Entity :: Int -> Con 'E
+  MeasureFun :: Int -> Con ('E ⟶ 'R)
+  Property :: Int -> Con ('E ⟶ 'T)
+  Relation :: Int -> Con ('E ⟶ 'E ⟶ 'T)
+  Proposition :: Int -> Con 'T
+  Degree :: Int -> Con 'R
+  GTE :: Con ('R ⟶ 'R ⟶ 'T)
+  Sel :: Int -> Con ('Γ ⟶ 'E)
+-- | Well-typed terms.
+data γ ⊢ α where
+  Var :: α ∈ γ -> γ ⊢ α
+  Con :: Con α -> γ ⊢ α
+  App :: γ ⊢ (α ⟶ β) -> γ ⊢ α -> γ ⊢ β
+  Lam :: (γ × α) ⊢ β -> γ ⊢ (α ⟶ β)
+  Fst :: γ ⊢ (α × β) -> γ ⊢ α
+  Snd :: γ ⊢ (α × β) -> γ ⊢ β
+  TT :: γ ⊢ 'Unit
+  Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
+
+infixl `App`
+(@@) :: (γ ⊢ (α ⟶ β)) -> (γ ⊢ α) -> γ ⊢ β
+(@@) = App
+
+-- | Neutral terms (no constructors, except in aruments).
+data Neutral γ α where
+  NeuVar :: α ∈ γ -> Neutral γ α
+  NeuCon :: Con α -> Neutral γ α
+  NeuApp :: Neutral γ (α ⟶ β) -> NF γ α -> Neutral γ β
+  NeuFst :: Neutral γ (α × β) -> Neutral γ α
+  NeuSnd :: Neutral γ (α × β) -> Neutral γ β
+  NeuTT :: Neutral γ 'Unit
+
+-- | Terms in normal form.
+data NF γ α where
+  NFLam :: NF (γ × α) β -> NF γ (α ⟶ β)
+  NFPair :: NF γ α -> NF γ β -> NF γ (α × β)
+  Neu :: Neutral γ α -> NF γ α
+  
 (≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ 'R
 m ≐ n = App (Con (EqGen)) (Pair m n)
 
@@ -170,9 +250,9 @@ prop :: Int -> γ ⊢ ('E ⟶ 'T)
 prop i = Con $ Property i
 rel :: Int -> γ ⊢ ('E ⟶ ('E ⟶ 'T))
 rel i = Con $ Relation i
-vlad :: γ ⊢ 'E
-vlad = Con Vlad
-jp = Con JP
+jp, vlad :: γ ⊢ 'E
+jp = Con $ Entity 0
+vlad = Con $ Entity 1
 entity i = Con $ Entity i
 height = Con Height
 human = Con Human
@@ -235,49 +315,6 @@ showR (\x -> (numerator x, denominator x) -> (num, den))
       (_, 1) -> show num
       (_, _) -> "(" ++ show num ++ " / " ++ show den ++ ")"
 
-data Con α where
-  -- constants
-  Tru :: Con 'T
-  Fal :: Con 'T
-  And :: Con ('T ⟶ 'T ⟶ 'T)
-  Or :: Con ('T ⟶ 'T ⟶ 'T)
-  Imp :: Con ('T ⟶ 'T ⟶ 'T)
-  Forall :: Con ((α ⟶ 'T) ⟶ 'T)
-  Exists :: Con ((α ⟶ 'T) ⟶ 'T)
-  Equals :: Con (α ⟶ α ⟶ 'T)
-  -- purpose stuff
-  Incl :: Rational -> Con 'R
-  Indi :: Con ('T ⟶ 'R)
-  Addi :: Con ('R ⟶ 'R ⟶ 'R)
-  Mult :: Con ('R ⟶ 'R ⟶ 'R)
-  Expo :: Con ('R ⟶ 'R ⟶ 'R)
-  Divi :: Con ('R ⟶ 'R ⟶ 'R)
-  EqGen :: Equality α => Con ((α × α) ⟶ 'R)
-  EqRl :: Con ('R ⟶ 'R ⟶ 'R)
-  Utt :: NLExp 'SP -> Con 'U
-  Silence :: Con 'U
-  Utt' :: Con ('R ⟶ 'U)
-  Utt'' :: [Maybe (Con 'E)] -> Con 'U
-  MakeUtts :: Witness n -> Con ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
-  Cau :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Les :: Con (('R ⟶ 'R) ⟶ 'R)
-  Nml :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Qua :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Uni :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Interp :: Witness n -> Con ('U ⟶ Context n ⟶ 'T)
-  HMorph :: Witness n -> Con x -> Con (Context n ⟶ x)
-  Empty :: Con 'Γ
-  Upd :: Con ('E ⟶ 'Γ ⟶ 'Γ)
-  Pi :: Int -> Con ('Γ ⟶ 'E)
-  -- Special constants (may take on distributions)
-  Entity :: Int -> Con 'E
-  MeasureFun :: Int -> Con ('E ⟶ 'R)
-  Property :: Int -> Con ('E ⟶ 'T)
-  Relation :: Int -> Con ('E ⟶ 'E ⟶ 'T)
-  Proposition :: Int -> Con 'T
-  Degree :: Int -> Con 'R
-  GTE :: Con ('R ⟶ 'R ⟶ 'T)
-  Sel :: Int -> Con ('Γ ⟶ 'E)
 
 special :: Con α -> Bool
 special = \case
@@ -452,40 +489,11 @@ pattern Vlad = Entity 1
 pattern Height = MeasureFun 1
 pattern Human = Property 1
 pattern Theta = Degree 1
-  
--- Well-typed terms.
-data γ ⊢ α where
-  Var :: α ∈ γ -> γ ⊢ α
-  Con :: Con α -> γ ⊢ α
-  App :: γ ⊢ (α ⟶ β) -> γ ⊢ α -> γ ⊢ β
-  Lam :: (γ × α) ⊢ β -> γ ⊢ (α ⟶ β)
-  Fst :: γ ⊢ (α × β) -> γ ⊢ α
-  Snd :: γ ⊢ (α × β) -> γ ⊢ β
-  TT :: γ ⊢ 'Unit
-  Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
-
-infixl `App`
-(@@) :: (γ ⊢ (α ⟶ β)) -> (γ ⊢ α) -> γ ⊢ β
-(@@) = App
-
+ 
 absInversion :: γ ⊢ ('R ⟶ α) -> (γ × 'R) ⊢ α
 absInversion (Lam f) = f
 absInversion t = App (wkn t) (Var Get)
 
--- Neutral terms (no constructors, except in aruments).
-data Neutral γ α where
-  NeuVar :: α ∈ γ -> Neutral γ α
-  NeuCon :: Con α -> Neutral γ α
-  NeuApp :: Neutral γ (α ⟶ β) -> NF γ α -> Neutral γ β
-  NeuFst :: Neutral γ (α × β) -> Neutral γ α
-  NeuSnd :: Neutral γ (α × β) -> Neutral γ β
-  NeuTT :: Neutral γ 'Unit
-
--- Terms in normal form.
-data NF γ α where
-  NFLam :: NF (γ × α) β -> NF γ (α ⟶ β)
-  NFPair :: NF γ α -> NF γ β -> NF γ (α × β)
-  Neu :: Neutral γ α -> NF γ α
 
 traverseNF :: Applicative f => (forall x. x ∈ γ -> f (x ∈ δ)) -> NF γ α -> f (NF δ α)
 traverseNF f = \case
@@ -557,8 +565,8 @@ apply t u = case t of
                 NFPair (NFPair (NFPair (NFPair _ (NCon (_))) _) _) _ ->
                   True
                 _ -> False
-      (NeuCon (EqGen)) -> equals (fst' u) (snd' u)
-      (NeuCon ((HMorph i s))) -> normalForm (App (hmorph i (Con (s))) (nf_to_λ u)) -- normalForm (hmorph i _)
+      (NeuCon EqGen) -> equals (fst' u) (snd' u)
+      (NeuCon (HMorph i s)) -> normalForm (App (hmorph i (Con (s))) (nf_to_λ u)) -- normalForm (hmorph i _)
       (NeuCon (Interp i)) -> case nf_to_λ u of
         Con (Utt e) -> morph $ interp e
         Con Silence -> morph True'
