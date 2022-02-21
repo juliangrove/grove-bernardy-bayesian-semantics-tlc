@@ -10,7 +10,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module TLC.HOAS (Exp(..), (@@), module TLC.Terms,
-                uniform, normal, u', (≥), measure, distr, average, observe,
+                uniform, normal, (≥), measure, distr, average, observe,
                 factor, fromHoas, (⋆), (>>), η, toHoas, π) where
 
 import Prelude hiding ((>>), Num(..), Fractional(..))
@@ -169,11 +169,7 @@ observe :: Exp 'T -> Exp (('Unit ⟶ 'R) ⟶ 'R)
 observe x = factor (Con Indi @@ x)  
 
 (≥) :: Exp 'R -> Exp 'R -> Exp 'T
-x ≥ y = Con GTE @@ x @@ y
-
-u' :: Exp 'R -> Exp 'U
-u' = App $ Con $ Utt'
-  
+x ≥ y = Con GTE @@ x @@ y 
 
 π :: α ∈ κ -> Exp κ -> Exp α
 π Get κ = Snd κ

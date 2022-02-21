@@ -49,7 +49,7 @@ deriving instance Ord (α ∈ γ) -- Used to test depth of variables.
 
 -- | Constants
 data Con α where
-  -- constants
+  -- Logical constants
   Tru :: Con 'T
   Fal :: Con 'T
   And :: Con ('T ⟶ 'T ⟶ 'T)
@@ -58,7 +58,7 @@ data Con α where
   Forall :: Con ((α ⟶ 'T) ⟶ 'T)
   Exists :: Con ((α ⟶ 'T) ⟶ 'T)
   Equals :: Con (α ⟶ α ⟶ 'T)
-  -- purpose stuff
+  -- General purpose stuff
   Incl :: Rational -> Con 'R
   Indi :: Con ('T ⟶ 'R)
   Addi :: Con ('R ⟶ 'R ⟶ 'R)
@@ -69,8 +69,6 @@ data Con α where
   EqRl :: Con ('R ⟶ 'R ⟶ 'R)
   Utt :: NLExp 'SP -> Con 'U
   Silence :: Con 'U
-  Utt' :: Con ('R ⟶ 'U)
-  Utt'' :: [Maybe (Con 'E)] -> Con 'U
   MakeUtts :: Witness n -> Con ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
   Cau :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Les :: Con (('R ⟶ 'R) ⟶ 'R)
@@ -90,6 +88,7 @@ data Con α where
   Degree :: Int -> Con 'R
   GTE :: Con ('R ⟶ 'R ⟶ 'T)
   Sel :: Int -> Con ('Γ ⟶ 'E)
+
 -- | Well-typed terms.
 data γ ⊢ α where
   Var :: α ∈ γ -> γ ⊢ α
@@ -150,18 +149,6 @@ instance Equality 'U where
   equals (NCon (Utt s0)) (NCon (Utt s1)) = case s0 == s1 of
                              True -> one
                              False -> incl 0
-  equals (Neu (NeuApp (NeuCon Utt') x))
-    (Neu (NeuApp (NeuCon Utt') y)) = equals x y
-  equals (NCon (Utt'' es0)) (NCon (Utt'' es1)) =
-    checkEquality es0 es1
-    where checkEquality :: [Maybe (Con 'E)] -> [Maybe (Con 'E)]
-                        -> NF γ 'R
-          checkEquality [] [] = one
-          checkEquality (Nothing:es0) (Nothing:es1) = checkEquality es0 es1
-          checkEquality (Just _ : _) (Nothing:_) = NCon (Incl 0)
-          checkEquality (Nothing:_) (Just _ : _) = NCon (Incl 0)
-          checkEquality (Just x : es0) (Just y : es1) =
-            equals (NCon x) (NCon y) * checkEquality es0 es1
   equals m n = Neu $ (NeuCon EqGen) `NeuApp` (NFPair m n)
 instance Equality 'Unit where
   equals _ _ = one
@@ -199,7 +186,7 @@ instance Equality ('Γ ⟶ 'E) where
       True -> one
       False -> NCon (Incl 0)
 
---------------------------------------
+-------------------------------------------------------------------------------
 type ValueSubst = forall δ β. β ∈ δ -> FOL.Value
 
 viewApp :: ValueSubst -> γ ⊢ α -> Maybe (String, [FOL.Value])
@@ -233,18 +220,11 @@ termToFol' ρ t =
 
 termToFol :: NF γ α -> FOL.Value
 termToFol = termToFol' (\case) . nf_to_λ 
--- ------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 
 u :: NLExp 'SP -> γ ⊢ 'U
-u s = Con $ Utt s
-
-u' :: γ ⊢ 'R -> γ ⊢ 'U
-u' = App $ Con Utt'
-
-u'' :: [Maybe (Con 'E)] -> NF γ 'U
-u'' as = Neu $ NeuCon $ Utt'' as
-
+u = Con . Utt
 prop :: Int -> γ ⊢ ('E ⟶ 'T)
 prop i = Con $ Property i
 rel :: Int -> γ ⊢ ('E ⟶ ('E ⟶ 'T))
@@ -313,7 +293,6 @@ showR (\x -> (numerator x, denominator x) -> (num, den))
       (0, _) -> "0"
       (_, 1) -> show num
       (_, _) -> "(" ++ show num ++ " / " ++ show den ++ ")"
-
 
 special :: Con α -> Bool
 special = \case
@@ -430,8 +409,6 @@ instance Show (Con α) where
   show EqGen = "(≐)"
   show EqRl = "(≡)"
   show (Utt s) = show s
-  show Utt' = "'U"
-  show (Utt'' as) = "U" ++ show as
   show (Interp _) = "⟦⟧"
   show Empty = "ε"
   show Upd = "(∷)"
