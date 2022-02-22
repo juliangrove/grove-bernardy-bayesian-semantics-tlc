@@ -101,8 +101,12 @@ data γ ⊢ α where
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 
 infixl `App`
-(@@) :: (γ ⊢ (α ⟶ β)) -> (γ ⊢ α) -> γ ⊢ β
+(@@) :: γ ⊢ (α ⟶ β) -> γ ⊢ α -> γ ⊢ β
 (@@) = App
+
+infixl `Pair`
+(&) :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
+(&) = Pair
 
 -- | Neutral terms (no constructors, except in aruments).
 data Neutral γ α where
@@ -149,6 +153,9 @@ instance Equality 'U where
   equals (NCon (Utt s0)) (NCon (Utt s1)) = case s0 == s1 of
                              True -> one
                              False -> incl 0
+  equals (NCon Silence) (NCon Silence) = one
+  equals (NCon Silence) _ = incl 0
+  equals _ (NCon Silence) = incl 0
   equals m n = Neu $ (NeuCon EqGen) `NeuApp` (NFPair m n)
 instance Equality 'Unit where
   equals _ _ = one
@@ -409,6 +416,7 @@ instance Show (Con α) where
   show EqGen = "(≐)"
   show EqRl = "(≡)"
   show (Utt s) = show s
+  show Silence = "silence"
   show (Interp _) = "⟦⟧"
   show Empty = "ε"
   show Upd = "(∷)"
@@ -426,7 +434,7 @@ instance Show (Con α) where
   show (Relation 0) = "wait_for"
   show (Relation n) = "relation" ++ show n
   show Theta = "θ"
-  show (Degree n) = "deree" ++ show n
+  show (Degree n) = "θ" ++ show n
   show GTE = "(≥)"
   show (Sel n) = "sel" ++ show n
 
