@@ -90,18 +90,7 @@ ktx (T.S T.Z) =
      (forall' (\x -> exists' (\y -> rel 0 @@ y @@ x) → (prop 0 @@ x))) ∧
      (forall' (\x -> exists' (\y -> rel 1 @@ y @@ x) → (prop 0 @@ x))) ∧
      (rel 1 @@ vlad @@ jp)) ⋆ \φ6 ->
-  η (Pair
-     (Pair
-      (Pair
-       (Pair
-        (Pair
-         (Pair TT
-          φ6)
-         π)
-        π')
-       (rel 0))
-      (entity 1))
-     (entity 0))
+  η (TT & φ6 & π & π' & rel 0 & entity 1 & entity 0)
 ktx (T.S (T.S T.Z)) =
   pis [0, 1] ⋆ \π ->
   makeBernoulli (exists' (\x -> rel 1 @@ x @@ jp)) (incl 0.05) ⋆ \φ0 ->
@@ -114,16 +103,7 @@ ktx (T.S (T.S T.Z)) =
     forall' (\x -> exists' (\y -> rel 1 @@ y @@ x) → (prop 1 @@ x)) ∧
     forall' (\x -> prop 0 @@ x → (prop 1 @@ x)) ∧
     (rel 1 @@ vlad @@ jp)) ⋆ \φ6 ->
-  η (Pair
-     (Pair
-      (Pair
-       (Pair
-        (Pair TT
-         φ6)
-        π)
-       (prop 0))
-      (entity 1))
-     (entity 0))
+  η (TT & φ6 & π & prop 0 & entity 1 & entity 0)
 ktx _ = error "k: not defined yet."
 
 
@@ -156,7 +136,7 @@ l1' :: Equality (T.Context n)
 l1' α n =
   Lam $ \u ->
   ktx n ⋆ \k ->
-  factor (distr (s1' n α @@ (k `Pair` u)) u) >>
+  factor (distr (s1' n α @@ (k & u)) u) >>
   η k
 
 l1 :: Equality (T.Context n)

@@ -9,7 +9,7 @@
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE LambdaCase #-}
 
-module TLC.HOAS (Exp(..), (@@), module TLC.Terms,
+module TLC.HOAS (Exp(..), (@@), (&), module TLC.Terms,
                 uniform, normal, (≥), measure, distr, average, observe,
                 factor, fromHoas, (⋆), (>>), η, toHoas, π) where
 
@@ -121,6 +121,9 @@ infixl @@
 (@@) :: Exp (a ⟶ b) -> Exp a -> Exp b
 (@@) = App
 
+infixl &
+(&) :: Exp a -> Exp b -> Exp (a × b)
+(&) = Pair
 
 (∘) :: Exp (a1 ⟶ b) -> Exp (a2 ⟶ a1) -> Exp (a2 ⟶ b)
 f ∘ g = Lam $ \x -> f @@ (g @@ x)
