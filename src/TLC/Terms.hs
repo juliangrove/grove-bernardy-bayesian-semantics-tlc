@@ -154,8 +154,8 @@ instance Equality 'U where
                              True -> one
                              False -> incl 0
   equals (NCon Silence) (NCon Silence) = one
-  equals (NCon Silence) _ = incl 0
-  equals _ (NCon Silence) = incl 0
+  equals (NCon Silence) (NCon _) = incl 0
+  equals (NCon _) (NCon Silence) = incl 0
   equals m n = Neu $ (NeuCon EqGen) `NeuApp` (NFPair m n)
 instance Equality 'Unit where
   equals _ _ = one
