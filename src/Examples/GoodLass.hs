@@ -85,7 +85,11 @@ uttNumber = \case
   3 -> Silence
 
 utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)
+utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ vaccuous
+  -- + k @@ isShort -- makes no difference on L0[isTall] (obviously),
+  -- but also S1[isTall] (and in turn L1[isTall]). This is because
+  -- L0[isTall] is already zero for every world where L0[isShort] is
+  -- non-zero.
 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 linguisticParameterDistribution = uniform domLo domHi
