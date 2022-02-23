@@ -69,20 +69,12 @@ varsToSituation :: Exp a -> Exp b -> (Exp (a ':× b), Exp 'U)
 varsToSituation x y = (Pair x y,isTall)
 alpha :: Rational
 alpha = 4
-uu :: Int -> Exp 'U
-uu = Con . uttNumber
 isTall :: Exp 'U
-isTall = uu 1
+isTall = Con $ Utt $ F.MergeRgt F.Vl F.IsTall
 isShort :: Exp 'U
-isShort = uu 2
+isShort = Con $ Utt $ F.MergeRgt F.Vl F.IsShort
 vaccuous :: Exp 'U
-vaccuous = uu 3
-
-uttNumber :: Int -> Con 'U
-uttNumber = \case
-  1 -> Utt $ F.MergeRgt F.Vl F.IsTall
-  2 -> Utt $ F.MergeRgt F.Vl F.IsShort
-  3 -> Silence
+vaccuous = Con $ Silence
 
 utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
 utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ vaccuous
