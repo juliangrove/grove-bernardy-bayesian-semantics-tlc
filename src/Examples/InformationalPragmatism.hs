@@ -24,7 +24,7 @@ toMath = do
 
 -- >>> toMath
 -- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, y), 7)^(-1)
--- l1 = charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7)^7*(1 - 20/7*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7))*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)^7*(1 - 20/7*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)), y, 9/2, 7)^(-1)
+-- l1 = charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7)^7*(1 - integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7))*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)^7*(1 - integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)), y, 9/2, 7)^(-1)
 
 
 -- >>> plotData
