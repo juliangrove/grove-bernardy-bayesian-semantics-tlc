@@ -44,19 +44,11 @@ plotOptions = PlotOptions {..} where
    plotDomainHi = fromRational domHi
    plotResolution = 128
 
-uttNumber :: Int -> Con 'U
-uttNumber = \case
-  1 -> Utt $ F.MergeRgt F.Vl F.IsTall
-  2 -> Utt $ F.MergeRgt F.Vl F.IsShort
-  3 -> Silence
+isTall :: Exp 'U
+isTall = Con $ Utt $ F.MergeRgt F.Vl F.IsTall
 
 varsToSituation :: Exp a -> Exp b -> (Exp (a ':× b), Exp 'U)
 varsToSituation x y = (Pair x y,isTall)
-uu :: Int -> Exp 'U
-uu = Con . uttNumber
-isTall :: Exp 'U
-isTall = uu 1
-
 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 linguisticParameterDistribution = uniform domLo domHi
@@ -134,16 +126,18 @@ probGain p f = measure (p `marginBy'` (observe . f)) / measure p
 -- expectedBits x = exp (negate x ^ fromInteger 2)
 
 -- | Beta distribution with mean (μ) and sample size (ν)
+betaμν :: (Algebraic a) => Rational -> Rational -> a -> a
 betaμν μ ν = beta (μ*ν) ((1-μ)*ν)
 
 -- | Beta distribution with mode (ω) and concentration (κ).  (High concentration means low variance)
+betaωκ :: (Algebraic a) => Rational -> Rational -> a -> a
 betaωκ ω κ = beta (ω*(κ-2)+1) ((1-ω)*(κ-2)+1)
 
 -- example
 beta :: (Roots a, Group a) => Rational -> Rational -> a -> a
 beta α β x = (x ^/ (α-one)) * ((one-x) ^/ (β-one))
 
-expectProb :: Group a => Roots a => a -> a
+expectProb :: Algebraic a => a -> a
 -- expectProb = beta 0.5 0.5 -- favour nothing (fisher prior for beta distribution)
 -- expectProb = betaμν 0.5 10 -- favour 1 bit of information
 expectProb = betaμν 0.8 10 -- favour more probable statements (smaller info gain)
