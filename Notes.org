@@ -258,3 +258,51 @@ plot2d(L0s,[y,55,75],[gnuplot_out_file, "l0.svg"]);
 #+end_src
 
 
+* Informational pragmatism for
+
+- h > θ
+- θ ~ Λ
+- h ~ normal
+
+  
+NOTE:
+ - Some normalisation factors deleted.
+ - below,
+   - x corresponds to θ 
+   - y corresponds to h
+
+Posterior for θ:
+
+#+RESULTS:
+
+
+
+- mu=0.5: 1 bit of info; centers the mean of θ on the mean of h.
+  - ν=2 constant distribution (the plot cannot be realised but this is is an artefact)
+  - ν=2.01, it yields a very spread out distribution.
+  - ν<2 concentrates the density at ±∞
+  - larger ν concentrates the distribution.
+    
+- mu<0.5: pushes θ to higher values
+- mu>0.5: pushes θ to lower values
+
+Considering now  μ≠0.5
+
+- if α or β = 1, then we get an S-curve (eg. μ=0.2, ν=5)
+- if α or β < 1, concentrates the density at ±∞ 
+- if α and β > 1 we have a distribution with finite support.
+
+
+#+begin_src maxima  :results output
+mu: 0.4;
+nu: 6;
+alpha: mu*nu;
+beta: (1-mu)*nu;
+F1: integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, -inf, inf)^(-1), y, x, inf)^(alpha-1);
+F2: (1 - integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, -inf, inf)^(-1), y, x, inf))^(beta-1);
+set_plot_option ([gnuplot_term, svg]);
+plot2d(F2*F1,[x,4.5,7],[gnuplot_out_file, "l1x.svg"]);
+#+end_src
+
+#+RESULTS:
+

@@ -23,9 +23,16 @@ toMath = do
   maxima $ l1Expr
 
 -- >>> toMath
--- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, y), 7)^(-1)
--- l1 = charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7)^7*(1 - integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, x, 7))*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)^7*(1 - integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-1), z, y, 7)), y, 9/2, 7)^(-1)
+-- l0 = charfun(-x + y <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, y, inf)^(-1)
+-- l1 = integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, -inf, inf)^(-1), y, x, inf)^(-1/2)*(1 - integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, -inf, inf)^(-1), y, x, inf))^(-1/2)*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, -inf, inf)^(-1), z, y, inf)^(-1/2)*(1 - integrate(exp(-1/2*(20/7*(23/4 - z))^2)*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, -inf, inf)^(-1), z, y, inf))^(-1/2), y, -inf, inf)^(-1)
 
+
+
+-- >>> l1Expr
+-- Mul  (Power (Integrate (Domain {domainLoBounds = [], domainHiBounds = []}) (Mul (Power (Integrate (Domain {domainLoBounds = [Affine Sum [] (LinComb {fromLinComb = fromList [(Get,Prod [])]})], domainHiBounds = []}) (Scale (Func Exp (Prod [Con ((-1) % 2),Pow (Prod [Con (20 % 7),Sum [Con (23 % 4),Prod [Con ((-1) % 1),Var (Vari Get)]]]) (Con (2 % 1))])) (Power (Integrate (Domain {domainLoBounds = [], domainHiBounds = []}) (Scale (Func Exp (Prod [Con ((-1) % 2),Pow (Prod [Con (20 % 7),Sum [Con (23 % 4),Prod [Con ((-1) % 1),Var (Vari Get)]]]) (Con (2 % 1))])) Done)) Con ((-1) % 1)))) Con ((-1) % 2)) (Power (Add Done (Scale (Con ((-1) % 1)) (Integrate (Domain {domainLoBounds = [Affine Sum [] (LinComb {fromLinComb = fromList [(Get,Prod [])]})], domainHiBounds = []}) (Scale (Func Exp (Prod [Con ((-1) % 2),Pow (Prod [Con (20 % 7),Sum [Con (23 % 4),Prod [Con ((-1) % 1),Var (Vari Get)]]]) (Con (2 % 1))])) (Power (Integrate (Domain {domainLoBounds = [], domainHiBounds = []}) (Scale (Func Exp (Prod [Con ((-1) % 2),Pow (Prod [Con (20 % 7),Sum [Con (23 % 4),Prod [Con ((-1) % 1),Var (Vari Get)]]]) (Con (2 % 1))])) Done)) Con ((-1) % 1)))))) Con ((-1) % 2)))) Con ((-1) % 1))
+
+
+-- Integrate (Domain {domainLoBounds = [Affine Sum [] (LinComb {fromLinComb = fromList [(Get,Prod [])]})], domainHiBounds = []}) (Scale (Func Exp (Prod [Con ((-1) % 2),Pow (Prod [Con (20 % 7),Sum [Con (23 % 4),Prod [Con ((-1) % 1),Var (Vari Get)]]]) (Con (2 % 1))])) (Power (Integrate (Domain {domainLoBounds = [], domainHiBounds = []}) (Scale (Func Exp (Prod [Con ((-1) % 2),Pow (Prod [Con (20 % 7),Sum [Con (23 % 4),Prod [Con ((-1) % 1),Var (Vari Get)]]]) (Con (2 % 1))])) Done)) Con ((-1) % 1)))
 
 -- >>> plotData
 -- l0...
@@ -51,15 +58,16 @@ varsToSituation :: Exp a -> Exp b -> (Exp (a ':× b), Exp 'U)
 varsToSituation x y = (Pair x y,isTall)
 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
-linguisticParameterDistribution = uniform domLo domHi
+linguisticParameterDistribution = lesbegue
+  -- uniform domLo domHi
 
 interpU :: Exp 'R -> Exp 'R -> Exp 'T
 interpU θ h = h ≥ θ
 
 worldDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 worldDistribution = normal 5.75 0.35 ⋆ \h ->
-           observe (h ≥ fromRational domLo) >>
-           observe (fromRational domHi ≥ h) >>
+           -- observe (h ≥ fromRational domLo) >>
+           -- observe (fromRational domHi ≥ h) >>
            η h
 
 contextDistribution :: Exp ((('R ':× 'R) ⟶ 'R) ⟶ 'R)
@@ -138,9 +146,9 @@ beta :: (Roots a, Group a) => Rational -> Rational -> a -> a
 beta α β x = (x ^/ (α-one)) * ((one-x) ^/ (β-one))
 
 expectProb :: Algebraic a => a -> a
--- expectProb = beta 0.5 0.5 -- favour nothing (fisher prior for beta distribution)
+expectProb = beta 0.5 0.5 -- favour nothing (fisher prior for beta distribution)
 -- expectProb = betaμν 0.5 10 -- favour 1 bit of information
-expectProb = betaμν 0.8 10 -- favour more probable statements (smaller info gain)
+-- expectProb = betaμν 0.8 10 -- favour more probable statements (smaller info gain)
 -- expectProb = betaμν 0.25 10 -- expect 2 bits of information (with some variance)
 
 marginBy :: Exp ((β ⟶ 'R) ⟶ 'R) -> (Exp β -> Exp 'R) -> Exp ((β ⟶ 'R) ⟶ 'R)

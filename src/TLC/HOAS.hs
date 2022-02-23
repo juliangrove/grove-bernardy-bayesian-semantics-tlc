@@ -11,6 +11,7 @@
 
 module TLC.HOAS (Exp(..), (@@), (&), module TLC.Terms,
                 uniform, normal, (≥), measure, distr, average, observe,
+                lesbegue,
                 factor, fromHoas, (⋆), (>>), η, toHoas, π) where
 
 import Prelude hiding ((>>), Num(..), Fractional(..))
@@ -164,6 +165,9 @@ uniform x y = App (Con Uni) (Pair (Con $ Incl x) (Con $ Incl y))
 
 normal :: Rational -> Rational -> Exp (('R ⟶ 'R) ⟶ 'R)
 normal x y = App (Con Nml) (Pair (Con $ Incl x) (Con $ Incl y))
+
+lesbegue :: Exp (('R ⟶ 'R) ⟶ 'R)
+lesbegue = Con Les 
 
 factor :: Exp 'R -> Exp (('Unit ⟶ 'R) ⟶ 'R)
 factor x = Lam (\k -> (k @@ TT) * x)
