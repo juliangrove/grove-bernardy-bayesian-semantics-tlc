@@ -260,37 +260,41 @@ plot2d(L0s,[y,55,75],[gnuplot_out_file, "l0.svg"]);
 
 * Informational pragmatism for
 
-- h > θ
+- utterance meaning: h > θ
 - θ ~ Λ
-- h ~ normal
-
+- h ~ some distribution
   
-NOTE:
- - Some normalisation factors deleted.
- - below,
-   - x corresponds to θ 
-   - y corresponds to h
+Let g be the CDF complement for h distribution. Let f be the PDF for the
+distribution of information gain *as a probability*.
 
-Posterior for θ:
+PDF of posterior for θ is then: P(θ) = f(g(θ))
 
-#+RESULTS:
+Example for info gain ~ beta distribution:
 
+P(θ) ∝ g(θ)^(α-1) × (1-g(θ))^(β-1)
 
 
-- mu=0.5: 1 bit of info; centers the mean of θ on the mean of h.
-  - ν=2 constant distribution (the plot cannot be realised but this is is an artefact)
-  - ν=2.01, it yields a very spread out distribution.
+Analysis of the posterior of θ for h normally distributed.
+
+Let α=μν, β=(1-μ)ν
+
+- μ=0.5: (1 bit of info on average). Then the mean θ is the mean h.
+  - ν=2 constant distribution (the plot cannot be realised with numerical tools, but this is is an artefact)
+    - Take for example ν=2.01. It yields a very spread out distribution.
   - ν<2 concentrates the density at ±∞
-  - larger ν concentrates the distribution.
+  - A larger ν concentrates the distribution around the mean h
     
-- mu<0.5: pushes θ to higher values
-- mu>0.5: pushes θ to lower values
+- μ<0.5: pushes θ to higher values
+- μ>0.5: pushes θ to lower values
 
 Considering now  μ≠0.5
 
 - if α or β = 1, then we get an S-curve (eg. μ=0.2, ν=5)
+  - one of the factors has 0 exponent. It becomes 1. The other is then power of g(θ) (or its complement).
+  - the higher the exponent, the sharper the drop.
 - if α or β < 1, concentrates the density at ±∞ 
-- if α and β > 1 we have a distribution with finite support.
+- if α and β > 1 we have a distribution with a single bump.
+  - The larger the ν, the more concentrated the posterior for θ.
 
 
 #+begin_src maxima  :results output
@@ -303,6 +307,7 @@ F2: (1 - integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 
 set_plot_option ([gnuplot_term, svg]);
 plot2d(F2*F1,[x,4.5,7],[gnuplot_out_file, "l1x.svg"]);
 #+end_src
+
 
 #+RESULTS:
 
