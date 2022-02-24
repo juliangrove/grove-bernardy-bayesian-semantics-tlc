@@ -65,8 +65,6 @@ plotOptions = PlotOptions {..} where
    plotDomainHi = fromRational domHi
    plotResolution = 128
 
-varsToSituation :: Exp a -> Exp b -> (Exp (a ':× b), Exp 'U)
-varsToSituation x y = (Pair x y,isTall)
 alpha :: Rational
 alpha = 4
 isTall :: Exp 'U
@@ -83,22 +81,25 @@ utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ vaccuous
   -- L0[isTall] is already zero for every world where L0[isShort] is
   -- non-zero.
 
+-- distribution for θ 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 linguisticParameterDistribution = uniform domLo domHi
 
 interpU :: Exp 'U -> Exp 'R -> Exp 'R -> Exp 'T
-interpU u θ h = Con ((Interp F.Z)) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
-                                                       `Pair` θ
-                                                       `Pair` (Lam $ \_ -> Con ((F.Tru)))
-                                                       `Pair` (Lam $ \_ -> h)
-                                                       `Pair` Con ((F.Entity 0)))
+interpU u θ h = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
+                                             `Pair` θ
+                                             `Pair` (Lam $ \_ -> Con (F.Tru))
+                                             `Pair` (Lam $ \_ -> h)
+                                             `Pair` Con (F.Entity 0))
 
+-- Distribution over height (w in Good-Lass)
 worldDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
 worldDistribution = normal 5.75 0.35 ⋆ \h ->
            observe (h ≥ fromRational domLo) >>
            observe (fromRational domHi ≥ h) >>
            η h
 
+-- Joint distribution for (θ,h)
 contextDistribution :: Exp ((('R ':× 'R) ⟶ 'R) ⟶ 'R)
 contextDistribution =
     worldDistribution ⋆ \h ->
@@ -111,6 +112,13 @@ asExpression = simplifyFun2 [] . fromHoas
 α :: Rational
 α = alpha
 
+-- | Literal listener (posterior distribution over worlds)
+-- l0 ::  Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
+l0 :: Exp 'R -> Exp 'U -> Exp (('R ⟶ 'R) ⟶ 'R)
+l0 θ u = worldDistribution ⋆ \h ->
+         observe (interpU u θ h) >> -- filter incompatible worlds
+         η h
+
 -- s1 :: Exp context -> Exp (('U ⟶ 'R) ⟶ 'R)
 s1 :: Exp ('R ':× 'R) -> Exp (('U ⟶ 'R) ⟶ 'R)
 s1 ctx = utteranceDistribution ⋆ \u ->
@@ -118,13 +126,6 @@ s1 ctx = utteranceDistribution ⋆ \u ->
                h = Snd ctx
            in factor ((distr (l0 θ u) h) ^/ α) >>
               η u
-
--- | Literal listener
--- l0 ::  Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
-l0 :: Exp 'R -> Exp 'U -> Exp (('R ⟶ 'R) ⟶ 'R)
-l0 θ u = worldDistribution ⋆ \h ->
-         observe (interpU u θ h) >>
-         η h
 
 -- | Pragmatic listener
 -- l1 :: Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
@@ -150,9 +151,7 @@ l1Distr u ctx = distr (l1 u) ctx
 
 -- twoDimFunOf :: (Exp utterance -> Exp context -> Exp 'R) -> Exp ('R ⟶ 'R ⟶ 'R)
 twoDimFunOf :: (Exp 'U -> Exp (a ':× b1) -> Exp b2) -> Exp (a ':-> (b1 ':-> b2))
-twoDimFunOf f = Lam $ \x -> Lam $ \y ->
-   let (h,u) = varsToSituation x y
-   in f u h
+twoDimFunOf f = Lam $ \θ -> Lam $ \h -> f isTall (Pair θ h)
 
 utilityl0 :: Exp ('R ⟶ 'R ⟶ 'R)
 utilityl0 = twoDimFunOf l0Distr
@@ -178,7 +177,6 @@ l0xSamples = approxTop plotOptions l0X
 l0ySamples = approxTop plotOptions l0Y
 l1xSamples = approxTop plotOptions l1X
 l1ySamples = approxTop plotOptions l1Y
-
 
 integrateOnPlotDomain :: P (γ × 'R) -> P γ
 integrateOnPlotDomain  = normalise . Integrate (Domain
