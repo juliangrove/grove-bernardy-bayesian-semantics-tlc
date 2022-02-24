@@ -6,6 +6,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RebindableSyntax #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Models.Integrals.Conversion where
 
 import Algebra.Classes
@@ -58,32 +59,32 @@ pattern NNCon :: Field x => x -> NF γ 'R
 pattern NNCon x <- Neu (NeuCon ((Incl (fromRational -> x))))
 
 retPoly :: Ret γ -> P γ
-retPoly x = Scale x Done
+retPoly = Done
 
 evalP :: NF 'Unit 'R -> P 'Unit
 evalP = evalP'
 
 
-evalP' :: NF γ 'R -> P (γ)
+evalP' :: forall γ. NF γ 'R -> P γ
 evalP' = \case
   NNCon x -> retPoly $ constPoly (fromRational x)
-  Neu (NeuApp (NeuCon (Indi)) (Neu (NeuCon (Tru)))) -> Done
+  Neu (NeuApp (NeuCon (Indi)) (Neu (NeuCon (Tru)))) -> one
   Neu (NeuApp (NeuApp (NeuCon (EqRl))
                (Adds (NNVar i) (NNVar j))) (NNVar k)) ->
-    Cond (IsZero $ A.var i + A.var j - A.var k) Done
-  EqVars i j -> Cond (IsZero $ A.var i - A.var j) Done
-  InEqVars i j -> Cond (IsNegative $ A.var j - A.var i) Done
-  Equ (NNVar i) (NNCon x) -> Cond (IsZero $ A.constant x - A.var i) Done
-  InEq (NNVar i) (NNCon x) -> Cond (IsNegative $ A.constant x - A.var i) Done
-  InEq (NNCon x) (NNVar i) -> Cond (IsNegative $ A.var i - A.constant x) Done
+    Cond (IsZero $ A.var i + A.var j - A.var k) one
+  EqVars i j -> Cond (IsZero $ A.var i - A.var j) one
+  InEqVars i j -> Cond (IsNegative $ A.var j - A.var i) one
+  Equ (NNVar i) (NNCon x) -> Cond (IsZero $ A.constant x - A.var i) one
+  InEq (NNVar i) (NNCon x) -> Cond (IsNegative $ A.constant x - A.var i) one
+  InEq (NNCon x) (NNVar i) -> Cond (IsNegative $ A.var i - A.constant x) one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> x * y
   Expos (evalP' -> x) (NNCon y) -> Power x y
   Normal μ σ f -> Integrate full $
-      (constPoly (1 / (σ * sqrt (2 * pi)))
+      retPoly (constPoly (1 / (σ * sqrt (2 * pi)))
        * exp (constPoly (-1/2)
                        * (constPoly (1/σ) * (constPoly μ - varPoly Get)) ^+ 2))
-    `Scale` (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Cauchy x0 γ f -> Integrate full $
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)) /
     (retPoly $ (constPoly (pi * γ)
@@ -91,14 +92,14 @@ evalP' = \case
                             * (varPoly Get - constPoly x0)) ^+2)))
   Quartic μ σ f -> Integrate (Domain [A.constant (μ - a)]
                               [A.constant (μ + a)]) $
-    ((constPoly ((15 / 16) / (a ^+ 5)))
+    retPoly ((constPoly ((15 / 16) / (a ^+ 5)))
      * ((varPoly Get - constPoly μ) - constPoly a) ^+ 2
      * ((varPoly Get - constPoly μ) + constPoly a) ^+ 2)
-    `Scale` (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
     where a = sqrt 7 * σ
   Uniform x y f -> Integrate (Domain [A.constant x] [A.constant y]) $ 
-    (constPoly (1 / (y - x)))
-    `Scale` (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+    retPoly (constPoly (1 / (y - x)))
+    * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Lesbegue f -> Integrate (Domain [] []) $
                 (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   NNVar i -> retPoly $ varPoly i

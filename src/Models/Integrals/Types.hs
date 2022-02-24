@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE KindSignatures #-}
@@ -43,7 +44,7 @@ type Rat = Number
 fromNumber :: Number -> E.Expr Zero
 fromNumber (Number x) = x
 evalNumber :: Number -> Double
-evalNumber = E.eval @Double (\case) . fromNumber
+evalNumber (Number e) = E.eval (\case) e
 instance Show Number where show = show . fromNumber
 instance Eq Rat where
   (==) = (==) `on` evalNumber
@@ -54,13 +55,13 @@ instance DecidableZero Rat where
 type RatLike α = (Ring α, Ord α, DecidableZero α)
 
 
-data Elem γ = Vari ('R ∈ γ) | Supremum Dir [Ret γ]
-  deriving (Eq, Ord, Show)
-
-data Dir = Min | Max deriving (Eq,Ord,Show)
-type Available α γ = α ∈ γ
 type Var γ = 'R ∈ γ
-type Expr γ = A.Affine (Available 'R γ) Rat
+data Dir = Min | Max deriving (Eq,Ord,Show)
+data Elem γ = Vari (Var γ)
+            | Supremum Dir [Ret γ] -- either minimum or maximum of the arguments
+  deriving (Eq, Ord, Show)
+type Available α γ = α ∈ γ
+type Expr γ = A.Affine (Var γ) Rat
 type Ret γ = E.Expr (Elem γ)
 type Cond γ = Cond' (Expr γ)
 data Cond' e = IsNegative { condExpr :: e }
@@ -73,15 +74,15 @@ data Domain γ = Domain { domainLoBounds, domainHiBounds :: [Expr γ] }
   deriving (Show, Eq, Ord)
 
 data P (γ :: Type) where
-  Integrate :: Domain γ -> P (γ × 'R) -> P γ
+  Done :: Ret γ -> P γ -- needs to be 1st in order for optimisation to work
   Cond :: Cond γ -> P γ -> P γ
-  Done :: P γ
+  Integrate :: Domain γ -> P (γ × 'R) -> P γ
   Add :: P γ -> P γ -> P γ
-  Mul :: P γ -> P γ -> P γ
+  Power :: P γ -> Rat -> P γ
+  Mul :: [P γ] -> P γ
   -- Can this replaced by "Scale"? No, because we do integration in
   -- normalisation factors as well.
-  Power :: P γ -> Rat -> P γ
-  Scale :: Ret γ -> P γ -> P γ
+  -- Scale :: Ret γ -> P γ -> P γ
   deriving (Ord, Eq)
 
 
@@ -103,14 +104,13 @@ instance VarTraversable Domain where
 
 instance VarTraversable P where
   varTraverse f = \case
-    Done -> pure Done
     Power e k -> Power <$> varTraverse f e <*> pure k
-    Mul x y -> Mul <$> varTraverse f x <*> varTraverse f y
+    Done x -> Done <$> traverse (varTraverse f) x
+    Mul xs -> Mul <$> traverse (varTraverse f) xs
     Integrate d e ->
       Integrate <$> (varTraverse f d) <*> (varTraverse (lift' f) e)
     Cond e x -> Cond <$> traverse (A.traverseVars f) e <*> varTraverse f x
     Add x y  -> Add <$> varTraverse f x <*> varTraverse f y
-    Scale x e -> Scale <$> traverse (varTraverse f) x <*> varTraverse f e
 
 instance VarTraversable Elem where
   varTraverse f = \case
@@ -146,8 +146,8 @@ t `greaterThan` u = u `lessThan` t
 -- Instances
 
 instance Multiplicative (P γ) where
-  one = Done
-  (*) = Mul
+  one = Done one
+  x * y = Mul [x,y]
 
 instance Division (P γ) where
   recip x = Power x (negate one)
@@ -155,14 +155,14 @@ instance Division (P γ) where
 instance AbelianAdditive (P γ)
 instance Group (P γ) where
   negate = (negate (one :: Ret γ) *^)
-instance Scalable (Ret γ) (P γ) where
-  (*^) = Scale
+instance Scalable (E.Expr (Elem γ)) (P γ) where
+  k *^ e = Done k * e
 
 pattern PZero :: P γ
-pattern PZero <- Scale E.Zero _
+pattern PZero <- Done E.Zero
 
 instance Additive (P γ) where
-  zero = Scale E.Zero Done
+  zero =  Done E.Zero
   PZero + x = x
   x + PZero = x
   x + y = Add x y
@@ -208,11 +208,10 @@ substRet v = E.eval (substElem v)
 
 substP :: SubstE γ δ -> P γ -> P δ
 substP f p0 = case p0 of
-  Scale e p -> Scale (e >>= substElem f) (substP f p)
-  Done -> Done
-  Power p k -> Power (substP f p) k
+  Done e -> Done (E.eval (substElem f) e)
   Add p1 p2 -> substP f p1 + substP f p2
-  Mul p1 p2 -> substP f p1 `Mul` substP f p2
+  Power p k -> Power (substP f p) k
+  Mul ps -> Mul (substP f <$> ps)
   Cond c p -> Cond (substCond f c) (substP f p)
   Integrate d p -> Integrate (substDomain f d) (substP (wkSubst f) p) -- integrations are never simplified by substitution
 
@@ -236,7 +235,6 @@ elemVars :: Elem γ -> [Var γ]
 elemVars = \case
    Vari x -> [x]
    Supremum _ es -> concatMap retVars es
-  
 
 supremum :: Dir -> [Ret γ] -> Ret γ
 supremum _ [e] = e

@@ -35,6 +35,8 @@ import Models.Integrals.Types
 import Control.Applicative (Const(..))
 import Data.Maybe (catMaybes)
 import qualified Algebra.Expression as E
+import Data.Either (partitionEithers)
+import Data.List (sort,insert)
 
 ---------------------------------------------------------
 -- Normalisation of integrals 
@@ -96,19 +98,17 @@ cond c e = Cond c e
 
 integrate :: Domain γ -> P (γ × 'R) -> P γ
 integrate _ PZero = zero
-integrate d Done = Scale (hi-lo) Done
+integrate d (Done k) | Just k' <- traverse (varTraverse noGet) k
+                     -- integration variable does not occur in k
+  = Done ((hi-lo) * k')
   where (lo,hi) = mkSuprema d -- ∫_lo^hi dx = (hi-lo)
-integrate d (Scale k e)
-  | Just k' <- traverse (varTraverse noGet) k
-  -- integration variable does not occur in k
-  = scal k' (integrate d e)
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> foldr cond (integrate d' e) cs
     where (d', cs) = restrictDomain c d
   Just c'' -> cond (IsNegative c'') (integrate d e)
   -- integration variable does not occur in c'
 integrate d (Cond (IsZero c') e) = case occurExpr c' of
-  Nothing ->
+  Nothing -> -- FIXME:
     -- We apply the rule: ∫ f(x) δ(c x + k) dx = f(-k/c)   
     -- (The correct rule is: ∫ f(x) δ(c x + k) dx = (1/abs c) * f(-k/c)
     -- HOWEVER, due to the way we generate the equalities, my hunch is
@@ -118,9 +118,16 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     where (_, x0) = solveGet c'
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
-integrate d e | Just z' <- varTraverse noGet e = scal (hi-lo) z'  
+integrate d (Mul xs) = product ks * if null rest then integrate d one else Integrate d (Mul rest)
+  where (ks,rest) = partitionEithers (fmap isConst xs)
+        isConst p = case varTraverse noGet p of
+          Just p' -> Left (p')
+          Nothing -> Right p
+integrate d e | Just z' <- varTraverse noGet e = mul [Done (hi-lo), z']  
   where (lo,hi) = mkSuprema d
---- NOTE: the above causes many traversals. To avoid it we'd need to compute the unused
+
+        
+--- NOTE: the above causes many traversals. To avoid it we'd need to compute the (un)used
 --- variables at every stage in this function, and record the result
 --- using a new constructor in P. This new constructor can the be used
 --- to check for free variables directly.
@@ -134,50 +141,61 @@ normalise = \case
   Integrate d (normalise -> e) -> integrate d e
   Power p e -> power e (normalise p)
   Add (normalise -> p1) (normalise -> p2) -> p1 + p2
-  Mul (normalise -> p1) (normalise -> p2) -> p1 *? p2
-  Done -> Done
-  Scale k e -> scal k (normalise e)
+  Mul ps -> mul (fmap normalise ps)
+  Done k -> done k
+  -- Scale k e -> scal k (normalise e)
 
 power :: Number -> P γ -> P γ
+power (Number E.One) = id
 power k = \case
-  Mul a b -> (power k a) `Mul` (power k b)
+  Mul as -> Mul (power k <$> as)
   Cond c e -> Cond c (power k e)
-  Done -> Done
-  Scale x e -> Scale (x ** numberToRet k) (power k e)
+  Done e -> Done (e ** numberToRet k)
+  -- Scale x e -> Scale (x ** numberToRet k) (power k e)
   Power e k' -> power (k*k') e
   e -> Power e k
 
-scal :: Ret γ -> P γ -> P γ
-scal E.Zero _ = zero
-scal (E.Prod xs) e = foldr scal e xs -- split the product so that parts of it can commute with integrals
-scal k (Cond c e) = Cond c (scal k e)
-scal k (Add a b) = scal k a `Add` scal k b
-scal (E.Con x) (Scale (E.Con y) e) = scal (E.Con (x*y)) e
-scal c e0@(Scale c' e)
-  | deepest (retVars c) > deepest (retVars c') = Scale c e0
-  | deepest (retVars c) < deepest (retVars c') = scal c' (scal c e)
-  | E.Pow x' k' <- c', x' == c = scal (c ** (k' + 1)) e
-  | E.Pow x k <- c, E.Pow x' k' <- c', x == x' = scal (x ** (k + k')) e
-  | E.Pow x k <- c, E.Pow x' k' <- c', k == k' = scal ((x * x') ** k) e
-  | c == c' = scal (c ^+ 2) e
-  | c < c' = Scale c e0
-  | c > c' = scal c' (scal c e)
+-- scal :: Ret γ -> P γ -> P γ
+-- scal E.Zero _ = zero
+-- scal (E.Prod xs) e = foldr scal e xs -- split the product so that parts of it can commute with integrals
+-- scal k (Cond c e) = Cond c (scal k e)
+-- scal k (Add a b) = scal k a `Add` scal k b
+-- scal (E.Con x) (Mul (E.Con y : e)) = scal (E.Con (x*y)) (Mul e)
+-- -- scal c e0@(Scale c' e)
+-- --   | deepest (retVars c) > deepest (retVars c') = Scale c e0
+-- --   | deepest (retVars c) < deepest (retVars c') = scal c' (scal c e)
+-- --   | E.Pow x' k' <- c', x' == c = scal (c ** (k' + 1)) e
+-- --   | E.Pow x k <- c, E.Pow x' k' <- c', x == x' = scal (x ** (k + k')) e
+-- --   | E.Pow x k <- c, E.Pow x' k' <- c', k == k' = scal ((x * x') ** k) e
+-- --   | c == c' = scal (c ^+ 2) e
+-- --   | c < c' = Scale c e0
+-- --   | c > c' = scal c' (scal c e)
   
-scal k e = Scale k e
+-- scal k e = Scale k e
 
+done :: E.Expr (Elem γ) -> P γ
+done (E.Prod xs) = mul (done <$> xs)
+done x = Done x
 
-(*?) :: P γ -> P γ -> P γ
-Done *? p = p
-p *? Done = p
-(Integrate d p1) *? p2 = Integrate d $ p1 *? wkP p2
-p2 *? (Integrate d p1) = Integrate d $ p1 *? wkP p2
-(Cond c p1) *? p2 = Cond c (p1 *? p2)
-p2 *? (Cond c p1) = Cond c (p1 *? p2)
-(Add p1 p1') *? p2 = Add (p1 *? p2) (p1' *? p2)
-p1 *? (Add p2 p2') = Add (p1 *? p2) (p1 *? p2')
-Scale k e1 *? e2 = Scale k (e1 *? e2)
-e1 *? Scale k e2 = Scale k (e1 *? e2)
-e1 *? e2 = Mul e1 e2
+mur :: P γ -> P γ -> P γ
+mur a = \case
+  (Done E.Zero) -> zero
+  (Done E.One) -> a
+  (Cond c x) -> Cond c (mur a x)
+  (Add p1 p2) -> Add (mur a p1) (mur a p2)
+  Mul (Done x:xs) | Done y <- a, null (retVars x) && null (retVars y) -> mur (Done (x * y)) (Mul xs)
+  (Mul xs) -> Mul (a `insert` xs)
+  x -> Mul (a `insert` [x])
+
+mul :: [P γ] -> P γ
+mul [] = one
+mul [x] = x
+mul (Done E.Zero : _) = zero
+mul (Done E.One : xs) = mul xs
+mul (Cond c x : xs) = Cond c (mul (x:xs))
+mul (Add p1 p2 : xs) = Add (mul (p1:xs)) (mul (p2:xs))
+mul (Mul xs : ys) = mul (xs <> ys)
+mul (x : ys) = mur x (mul ys)
 
 
 -- | The deepest variable in a list. Relies on correct order for Var type.
@@ -222,17 +240,17 @@ cleanDomain cs (Domain los his) =
 -- | Remove redundant conditions
 cleanConds :: [Negative γ] -> P γ -> P γ
 cleanConds cs = \case
-  Done -> Done
+  Done k -> Done k
   Power e k -> Power (cleanConds cs e) k
-  Scale k e -> Scale k (cleanConds cs e)
-  Integrate d e -> Integrate (cleanDomain cs d) $
-                   cleanConds' ((fromNegative <$> domainToConds d) ++
-                               (map (A.mapVars  Weaken) cs)) $
-                   e
+  -- Scale k e -> Scale k (cleanConds cs e)
+  Integrate d e -> Integrate (cleanDomain cs d) 
+                   $ cleanConds' ((fromNegative <$> domainToConds d) ++ -- new conditions coming from the domain being traversed
+                                  (map (A.mapVars  Weaken) cs)) -- keep old conditions (but weaken variables)
+                   $ e
   Cond c e -> if cs `entail` fromNegative c
               then cleanConds cs e
               else cond c $ cleanConds' (fromNegative c:cs) e
-  Mul x y -> Mul (cleanConds cs x) (cleanConds cs y)
+  Mul xs -> Mul (fmap (cleanConds cs) xs)
   Add x y -> Add (cleanConds cs x) (cleanConds cs y)
  where fromNegative (IsNegative c) = c
        fromNegative _ = error "cleanConds: equality condition remaining?"
@@ -250,11 +268,11 @@ discontinuities :: forall γ. P γ -> [Expr γ]
 discontinuities  = \case
   Add a b -> discontinuities a <> discontinuities b
   Power e _ -> discontinuities e
-  Mul a b -> discontinuities a <> discontinuities b
+  Mul as -> concatMap discontinuities as
   Cond (IsNegative f) e -> f : discontinuities e
   Cond _ _ -> error "discontinuities equality?"
-  Scale _ e -> discontinuities e
-  Done -> []
+  -- Scale _ e -> discontinuities e
+  Done _ -> []
   Integrate (Domain los his) e -> mkEqs los <> mkEqs his <> catMaybes (fmap (A.traverseVars noGet) (discontinuities e))
     where mkEqs as = [a-b | a <- as, b <- as]
 
@@ -272,8 +290,8 @@ splitDomains = \case
     where fs = filter ((Get `elem`) . getConst . A.traverseVars getVars) (discontinuities e)
   Cond c e -> Cond c (splitDomains e)
   Add a b -> Add (splitDomains a) (splitDomains b) 
-  Mul a b -> Mul (splitDomains a) (splitDomains b)
-  Scale k e -> Scale k (splitDomains e)
-  Done -> Done
+  Mul as -> Mul (fmap splitDomains as)
+  -- Scale k e -> Scale k (splitDomains e)
+  Done k -> Done k
 
 

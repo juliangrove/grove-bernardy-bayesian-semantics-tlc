@@ -35,7 +35,7 @@ simplifyFun2 cs = simplify cs . absInversion . absInversion
 
 --------------------------------------------------------------------------------
 -- | Examples
-{-
+
 example0 :: P 'Unit
 example0 = Integrate full $ retPoly $ constPoly 10 + varPoly Get
 
@@ -67,17 +67,17 @@ exampleEq = Integrate full $
 example :: P 'Unit
 example = Integrate full $ Integrate full $
           Cond (IsNegative (3 *< A.var (Weaken Get) + 2 *< A.var (Get))) $
-          Cond (IsNegative (A.var (Weaken Get))) Done
+          Cond (IsNegative (A.var (Weaken Get))) one
 
 -- >>> mathematica $ example
 -- Integrate[Integrate[Boole[2*y + 3*x ≤ 0]*Boole[x ≤ 0], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> mathematica $ normalise example
--- Integrate[1/(1/(-3/2*x + Infinity)), {x, -Infinity, 0}]
+-- Integrate[-3/2*x + Infinity, {x, -Infinity, 0}]
 
 example1 :: P 'Unit
 example1 = Integrate full $ Integrate full $
-           Cond (IsZero (A.constant 4 + A.var (Weaken Get) - A.var Get)) Done
+           Cond (IsZero (A.constant 4 + A.var (Weaken Get) - A.var Get)) one
 
 -- >>> mathematica $ example1
 -- Integrate[Integrate[DiracDelta[4 - y + x], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
@@ -109,10 +109,10 @@ example3 = Integrate full $
 -- Integrate[Integrate[Boole[3 - y ≤ 0]*DiracDelta[4 - y + x]*(2 + y^2 + 2*x), {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> mathematica $ normalise example3
--- Integrate[18 + 10*x + x^2, {x, -1, Infinity}]
+-- Integrate[2 + (4 + x)^2 + 2*x, {x, -1, Infinity}]
 
 example4a :: P 'Unit
-example4a = Integrate (Domain [zero] [A.constant 1]) Done
+example4a = Integrate (Domain [zero] [A.constant 1]) one
 
 -- >>> mathematica $ normalise example4a
 -- 1
@@ -134,10 +134,7 @@ example4 = Integrate full $
 -- Integrate[Integrate[Boole[-3 - y ≤ 0]*Boole[-3 + y ≤ 0]*DiracDelta[-y + x]*Exp[-y^2 - x^2], {y, -Infinity, Infinity}], {x, -Infinity, Infinity}]
 
 -- >>> mathematica $ normalise example4
--- Integrate[Exp[-2*x^2], {x, -3, 3}]
-
--- >>> mathematica $ approxIntegrals 16 $ normalise example4
--- 1.253346416637889
+-- Integrate[Exp[-x^2 - x^2], {x, -3, 3}]
 
 
 example5 :: P ('Unit × 'R)
@@ -153,7 +150,4 @@ example5 = Integrate full $
 -- >>> mathematica $ normalise example5
 -- Integrate[Exp[-y^2 - x^2], {y, -3, 3}]
 
--- >>> mathematica $ approxIntegrals 8 $ normalise example5 
--- 9.523809523809527e-2*Exp[-9.0 - x^2] + 0.8773118952961091*Exp[-7.681980515339462 - x^2] + 0.8380952380952381*Exp[-4.499999999999999 - x^2] + 0.8380952380952381*Exp[-4.499999999999997 - x^2] + 1.0851535761614692*Exp[-1.318019484660537 - x^2] + 1.0851535761614692*Exp[-1.3180194846605355 - x^2] + 1.180952380952381*Exp[-4.930380657631324e-32 - x^2]
 
--}

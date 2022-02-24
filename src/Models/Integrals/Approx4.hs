@@ -23,7 +23,7 @@ import Algebra.Linear.Vector
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Foldable hiding (sum)
+import Data.Foldable hiding (sum, product)
 import qualified Algebra.Expression as E
 
 import Models.Integrals.Types
@@ -75,6 +75,7 @@ evalOptions PlotOptions{..} = Eval'Options {..} where
   
 
 type WithCache a = State (Map (P ('Unit × 'R)) (Vec RR)) a
+-- the state maps expressions to vector of samples
 
 
 -- >>> pts (evalOptions (PlotOptions 16 50 80))
@@ -87,23 +88,26 @@ approxIntegralsWithCache :: Eval'Options -> P 'Unit -> WithCache RR
 approxIntegralsWithCache options@Eval'Options{..} = 
   let aa = approxIntegralsWithCache options
   in \case
-      Done -> pure one
-      Power a k -> (** evalNumber k) <$> aa a
+      Done k -> pure (evalP k)
       Add a b -> (+) <$> aa a <*> aa b
-      Mul a b -> (*) <$> aa a <*> aa b
+      Power a k -> (** evalNumber k) <$> aa a
+      Mul as -> product <$> traverse aa as
       Integrate d e -> do
         cachedFun <- gets (M.lookup e)
         p <- case cachedFun of
           Nothing -> do
             s <- flip traverse pts $ \x -> do
-                   y <- aa (substP (\case Get -> A.constant (Number (E.Flt x)) ; Weaken v -> A.var v) e)
-                   pure y
+              -- e has exactly one free variable. We substitute this
+              -- free variable by the point at which we're sampling in
+              -- the whole domain.
+              y <- aa (substP (\case Get -> A.constant (Number (E.Flt x)) ; Weaken v -> A.var v) e)
+              -- y is now the set of samples for the expression e.
+              pure y
             modify (M.insert e s)
             pure s
           Just p -> pure p
         let (Domain (maximum . fmap evalX  -> lo) (minimum . fmap evalX -> hi)) = d
         pure $ (resolution *^) $ sum [ y | (x, y) <- zip ptsrng (toList p), x > lo, x < hi]
-      Scale k x -> (evalP k *) <$> aa x
       Cond (IsNegative c) e -> if A.eval @RR evalNumber (\case) c <= 0 then aa e else pure 0
       Cond (IsZero _) _ -> error "approxIntegrals: equality not eliminated?"
 
@@ -116,11 +120,12 @@ class KnownContext (γ :: Type) where
 instance KnownContext 'Unit where
   approxFUN o x = approxIntegralsWithCache o x
 instance KnownContext γ => KnownContext (γ × 'R) where
-  approxFUN o@Eval'Options{..} e = flip traverse (fromList $ (point <$> rng)) $ \x ->
-                approxFUN o $
-                flip substP e $ \case
-                   Get -> A.constant (Number (E.Flt x))
-                   Weaken v -> A.var v
+  approxFUN o@Eval'Options{..} e =
+    flip traverse (fromList $ (point <$> rng)) $ \x ->
+      approxFUN o $
+      flip substP e $ \case
+         Get -> A.constant (Number (E.Flt x))
+         Weaken v -> A.var v
 
 runWithCache :: WithCache x -> x
 runWithCache e = fst (runState e M.empty)

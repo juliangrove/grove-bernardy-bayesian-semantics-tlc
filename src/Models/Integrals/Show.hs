@@ -133,10 +133,10 @@ when _ x = x
 showP :: [String] -> Vars γ -> P γ -> Doc
 showP [] _ = error "showP: ran out of freshes"
 showP fs@(f:fsRest) v = \case
-  Done -> one
-  Scale k e -> showRet v k * showP fs v e
+  Done k -> showRet v k
+  -- Scale k e -> showRet v k * showP fs v e
   Add p1 p2 -> showP fs v p1 + showP fs v p2
-  Mul p1 p2 -> showP fs v p1 * showP fs v p2
+  Mul ps -> product (fmap (showP fs v) ps)
   Power p (Number k) -> showP fs v p ** E.eval (\case) k
   Integrate (Domain los his) e -> withStyle $ \st -> 
     let body = showP fsRest (f +! v) e
