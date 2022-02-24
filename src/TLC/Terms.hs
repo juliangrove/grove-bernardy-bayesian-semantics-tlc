@@ -568,30 +568,15 @@ toFinite :: [NF γ α] -> NF γ ((α ⟶ 'R) ⟶ 'R)
 toFinite ts = NFLam $ sum [ apply (Neu (NeuVar Get)) (wknNF t) | t <- ts ]
 
 makeUtts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> Con 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
-makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0]) = \case
-  Utt (MergeRgt (Pn i) pred) -> toFinite [ NCon $ Utt $ MergeRgt (Pn i) pred
-                                         , NCon $ Utt $ MergeRgt (name e0) pred
-                                         ]
-  u -> normalForm $ η $ Con u
-  where NCon e0 = normalForm (sel0 @@ ctx)
-makeUtts (nf_to_λ -> ctx) (map nf_to_λ -> [sel0, sel1]) = \case
-  Utt (MergeRgt (Pn i) (MergeLft pred (Pn j))) ->
-    toFinite [ NCon $ Utt $ (MergeRgt (Pn i) (MergeLft pred (Pn j)))
-             , NCon $ Utt $ (MergeRgt (name e0) (MergeLft pred (Pn j)))
-             , NCon $ Utt $ (MergeRgt (Pn i) (MergeLft pred (name e1)))
-             , NCon $ Utt $ (MergeRgt (name e0) (MergeLft pred (name e1)))
-             ]
-  Utt (MergeRgt (Pn i) (MergeLft pred e1')) ->
-    toFinite [ NCon $ Utt $ (MergeRgt (Pn i) (MergeLft pred e1'))
-             , NCon $ Utt $ (MergeRgt (name e0) (MergeLft pred e1'))
-             ]
-  Utt (MergeRgt e0' (MergeLft pred (Pn j))) ->
-    toFinite [ NCon $ Utt $ (MergeRgt e0' (MergeLft pred (Pn j)))
-             , NCon $ Utt $ (MergeRgt e0' (MergeLft pred (name e1)))
-             ]
-  u -> normalForm $ η $ Con $ u
-  where NCon e0 = normalForm (sel0 @@ ctx)
-        NCon e1 = normalForm (sel1 @@ ctx)
+makeUtts ctx sels (Utt u) = toFinite $ map (NCon . Utt) $ alts ctx sels u
+  where alts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> NLExp c -> [NLExp c]
+        alts ctx sels = \case
+          Pn i -> [Pn i, case apply (sels !! i) ctx of NCon e -> name e]
+          MergeLft hd cmp -> [ MergeLft hd' cmp' | hd' <- alts ctx sels hd
+                                                 , cmp' <- alts ctx sels cmp ]
+          MergeRgt cmp hd -> [ MergeRgt cmp' hd' | hd' <- alts ctx sels hd
+                                                 , cmp' <- alts ctx sels cmp ]
+          e -> [e]
 
 makeUtts' :: Witness n
           -> NF γ 'Γ -> NF γ (Context n) -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
