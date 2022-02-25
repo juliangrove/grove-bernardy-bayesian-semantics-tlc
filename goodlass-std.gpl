@@ -6,5 +6,5 @@ set terminal svg;
 set output 'goodlass-std.svg';
 plot 'goodlass-thres-prior.1d.dat' title "prior threshold" with lines, \
      'goodlass-height-prior.1d.dat' title "prior height" with lines, \
-     'goodlass-std-l1y.1d.dat' title "l1 margin. height" with lines, \
+     'goodlass-std-l1y.1d.dat' title "l0=l1 margin. height" with lines, \
      'goodlass-std-l1x.1d.dat' title "l1 margin. threshold" with lines;

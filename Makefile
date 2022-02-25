@@ -1,3 +1,5 @@
+# disable default rules:
+.SUFFIXES:
 
 EXE=dist-newstyle/build/x86_64-linux/ghc-8.10.7/grove-bernardy-bayesian-semantics-tlc-0.1.0.0/x/plots/build/plots/plots
 
@@ -11,7 +13,7 @@ goodlass-l0.2d.svg \
 goodlass-s1.2d.svg \
 goodlass-l1.2d.svg
 
-D2DAT := $(D2SVGS:%.o=%.c)
+D2DAT := $(D2SVGS:%.svg=%.dat)
 
 # goodlass-l0x.1d.svg \
 # goodlass-l0y.1d.svg \
