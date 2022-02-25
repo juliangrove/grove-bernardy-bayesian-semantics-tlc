@@ -14,7 +14,7 @@ build-type:          Simple
 library 
   exposed-modules: Examples.Anaphora
                  , Examples.Naloma
-                 , Examples.RSA
+                 -- , Examples.RSA  superseeded by HRSA
                  , Examples.HRSA
                  , Models.Integrals
                  , Models.Logical.FiniteLogical
@@ -36,6 +36,7 @@ library
   hs-source-dirs: src
   build-depends: base
                , containers
+               , directory
                , gasp
                , logict
                , MissingH
@@ -71,6 +72,7 @@ executable test
   build-depends: base
                , containers
                , gasp
+               , directory
                , logict
                , MissingH
                , missing-math

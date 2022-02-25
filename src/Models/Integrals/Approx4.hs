@@ -25,6 +25,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Foldable hiding (sum, product)
 import qualified Algebra.Expression as E
+import System.Directory (doesFileExist)
 
 import Models.Integrals.Types
 
@@ -133,15 +134,25 @@ runWithCache e = fst (runState e M.empty)
 approxTop :: KnownContext γ => PlotOptions -> P γ -> FUN γ RR
 approxTop o e = runWithCache (approxFUN (evalOptions o) e)
 
+
+writeFileIfChanged :: FilePath -> String -> IO ()
+writeFileIfChanged fn new = do
+  e <- doesFileExist fn
+  old <- if e then Just <$> readFile fn else pure Nothing
+  when (old /= Just new) $
+    writeFile fn new
+  
+
 toGnuPlot :: PlotOptions -> String -> Vec (Vec Double) -> IO ()
-toGnuPlot o fn x = writeFile fn
+toGnuPlot o fn x = writeFileIfChanged fn
             $   unlines $ fmap (unwords . fmap show) $
             (0 : ptsrng) :
             [ point i : toList (x ! i)  | i <- rng ]
   where Eval'Options {..} = evalOptions o
 
 toGnuPlot1d :: PlotOptions -> String -> Vec Double -> IO ()
-toGnuPlot1d o fn x = writeFile fn
+toGnuPlot1d o fn x = writeFileIfChanged fn
             $   unlines $ fmap (unwords . fmap show) $
             [ [point i ,  (x ! i)]  | i <- rng ]
   where Eval'Options {..} = evalOptions o
+
