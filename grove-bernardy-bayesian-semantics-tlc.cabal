@@ -16,6 +16,7 @@ library
                  , Examples.Naloma
                  -- , Examples.RSA  superseeded by HRSA
                  , Examples.HRSA
+                 , Examples.GoodLass
                  , Models.Integrals
                  , Models.Logical.FiniteLogical
                  , TLC.Distributions

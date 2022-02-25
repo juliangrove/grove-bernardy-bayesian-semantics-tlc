@@ -209,20 +209,18 @@ evaluate RSAIn{..} = RSAOut {..} where
 
   l0xSamples = approxTop plotOptions l0X
   l0ySamples = approxTop plotOptions l0Y
+  l1xSamples = approxTop plotOptions l1X
+  l1ySamples = approxTop plotOptions l1Y
 
   PlotOptions{..} = plotOptions
 
   integrateOnPlotDomain = Integrate (Domain
                     [A.constant (fromRational (toRational plotDomainLo))]
                     [A.constant (fromRational (toRational plotDomainHi))])
-  l0X = normalise $
-        integrateOnPlotDomain
-        l0Expr
-
-  l0Y = normalise $
-        integrateOnPlotDomain $
-        swap2P $
-        l0Expr
+  l0X = normalise $ integrateOnPlotDomain l0Expr
+  l0Y = normalise $ integrateOnPlotDomain $ swap2P $ l0Expr
+  l1X = normalise $ integrateOnPlotDomain l1Expr
+  l1Y = normalise $ integrateOnPlotDomain $ swap2P $ l1Expr
     
 
   plotData :: IO ()
@@ -233,4 +231,6 @@ evaluate RSAIn{..} = RSAOut {..} where
     putStrLn "l1..."  ; toGnuPlot   plotOptions (prefix ++ "l1.2d.dat" ) l1Samples
     putStrLn "l0x..." ; toGnuPlot1d plotOptions (prefix ++ "l0x.1d.dat") l0xSamples
     putStrLn "l0y..." ; toGnuPlot1d plotOptions (prefix ++ "l0y.1d.dat") l0ySamples
+    putStrLn "l1x..." ; toGnuPlot1d plotOptions (prefix ++ "l1x.1d.dat") l1xSamples
+    putStrLn "l1y..." ; toGnuPlot1d plotOptions (prefix ++ "l1y.1d.dat") l1ySamples
     

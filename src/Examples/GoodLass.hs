@@ -35,13 +35,13 @@ toMath = do
   maxima $ l1Y
 
 -- >>> toMath
--- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, y), 7)^(-1)
--- s1 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, y), 7)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, y), 7)^(-4) + exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4))^(-1)
--- l1 = charfun(-7 + y <= 0)*charfun(9/2 - y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*charfun(-x + y <= 0)*8/7*(2*%pi)^(-1/2)*exp(-1/2*(20/7*(23/4 - x))^2)^5*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, y, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, y, 7)^(-4) + exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4))^(-1)*(8/7*(2*%pi)^(-1/2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2)^5*integrate(integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, u, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, u, 7)^(-4) + exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, 9/2, 7)^(-4))^(-1), u, 9/2, z), z, 9/2, 7))^(-1)
--- l0 marginalised in X charfun(-7 + x <= 0)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, x), 7)^(-1), y, max(9/2, x), 7)
--- l0 marginalised in Y charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, max(9/2, y), 7)^(-1), y, 9/2, min(7, x))
--- l1 marginalised in X charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*charfun(-7 + x <= 0)*8/7*(2*%pi)^(-1/2)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)^5*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, x, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - y))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, x, 7)^(-4) + exp(-1/2*(20/7*(23/4 - y))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4))^(-1)*(8/7*(2*%pi)^(-1/2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2)^5*integrate(integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, u, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, u, 7)^(-4) + exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, 9/2, 7)^(-4))^(-1), u, 9/2, z), z, 9/2, 7))^(-1), y, max(9/2, x), 7)
--- l1 marginalised in Y charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*charfun(9/2 - x <= 0)*8/7*(2*%pi)^(-1/2)*exp(-1/2*(20/7*(23/4 - x))^2)^5*integrate(integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, y, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, y, 7)^(-4) + exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4))^(-1)*(8/7*(2*%pi)^(-1/2)*integrate(exp(-1/2*(20/7*(23/4 - z))^2)^5*integrate(integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, u, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, u, 7)^(-4) + exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - v))^2), v, 9/2, 7)^(-4))^(-1), u, 9/2, z), z, 9/2, 7))^(-1), y, 9/2, min(7, x))
+-- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-200/49*(23/4 - x)^2)*integrate(exp(-200/49*(23/4 - z)^2), z, max(9/2, y), 7)^(-1)
+-- s1 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-200/49*(23/4 - x)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, max(9/2, y), 7)^(-4)*(exp(-200/49*(23/4 - x)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, max(9/2, y), 7)^(-4) + exp(-200/49*(23/4 - x)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, 9/2, 7)^(-4))^(-1)
+-- l1 = charfun(9/2 - y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-200/49*(23/4 - x)^2)^4*exp(-200/49*(23/4 - x)^2)*integrate(exp(-200/49*(23/4 - z)^2), z, y, 7)^(-4)*(exp(-200/49*(23/4 - x)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, y, 7)^(-4) + exp(-200/49*(23/4 - x)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, 9/2, 7)^(-4))^(-1)*integrate(exp(-200/49*(23/4 - z)^2)^4*exp(-200/49*(23/4 - z)^2)*integrate(integrate(exp(-200/49*(23/4 - v)^2), v, u, 7)^(-4)*(exp(-200/49*(23/4 - z)^2)^4*integrate(exp(-200/49*(23/4 - v)^2), v, u, 7)^(-4) + exp(-200/49*(23/4 - z)^2)^4*integrate(exp(-200/49*(23/4 - v)^2), v, 9/2, 7)^(-4))^(-1), u, 9/2, z), z, 9/2, 7)^(-1)
+-- l0 marginalised in X charfun(-7 + x <= 0)*integrate(exp(-200/49*(23/4 - y)^2), y, max(9/2, x), 7)^(-1)*integrate(exp(-200/49*(23/4 - y)^2), y, max(9/2, x), 7)
+-- l0 marginalised in Y charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-200/49*(23/4 - x)^2)*integrate(integrate(exp(-200/49*(23/4 - z)^2), z, max(9/2, y), 7)^(-1), y, 9/2, min(7, x))
+-- l1 marginalised in X charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*integrate(exp(-200/49*(23/4 - y)^2), y, x, 7)^(-4)*integrate(exp(-200/49*(23/4 - y)^2)^4*exp(-200/49*(23/4 - y)^2)*integrate(integrate(exp(-200/49*(23/4 - u)^2), u, z, 7)^(-4)*(exp(-200/49*(23/4 - y)^2)^4*integrate(exp(-200/49*(23/4 - u)^2), u, z, 7)^(-4) + exp(-200/49*(23/4 - y)^2)^4*integrate(exp(-200/49*(23/4 - u)^2), u, 9/2, 7)^(-4))^(-1), z, 9/2, y), y, 9/2, 7)^(-1)*integrate(exp(-200/49*(23/4 - y)^2)^4*exp(-200/49*(23/4 - y)^2)*(exp(-200/49*(23/4 - y)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, x, 7)^(-4) + exp(-200/49*(23/4 - y)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, 9/2, 7)^(-4))^(-1), y, max(9/2, x), 7)
+-- l1 marginalised in Y charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-200/49*(23/4 - x)^2)^4*exp(-200/49*(23/4 - x)^2)*integrate(exp(-200/49*(23/4 - y)^2)^4*exp(-200/49*(23/4 - y)^2)*integrate(integrate(exp(-200/49*(23/4 - u)^2), u, z, 7)^(-4)*(exp(-200/49*(23/4 - y)^2)^4*integrate(exp(-200/49*(23/4 - u)^2), u, z, 7)^(-4) + exp(-200/49*(23/4 - y)^2)^4*integrate(exp(-200/49*(23/4 - u)^2), u, 9/2, 7)^(-4))^(-1), z, 9/2, y), y, 9/2, 7)^(-1)*integrate(integrate(exp(-200/49*(23/4 - z)^2), z, y, 7)^(-4)*(exp(-200/49*(23/4 - x)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, y, 7)^(-4) + exp(-200/49*(23/4 - x)^2)^4*integrate(exp(-200/49*(23/4 - z)^2), z, 9/2, 7)^(-4))^(-1), y, 9/2, min(7, x))
 
 -- >>> plotData
 -- l0...
@@ -112,6 +112,7 @@ asExpression = simplifyFun2 [] . fromHoas
 α :: Rational
 α = alpha
 
+
 -- | Literal listener (posterior distribution over worlds)
 -- l0 ::  Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
 l0 :: Exp 'R -> Exp 'U -> Exp (('R ⟶ 'R) ⟶ 'R)
@@ -120,20 +121,19 @@ l0 θ u = worldDistribution ⋆ \h ->
          η h
 
 -- s1 :: Exp context -> Exp (('U ⟶ 'R) ⟶ 'R)
-s1 :: Exp ('R ':× 'R) -> Exp (('U ⟶ 'R) ⟶ 'R)
-s1 ctx = utteranceDistribution ⋆ \u ->
-           let θ = Fst ctx
-               h = Snd ctx
-           in factor ((distr (l0 θ u) h) ^/ α) >>
-              η u
+s1 :: Exp 'R -> Exp 'R -> Exp (('U ⟶ 'R) ⟶ 'R)
+s1 θ h = utteranceDistribution ⋆ \u ->
+         factor ((distr (l0 θ u) h) ^/ α) >>
+         η u
 
 -- | Pragmatic listener
 -- l1 :: Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
 
 l1 :: Exp 'U -> Exp ((('R ':× 'R) ⟶ 'R) ⟶ 'R)
-l1 u = contextDistribution ⋆ \ctx -> 
-         factor (s1Distr u ctx) >>
-         η ctx
+l1 u = worldDistribution ⋆ \h ->
+       linguisticParameterDistribution ⋆ \θ ->
+       factor (distr (s1 θ h) u) >>
+       η (θ `Pair` h)
 
 -- l0Distr :: Exp 'U -> Exp context -> Exp 'R
 l0Distr :: Exp 'U -> Exp ('R × 'R) -> Exp 'R
@@ -143,7 +143,7 @@ l0Distr u ctx = distr (l0 θ u) h
 
 -- s1Distr :: Exp context -> Exp 'U -> Exp 'R
 s1Distr :: Exp 'U -> Exp ('R ':× 'R) -> Exp 'R
-s1Distr u ctx = distr (s1 ctx) u
+s1Distr u ctx = distr (s1 (Fst ctx) (Snd ctx)) u
 
 -- l1Distr :: Exp 'U -> Exp context -> Exp 'R
 l1Distr :: Exp 'U -> Exp ('R ':× 'R) -> Exp 'R
@@ -190,9 +190,13 @@ l1X = integrateOnPlotDomain l1Expr
 l0Y = integrateOnPlotDomain $ swap2P $ l0Expr
 l1Y = integrateOnPlotDomain $ swap2P $ l1Expr
 
+asExpression1 :: Exp ('R ⟶ 'R) -> P ('Unit × 'R)
+asExpression1 = simplifyFun [] . fromHoas
+
 
 plotData :: IO ()
 plotData = do
+  putStr "---------- Goodlass"
   putStrLn "l0..."  ; toGnuPlot   plotOptions "goodlass-l0.2d.dat" l0Samples
   putStrLn "s1..."  ; toGnuPlot   plotOptions "goodlass-s1.2d.dat" s1Samples
   putStrLn "l1..."  ; toGnuPlot   plotOptions "goodlass-l1.2d.dat" l1Samples
@@ -200,4 +204,6 @@ plotData = do
   putStrLn "l0y..." ; toGnuPlot1d plotOptions "goodlass-l0y.1d.dat" l0ySamples
   putStrLn "l1x..." ; toGnuPlot1d plotOptions "goodlass-l1x.1d.dat" l1xSamples
   putStrLn "l1y..." ; toGnuPlot1d plotOptions "goodlass-l1y.1d.dat" l1ySamples
+  toGnuPlot1d plotOptions "goodlass-height-prior.1d.dat" $ approxTop plotOptions (asExpression1 (Lam (distr (worldDistribution))))
+  toGnuPlot1d plotOptions "goodlass-thres-prior.1d.dat" $ approxTop plotOptions (asExpression1 (Lam (distr (linguisticParameterDistribution))))
     
