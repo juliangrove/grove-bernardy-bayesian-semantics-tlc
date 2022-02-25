@@ -62,8 +62,8 @@ executable plots
                , grove-bernardy-bayesian-semantics-tlc
   default-language: Haskell2010  
 
-executable test
-  main-is: Main.hs
+executable anaphora
+  main-is: Anaphora.hs
   hs-source-dirs: test
   build-depends: base
                , containers
