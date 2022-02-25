@@ -36,11 +36,12 @@ data RSAOut = RSAOut {
     plotData, plotMarginalisedData :: IO ()
     }
 
-uttNumber :: Int -> Con 'U
-uttNumber = \case
-  1 -> Utt $ F.MergeRgt F.Vl F.IsTall
-  2 -> Utt $ F.MergeRgt F.Vl F.IsShort
-  3 -> Silence
+isTall :: Exp 'U
+isTall = Con $ Utt $ F.MergeRgt F.Vl F.IsTall
+isShort :: Exp 'U
+isShort = Con $ Utt $ F.MergeRgt F.Vl F.IsShort
+vaccuous :: Exp 'U
+vaccuous = Con $ Silence
 
 toMath :: RSAOut -> IO ()
 toMath RSAOut {..} = do
@@ -90,10 +91,8 @@ exampleTallThreshold = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y, isTall)
   alpha = 4
-  uu = Con . uttNumber
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-  isTall = uu 1
-  utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)
+  utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ isShort + k @@ vaccuous
   interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                `Pair` Fst ctx
@@ -115,10 +114,8 @@ exampleLassGood = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
-  uu = Con . uttNumber
-  isTall = uu 1
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-  utteranceDistribution = Lam $ \k -> k @@ (uu 1) + k @@ (uu 2) + k @@ (uu 3)
+  utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ isShort + k @@ vaccuous
   interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                          `Pair` Fst ctx
@@ -149,44 +146,6 @@ exampleLassGood = evaluate RSAIn {..} where
 -- l0x...
 -- l0y...
 
-
-example1 :: RSAOut
-example1 = evaluate $ RSAIn {..} where
-    varsToSituation y x = (heightToCtx x, toAtLeastHeight y)
-    plotOptions = PlotOptions {..}
-    plotDomainLo = 0
-    plotDomainHi = 100
-    plotResolution = 128
-    alpha = 4
-    utteranceDistribution = uniform 0 100 ⋆ (\x -> η (u' x)) 
-    heightToCtx :: Exp 'R -> Exp Context0
-    heightToCtx h = (Pair
-                        (Pair
-                         (Pair
-                          (Pair
-                           (Pair TT (toHoas (F.≥)))
-                           zero)
-                          (toHoas F.human))
-                         (Lam (\_ -> h)))
-                        (toHoas F.vlad))
-
-    toAtLeastHeight :: Exp 'R -> Exp 'U
-    toAtLeastHeight r = Con Utt' @@ r
-    interpU = \u ctx -> Con (Interp F.Z) @@ u @@ ctx
-    contextDistribution =
-        uniform 0 1 ⋆ \θ ->
-        normal 68 3 ⋆ \h ->
-               (observe (h ≥ fromInteger 00) >>
-               (observe (fromInteger 100 ≥ h) >>
-                 (η (Pair
-                     (Pair
-                      (Pair
-                       (Pair
-                        (Pair TT (toHoas (F.≥)))
-                        θ)
-                       (toHoas F.human))
-                      (Lam $ \_ -> h))
-                     (toHoas F.vlad)))))
 
 asExpression :: Exp ('R ⟶ 'R ⟶ 'R) -> P ('Unit × 'R × 'R)
 asExpression = simplifyFun2 [] . fromHoas
