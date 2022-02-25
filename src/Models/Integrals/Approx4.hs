@@ -137,29 +137,29 @@ approxTop o e = runWithCache (approxFUN (evalOptions o) e)
 
 
 
-writeFileIfChanged :: FilePath -> String -> IO ()
-writeFileIfChanged fn new = do
-  e <- doesFileExist fn
-  old <- if e
-    then do x <- readFile fn
-            case Data.Foldable.length x of -- force reading the whole file before we write something back to it.
-              0 -> pure Nothing
-              _ -> pure (Just x)
-    else pure Nothing
-  when (old /= Just new) $
-    writeFile fn new
+-- writeFileIfChanged :: FilePath -> String -> IO ()
+-- writeFileIfChanged fn new = do
+--   e <- doesFileExist fn
+--   old <- if e
+--     then do x <- readFile fn
+--             case Data.Foldable.length x of -- force reading the whole file before we write something back to it.
+--               0 -> pure Nothing
+--               _ -> pure (Just x)
+--     else pure Nothing
+--   when (old /= Just new) $
+--     writeFile fn new
 
   
 
 toGnuPlot :: PlotOptions -> String -> Vec (Vec Double) -> IO ()
-toGnuPlot o fn x = writeFileIfChanged fn
+toGnuPlot o fn x = writeFile fn
             $   unlines $ fmap (unwords . fmap show) $
             (0 : ptsrng) :
             [ point i : toList (x ! i)  | i <- rng ]
   where Eval'Options {..} = evalOptions o
 
 toGnuPlot1d :: PlotOptions -> String -> Vec Double -> IO ()
-toGnuPlot1d o fn x = writeFileIfChanged fn
+toGnuPlot1d o fn x = writeFile fn
             $   unlines $ fmap (unwords . fmap show) $
             [ [point i ,  (x ! i)]  | i <- rng ]
   where Eval'Options {..} = evalOptions o

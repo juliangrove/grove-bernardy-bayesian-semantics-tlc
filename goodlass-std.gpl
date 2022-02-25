@@ -1,4 +1,6 @@
-#     'goodlass-l0y.1d.dat' title "l0 margin. height" with lines, \
+#  'goodlass-std-l0x.1d.dat' title "l0 margin. threshold" with lines; # same as prior
+#     'goodlass-std-l0y.1d.dat' title "l0 margin. height" with lines, \ # same as l1
+
 
 set terminal svg;
 set output 'goodlass-std.svg';

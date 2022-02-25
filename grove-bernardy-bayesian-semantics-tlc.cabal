@@ -17,6 +17,7 @@ library
                  -- , Examples.RSA  superseeded by HRSA
                  , Examples.HRSA
                  , Examples.GoodLass
+                 , Examples.Guy
                  , Models.Integrals
                  , Models.Logical.FiniteLogical
                  , TLC.Distributions

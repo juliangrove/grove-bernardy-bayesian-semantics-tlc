@@ -57,7 +57,7 @@ isShort = Con $ Utt $ F.MergeRgt F.Vl F.IsShort
 vaccuous :: Exp 'U
 vaccuous = Con $ Silence
 plottedUtt :: Exp 'U
-plottedUtt = vaccuous
+plottedUtt = isTall
 
 utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
 utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ vaccuous + k @@ isShort
@@ -155,7 +155,8 @@ integrateOnPlotDomain  = normalise . Integrate (Domain
 
 plotData :: IO ()
 plotData = do
-  putStrLn "s1..." ; toGnuPlot1d plotOptions "s1y.dat" s1ySamples
-  putStrLn "l0y..." ; toGnuPlot1d plotOptions "l0y.dat" l0ySamples
-  putStrLn "l1y..." ; toGnuPlot1d plotOptions "l1y.dat" l1ySamples
+  putStrLn "------------ Averaging "
+  putStrLn "l0y..." ; toGnuPlot1d plotOptions "goodlass-avg-l0y.1d.dat" l0ySamples
+  putStrLn "s1..."  ; toGnuPlot1d plotOptions "goodlass-avg-s1y.1d.dat" s1ySamples
+  putStrLn "l1y..." ; toGnuPlot1d plotOptions "goodlass-avg-l1y.1d.dat" l1ySamples
     

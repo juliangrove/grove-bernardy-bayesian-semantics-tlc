@@ -1,4 +1,5 @@
-#     'goodlass-l0y.1d.dat' title "l0 margin. height" with lines, \
+#     'goodlass-l0y.1d.dat' title "l0 margin. height" with lines, \ # has an asymptote near the maximum of the interval.
+#     'goodlass-l0x.1d.dat' title "l0 margin. threshold" with lines, \ # same as prior, not interesting
 
 set terminal svg;
 set output 'goodlass.svg';

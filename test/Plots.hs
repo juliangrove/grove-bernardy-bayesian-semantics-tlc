@@ -1,5 +1,6 @@
 import Examples.HRSA
 import qualified Examples.GoodLass 
+import qualified Examples.Guy
 main :: IO ()
 main = do
   plotData exampleLassGood
@@ -7,3 +8,4 @@ main = do
   plotData (exampleCookies 4)
   plotData (exampleCookies 10)
   Examples.GoodLass.plotData
+  Examples.Guy.plotData
