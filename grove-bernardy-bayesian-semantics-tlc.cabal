@@ -20,6 +20,7 @@ library
                  , Models.Logical.FiniteLogical
                  , TLC.Distributions
                  , TLC.Terms
+                 , TLC.HOAS
   other-modules: FOL.CNF
                , FOL.Connection
                , FOL.FOL
@@ -46,29 +47,8 @@ library
   default-language: Haskell2010
 
 executable test
-  other-modules: Examples.Anaphora
-               , Examples.Naloma
-               , Examples.HNaloma
-               , Models.Integrals
-               , Models.Logical.FiniteLogical
-               , TLC.Distributions
-               , TLC.Terms
-               , FOL.CNF
-               , FOL.Connection
-               , FOL.FOL
-               , FOL.Regularity
-               , FOL.Search
-               , FOL.Solver
-               , FOL.Tableau
-               , FOL.Unification
-               , Models.Integrals.Approx4
-               , Models.Integrals.Conversion
-               , Models.Integrals.Optimizer
-               , Models.Integrals.Show
-               , Models.Integrals.Types
   main-is: Main.hs
-  hs-source-dirs: src
-                  test
+  hs-source-dirs: test
   build-depends: base
                , containers
                , gasp
@@ -78,4 +58,5 @@ executable test
                , missing-math
                , mtl
                , pretty
+               , grove-bernardy-bayesian-semantics-tlc
   default-language: Haskell2010 
