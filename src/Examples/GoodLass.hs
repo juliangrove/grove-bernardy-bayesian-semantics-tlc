@@ -193,11 +193,11 @@ l1Y = integrateOnPlotDomain $ swap2P $ l1Expr
 
 plotData :: IO ()
 plotData = do
-  putStrLn "l0..." ; toGnuPlot plotOptions "l0.dat" l0Samples
-  putStrLn "s1..." ; toGnuPlot plotOptions "s1.dat" s1Samples
-  putStrLn "l1..." ; toGnuPlot plotOptions "l1.dat" l1Samples
-  putStrLn "l0x..." ; toGnuPlot1d plotOptions "l0x.dat" l0xSamples
-  putStrLn "l0y..." ; toGnuPlot1d plotOptions "l0y.dat" l0ySamples
-  putStrLn "l1x..." ; toGnuPlot1d plotOptions "l1x.dat" l1xSamples
-  putStrLn "l1y..." ; toGnuPlot1d plotOptions "l1y.dat" l1ySamples
+  putStrLn "l0..."  ; toGnuPlot   plotOptions "goodlass-l0.2d.dat" l0Samples
+  putStrLn "s1..."  ; toGnuPlot   plotOptions "goodlass-s1.2d.dat" s1Samples
+  putStrLn "l1..."  ; toGnuPlot   plotOptions "goodlass-l1.2d.dat" l1Samples
+  putStrLn "l0x..." ; toGnuPlot1d plotOptions "goodlass-l0x.1d.dat" l0xSamples
+  putStrLn "l0y..." ; toGnuPlot1d plotOptions "goodlass-l0y.1d.dat" l0ySamples
+  putStrLn "l1x..." ; toGnuPlot1d plotOptions "goodlass-l1x.1d.dat" l1xSamples
+  putStrLn "l1y..." ; toGnuPlot1d plotOptions "goodlass-l1y.1d.dat" l1ySamples
     

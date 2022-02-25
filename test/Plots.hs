@@ -2,4 +2,6 @@ import Examples.HRSA
 
 main :: IO ()
 main = do
-  plotData exampleCookies "cookies-continuous-"
+  plotData (exampleCookies 1)
+  plotData (exampleCookies 4)
+  plotData (exampleCookies 10)

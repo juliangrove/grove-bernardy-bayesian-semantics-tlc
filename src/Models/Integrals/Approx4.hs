@@ -26,6 +26,7 @@ import qualified Data.Map as M
 import Data.Foldable hiding (sum, product)
 import qualified Algebra.Expression as E
 import System.Directory (doesFileExist)
+import System.IO
 
 import Models.Integrals.Types
 
@@ -135,12 +136,19 @@ approxTop :: KnownContext γ => PlotOptions -> P γ -> FUN γ RR
 approxTop o e = runWithCache (approxFUN (evalOptions o) e)
 
 
+
 writeFileIfChanged :: FilePath -> String -> IO ()
 writeFileIfChanged fn new = do
   e <- doesFileExist fn
-  old <- if e then Just <$> readFile fn else pure Nothing
+  old <- if e
+    then do x <- readFile fn
+            case Data.Foldable.length x of -- force reading the whole file before we write something back to it.
+              0 -> pure Nothing
+              _ -> pure (Just x)
+    else pure Nothing
   when (old /= Just new) $
     writeFile fn new
+
   
 
 toGnuPlot :: PlotOptions -> String -> Vec (Vec Double) -> IO ()

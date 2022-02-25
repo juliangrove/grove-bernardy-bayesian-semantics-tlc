@@ -18,6 +18,7 @@ import qualified Algebra.Morphism.Affine as A
 
 -- ∃γ. ∃u. (... × .. Exp ((γ ⟶ 'R) ⟶ 'R))
 data RSAIn = forall context utterance. (Equality context, Equality utterance) => RSAIn {
+    prefix :: String,
     alpha :: Rational,
     contextDistribution    :: Exp ((context ⟶ 'R) ⟶ 'R),
     utteranceDistribution  :: Exp ((utterance ⟶ 'R) ⟶ 'R),
@@ -32,7 +33,7 @@ data RSAOut = RSAOut {
     l0X,l0Y :: P ('Unit × 'R),
     l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double),
     l0xSamples,l0ySamples :: V.Vec Double,
-    plotData :: String -> IO ()
+    plotData :: IO ()
     }
 
 isTall :: Exp 'U
@@ -66,24 +67,28 @@ toMath RSAOut {..} = do
 -- s1...
 -- l1...
 
-exampleCookies :: RSAOut
-exampleCookies = evaluate RSAIn {..} where
+exampleCookies :: Rational -> RSAOut
+exampleCookies alpha = evaluate RSAIn {..} where
+  prefix = ("cookies-continuous-" ++ show (fromRational alpha :: Double) ++ "-")
   varsToSituation y x = (x,y)
   plotOptions = PlotOptions {..}
   plotDomainLo = 0
-  plotDomainHi = 40
+  plotDomainHi = 7
   plotResolution = 128
-  alpha = 4
-  utteranceDistribution = uniform 0 40
+  utteranceDistribution = uniform lo hi
   interpU u nCookies = nCookies ≥ u
+  lo, hi :: forall a. Field a => a
+  lo = fromRational (toRational plotDomainLo)
+  hi = fromRational (toRational plotDomainHi)
   contextDistribution =
-      normal 40 5 ⋆ \nCookies ->
-             observe (nCookies ≥ fromInteger 0) >>
-             observe (fromInteger 40 ≥ nCookies) >>
+      normal 4 1 ⋆ \nCookies ->
+             observe (nCookies ≥ lo) >>
+             observe (hi ≥ nCookies) >>
              η nCookies
 
 exampleTallThreshold :: RSAOut
 exampleTallThreshold = evaluate RSAIn {..} where
+  prefix = "vlad-is-tall"
   plotOptions = PlotOptions {..}
   plotDomainLo = 0
   plotDomainHi = 100
@@ -107,6 +112,7 @@ exampleTallThreshold = evaluate RSAIn {..} where
 
 exampleLassGood :: RSAOut
 exampleLassGood = evaluate RSAIn {..} where
+  prefix = "goodlass-std-"
   plotOptions = PlotOptions {..}
   plotDomainLo = 4.5
   plotDomainHi = 7
@@ -219,8 +225,8 @@ evaluate RSAIn{..} = RSAOut {..} where
         l0Expr
     
 
-  plotData :: String -> IO ()
-  plotData prefix = do
+  plotData :: IO ()
+  plotData = do
     putStrLn $ "----- " ++ prefix
     putStrLn "l0..."  ; toGnuPlot   plotOptions (prefix ++ "l0.2d.dat" ) l0Samples
     putStrLn "s1..."  ; toGnuPlot   plotOptions (prefix ++ "s1.2d.dat" ) s1Samples
