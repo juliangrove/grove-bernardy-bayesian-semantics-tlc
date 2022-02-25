@@ -11,7 +11,6 @@ import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..))
 import Models.Integrals
 import Models.Integrals.Types (P(..),Domain(..),swap2P)
-import TLC.Terms (Context0)
 import TLC.HOAS
 import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
@@ -33,7 +32,7 @@ data RSAOut = RSAOut {
     l0X,l0Y :: P ('Unit × 'R),
     l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double),
     l0xSamples,l0ySamples :: V.Vec Double,
-    plotData, plotMarginalisedData :: IO ()
+    plotData :: String -> IO ()
     }
 
 isTall :: Exp 'U
@@ -74,7 +73,7 @@ exampleCookies = evaluate RSAIn {..} where
   plotDomainLo = 0
   plotDomainHi = 40
   plotResolution = 128
-  alpha = 100
+  alpha = 4
   utteranceDistribution = uniform 0 40
   interpU u nCookies = nCookies ≥ u
   contextDistribution =
@@ -220,13 +219,12 @@ evaluate RSAIn{..} = RSAOut {..} where
         l0Expr
     
 
-  plotData :: IO ()
-  plotData = do
-    putStrLn "l0..." ; toGnuPlot plotOptions "l0.dat" l0Samples
-    putStrLn "s1..." ; toGnuPlot plotOptions "s1.dat" s1Samples
-    putStrLn "l1..." ; toGnuPlot plotOptions "l1.dat" l1Samples
-
-  plotMarginalisedData = do
-    putStrLn "l0x..." ; toGnuPlot1d plotOptions "l0x.dat" l0xSamples
-    putStrLn "l0y..." ; toGnuPlot1d plotOptions "l0y.dat" l0ySamples
+  plotData :: String -> IO ()
+  plotData prefix = do
+    putStrLn $ "----- " ++ prefix
+    putStrLn "l0..."  ; toGnuPlot   plotOptions (prefix ++ "l0.2d.dat" ) l0Samples
+    putStrLn "s1..."  ; toGnuPlot   plotOptions (prefix ++ "s1.2d.dat" ) s1Samples
+    putStrLn "l1..."  ; toGnuPlot   plotOptions (prefix ++ "l1.2d.dat" ) l1Samples
+    putStrLn "l0x..." ; toGnuPlot1d plotOptions (prefix ++ "l0x.1d.dat") l0xSamples
+    putStrLn "l0y..." ; toGnuPlot1d plotOptions (prefix ++ "l0y.1d.dat") l0ySamples
     

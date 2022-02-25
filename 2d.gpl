@@ -1,0 +1,3 @@
+set terminal svg;
+set output ARG2
+splot ARG1 nonuniform matrix with pm3d;

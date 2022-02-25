@@ -46,6 +46,21 @@ library
                , pretty
   default-language: Haskell2010
 
+executable plots
+  main-is: Plots.hs
+  hs-source-dirs: test
+  build-depends: base
+               , containers
+               , gasp
+               , directory
+               , logict
+               , MissingH
+               , missing-math
+               , mtl
+               , pretty
+               , grove-bernardy-bayesian-semantics-tlc
+  default-language: Haskell2010  
+
 executable test
   main-is: Main.hs
   hs-source-dirs: test
