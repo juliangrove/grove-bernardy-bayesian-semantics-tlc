@@ -9,6 +9,9 @@ cookies-continuous-1.0-s1.2d.svg \
 cookies-continuous-1.0-l1.2d.svg \
 cookies-continuous-4.0-l1.2d.svg \
 cookies-continuous-10.0-l1.2d.svg \
+goodlass-std-l0.2d.svg \
+goodlass-std-s1.2d.svg \
+goodlass-std-l1.2d.svg \
 goodlass-l0.2d.svg \
 goodlass-s1.2d.svg \
 goodlass-l1.2d.svg
