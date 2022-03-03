@@ -32,7 +32,7 @@ DATS := $(D2DAT) \
  goodlass-l1y.1d.dat \
  goodlass-avg-l1y.1d.dat
 
-default: $(D2SVGS) goodlass-avg.svg goodlass-std.svg goodlass.svg
+default: $(D2SVGS) goodlass-avg.svg goodlass-std.svg goodlass.svg goodlass-extra.svg
 
 goodlass.svg: goodlass.gpl goodlass-height-prior.1d.dat
 	gnuplot -c $<
