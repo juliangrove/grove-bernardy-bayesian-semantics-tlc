@@ -42,6 +42,12 @@ isShort :: Exp 'U
 isShort = Con $ Utt $ F.MergeRgt F.Vl F.IsShort
 vaccuous :: Exp 'U
 vaccuous = Con $ Silence
+is5Feet :: Exp 'U
+is5Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 5)
+is55Feet :: Exp 'U
+is55Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 5.5)
+is6Feet :: Exp 'U
+is6Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 6)
 
 toMath :: RSAOut -> IO ()
 toMath RSAOut {..} = do
@@ -133,6 +139,41 @@ exampleLassGood = evaluate RSAIn {..} where
              observe (fromInteger 7 ≥ h) >>
       uniform 4.5 7 ⋆ \θ ->
              η (θ `Pair` h)
+
+
+exampleLassGoodExtra :: RSAOut
+exampleLassGoodExtra = evaluate RSAIn {..} where
+  prefix = "goodlass-std-extra-"
+  plotOptions = PlotOptions {..}
+  plotDomainLo = 4.5
+  plotDomainHi = 7
+  plotResolution = 128
+  varsToSituation x y = (Pair x y,isTall)
+  alpha = 4
+  utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
+  utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ vaccuous + k @@ is5Feet + k @@ is55Feet + k @@ is6Feet
+  interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
+  interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
+                                                         `Pair` Fst ctx
+                                                         `Pair` (Lam $ \_ -> Con (F.Tru))
+                                                         `Pair` (Lam $ \_ -> Snd ctx)
+                                                         `Pair` Con (F.Entity 0))
+  contextDistribution =
+    normal 5.75 0.35 ⋆ \h ->
+             observe (h ≥ fromRational 4.5) >>
+             observe (fromInteger 7 ≥ h) >>
+      uniform 4.5 7 ⋆ \θ ->
+             η (θ `Pair` h)
+
+-- >>> plotData exampleLassGoodExtra
+-- ----- goodlass-std-extra-
+-- l0...
+-- s1...
+-- l1...
+-- l0x...
+-- l0y...
+-- l1x...
+-- l1y...
 
 
 -- >>> toMath exampleLassGood

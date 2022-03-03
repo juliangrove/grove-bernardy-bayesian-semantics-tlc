@@ -14,7 +14,10 @@ goodlass-std-s1.2d.svg \
 goodlass-std-l1.2d.svg \
 goodlass-l0.2d.svg \
 goodlass-s1.2d.svg \
-goodlass-l1.2d.svg
+goodlass-l1.2d.svg \
+goodlass-extra-l0.2d.svg \
+goodlass-extra-s1.2d.svg \
+goodlass-extra-l1.2d.svg
 
 D2DAT := $(D2SVGS:%.svg=%.dat)
 
@@ -25,7 +28,8 @@ D2DAT := $(D2SVGS:%.svg=%.dat)
 
 DATS := $(D2DAT) \
  goodlass-height-prior.1d.dat \
- goodlass-svg-l1y.1d.dat \
+ goodlass-extra-l1y.1d.dat \
+ goodlass-l1y.1d.dat \
  goodlass-avg-l1y.1d.dat
 
 default: $(D2SVGS) goodlass-avg.svg goodlass-std.svg goodlass.svg
@@ -37,6 +41,9 @@ goodlass-avg.svg: goodlass-avg.gpl goodlass-avg-l1y.1d.dat
 	gnuplot -c $<
 
 goodlass-std.svg: goodlass-std.gpl goodlass-height-prior.1d.dat
+	gnuplot -c $<
+
+goodlass-extra.svg: goodlass-extra.gpl goodlass-extra-l1y.1d.dat
 	gnuplot -c $<
 
 %.2d.svg: %.2d.dat 2d.gpl
