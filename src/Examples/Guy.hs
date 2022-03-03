@@ -8,7 +8,7 @@
 module Examples.Guy where
 
 import Algebra.Classes hiding (normalize)
-import Prelude hiding (Monad(..), Num(..), Fractional(..))
+import Prelude hiding (Monad(..), Num(..), Fractional(..), Floating(..))
 import Models.Integrals
 import Models.Integrals.Types (P(..), Domain(..), )
 import TLC.HOAS
@@ -59,8 +59,13 @@ vaccuous = Con $ Silence
 plottedUtt :: Exp 'U
 plottedUtt = isTall
 
+cost :: Double -> Exp 'R
+cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
+
+tallShortOrSilence = Lam $ \k -> cost 2 * (k @@ isTall) + k @@ vaccuous  
+
 utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ vaccuous + k @@ isShort
+utteranceDistribution = tallShortOrSilence
 
 -- distribution for θ 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
