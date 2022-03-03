@@ -8,7 +8,7 @@
 module Examples.GoodLass  (moreUtterances, saltPaperSetup) where
 
 import Algebra.Classes hiding (normalize)
-import Prelude hiding (Monad(..), Num(..), Fractional(..))
+import Prelude hiding (Monad(..), Num(..), Fractional(..), Floating(..))
 import Models.Integrals
 import Models.Integrals.Types (P(..), Domain(..), swap2P)
 import TLC.HOAS
@@ -65,14 +65,17 @@ is6Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 6)
 is65Feet :: Exp 'U
 is65Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 65)
 
+cost :: Double -> Exp 'R
+cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
+
 tallShortOrSilence,tallOrSilenceOrGiven :: Exp (('U ⟶ 'R) ⟶ 'R)
-tallShortOrSilence = Lam $ \k -> k @@ isTall + k @@ vaccuous 
-  + k @@ isShort -- makes no difference on L0[isTall] (obviously),
+tallShortOrSilence = Lam $ \k -> cost 2 * (k @@ isTall) + k @@ vaccuous  
+  -- + k @@ isShort -- makes no difference on L0[isTall] (obviously),
   -- but also S1[isTall] (and in turn L1[isTall]). This is because
   -- L0[isTall] is already zero for every world where L0[isShort] is
   -- non-zero.
 
-tallOrSilenceOrGiven = Lam $ \k -> k @@ isTall + k @@ vaccuous + k @@ is5Feet + k @@ is55Feet + k @@ is6Feet + k @@ is65Feet 
+tallOrSilenceOrGiven = Lam $ \k -> cost 2 * (k @@ isTall) + k @@ vaccuous + cost 3 * (k @@ is5Feet + k @@ is55Feet + k @@ is6Feet)
 
 
 -- distribution for θ 

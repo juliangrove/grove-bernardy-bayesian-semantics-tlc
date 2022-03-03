@@ -8,7 +8,7 @@
 module Examples.HRSA where
 
 import Algebra.Classes hiding (normalize)
-import Prelude hiding (Monad(..), Num(..), Fractional(..))
+import Prelude hiding (Monad(..), Num(..), Fractional(..), Floating(..))
 import Models.Integrals
 import Models.Integrals.Types (P(..),Domain(..),swap2P)
 import TLC.HOAS
@@ -126,7 +126,7 @@ exampleLassGood = evaluate RSAIn {..} where
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-  utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ isShort + k @@ vaccuous
+  utteranceDistribution = Lam $ \k -> cost 2 * (k @@ isTall + k @@ isShort) + k @@ vaccuous
   interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                          `Pair` Fst ctx
@@ -141,6 +141,9 @@ exampleLassGood = evaluate RSAIn {..} where
              η (θ `Pair` h)
 
 
+cost :: Double -> Exp 'R
+cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
+  
 exampleLassGoodExtra :: RSAOut
 exampleLassGoodExtra = evaluate RSAIn {..} where
   prefix = "goodlass-std-extra-"
@@ -151,7 +154,7 @@ exampleLassGoodExtra = evaluate RSAIn {..} where
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-  utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ vaccuous + k @@ is5Feet + k @@ is55Feet + k @@ is6Feet
+  utteranceDistribution = Lam $ \k -> cost 2 * (k @@ isTall) + k @@ vaccuous + cost 3 * (k @@ is5Feet + k @@ is55Feet + k @@ is6Feet)
   interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                          `Pair` Fst ctx
