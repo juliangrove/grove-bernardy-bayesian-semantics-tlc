@@ -15,7 +15,10 @@ import TLC.HOAS
 import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
 import qualified Algebra.Morphism.Affine as A
+import Examples.Utterances
 
+alpha :: Rational
+alpha = 4
 
 -- >>> toMath
 -- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*exp(-200/49*(23/4 - x)^2)*integrate(exp(-200/49*(23/4 - z)^2), z, max(9/2, y), 7)^(-1)
@@ -47,35 +50,6 @@ plotOptions = PlotOptions {..} where
    plotDomainLo = fromRational domLo
    plotDomainHi = fromRational domHi
    plotResolution = 128
-
-alpha :: Rational
-alpha = 4
-isTall :: Exp 'U
-isTall = Con $ Utt $ F.MergeRgt F.Vl F.IsTall
-isShort :: Exp 'U
-isShort = Con $ Utt $ F.MergeRgt F.Vl F.IsShort
-vaccuous :: Exp 'U
-vaccuous = Con $ Silence
-is5Feet :: Exp 'U
-is5Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 5)
-is55Feet :: Exp 'U
-is55Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 5.5)
-is6Feet :: Exp 'U
-is6Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 6)
-is65Feet :: Exp 'U
-is65Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 65)
-
-cost :: Double -> Exp 'R
-cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
-
-tallShortOrSilence,tallOrSilenceOrGiven :: Exp (('U ⟶ 'R) ⟶ 'R)
-tallShortOrSilence = Lam $ \k -> cost 2 * (k @@ isTall) + k @@ vaccuous  
-  -- + k @@ isShort -- makes no difference on L0[isTall] (obviously),
-  -- but also S1[isTall] (and in turn L1[isTall]). This is because
-  -- L0[isTall] is already zero for every world where L0[isShort] is
-  -- non-zero.
-
-tallOrSilenceOrGiven = Lam $ \k -> cost 2 * (k @@ isTall) + k @@ vaccuous + cost 3 * (k @@ is5Feet + k @@ is55Feet + k @@ is6Feet)
 
 
 -- distribution for θ 
@@ -226,7 +200,7 @@ runAll prefix utteranceDistribution = do
     toGnuPlot1d plotOptions "goodlass-thres-prior.1d.dat" $ approxTop plotOptions (asExpression1 (Lam (distr (linguisticParameterDistribution))))
 
 saltPaperSetup :: IO ()
-saltPaperSetup = runAll "goodlass-" tallShortOrSilence
+saltPaperSetup = runAll "goodlass-" (tallShortOrSilence α)
 
 moreUtterances :: IO ()
-moreUtterances = runAll "goodlass-extra-" tallOrSilenceOrGiven
+moreUtterances = runAll "goodlass-extra-" (tallOrSilenceOrGiven α)

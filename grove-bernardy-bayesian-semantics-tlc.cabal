@@ -18,6 +18,7 @@ library
                  , Examples.HRSA
                  , Examples.GoodLass
                  , Examples.Guy
+                 , Examples.Utterances
                  , Models.Integrals
                  , Models.Logical.FiniteLogical
                  , TLC.Distributions

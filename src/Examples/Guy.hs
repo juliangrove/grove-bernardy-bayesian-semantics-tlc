@@ -15,6 +15,7 @@ import TLC.HOAS
 import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
 import qualified Algebra.Morphism.Affine as A
+import Examples.Utterances
 
 toMath :: IO ()
 toMath = do
@@ -50,22 +51,13 @@ plotOptions = PlotOptions {..} where
 
 alpha :: Rational
 alpha = 4
-isTall :: Exp 'U
-isTall = Con $ Utt $ F.MergeRgt F.Vl F.IsTall
-isShort :: Exp 'U
-isShort = Con $ Utt $ F.MergeRgt F.Vl F.IsShort
-vaccuous :: Exp 'U
-vaccuous = Con $ Silence
+
 plottedUtt :: Exp 'U
 plottedUtt = isTall
 
-cost :: Double -> Exp 'R
-cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
-
-tallShortOrSilence = Lam $ \k -> cost 2 * (k @@ isTall) + k @@ vaccuous  
 
 utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-utteranceDistribution = tallShortOrSilence
+utteranceDistribution = tallShortOrSilence α
 
 -- distribution for θ 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)

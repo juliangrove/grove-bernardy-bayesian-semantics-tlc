@@ -15,6 +15,7 @@ import TLC.HOAS
 import qualified TLC.Terms as F
 import qualified Algebra.Linear.Vector as V
 import qualified Algebra.Morphism.Affine as A
+import Examples.Utterances
 
 -- ∃γ. ∃u. (... × .. Exp ((γ ⟶ 'R) ⟶ 'R))
 data RSAIn = forall context utterance. (Equality context, Equality utterance) => RSAIn {
@@ -35,19 +36,6 @@ data RSAOut = RSAOut {
     l0xSamples,l0ySamples :: V.Vec Double,
     plotData :: IO ()
     }
-
-isTall :: Exp 'U
-isTall = Con $ Utt $ F.MergeRgt F.Vl F.IsTall
-isShort :: Exp 'U
-isShort = Con $ Utt $ F.MergeRgt F.Vl F.IsShort
-vaccuous :: Exp 'U
-vaccuous = Con $ Silence
-is5Feet :: Exp 'U
-is5Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 5)
-is55Feet :: Exp 'U
-is55Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 5.5)
-is6Feet :: Exp 'U
-is6Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 6)
 
 toMath :: RSAOut -> IO ()
 toMath RSAOut {..} = do
@@ -126,7 +114,7 @@ exampleLassGood = evaluate RSAIn {..} where
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-  utteranceDistribution = Lam $ \k -> cost 2 * (k @@ isTall + k @@ isShort) + k @@ vaccuous
+  utteranceDistribution = tallShortOrSilence alpha
   interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                          `Pair` Fst ctx
@@ -154,7 +142,7 @@ exampleLassGoodExtra = evaluate RSAIn {..} where
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
   utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
-  utteranceDistribution = Lam $ \k -> cost 2 * (k @@ isTall) + k @@ vaccuous + cost 3 * (k @@ is5Feet + k @@ is55Feet + k @@ is6Feet)
+  utteranceDistribution = tallOrSilenceOrGiven alpha
   interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                          `Pair` Fst ctx
