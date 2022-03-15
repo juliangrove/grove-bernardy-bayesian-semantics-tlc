@@ -178,16 +178,16 @@ measureTrue p = (p @@ (Lam (\x -> (Con Indi @@ x))))
 -- P_{S₁}(u)
 s1Prior :: PP 'R
 s1Prior = utteranceDistribution ⋆ \u ->
-          factor (measureTrue ((contextDistribution ⋆ \w -> η (interpU u w))) ^/ α) >>
+          factor (recip (measureTrue ((contextDistribution ⋆ \w -> η (interpU u w))) ^/ α)) >>
           η u
 
 s1PriorExpr :: P ('Unit × 'R)
-s1PriorExpr = asExpression1 $ distr s1Prior
+s1PriorExpr = asExpression1 $ {-log .  .  . -}  distr s1Prior
 s1PriorSamples :: V.Vec Double
 s1PriorSamples = approxTop plotOptions s1PriorExpr
 
 -- >>> maxima s1PriorExpr
--- charfun(-7 + x <= 0)*charfun(-x <= 0)*integrate(integrate(exp(-1/2*(4 - z)^2), z, y, 7)^4, y, 0, 7)^(-1)*integrate(exp(-1/2*(4 - y)^2), y, x, 7)^4
+-- charfun(-7 + x <= 0)*charfun(-x <= 0)*integrate(integrate(exp(-1/2*(4 - z)^2), z, y, 7)^(-4), y, 0, 7)^(-1)*integrate(exp(-1/2*(4 - y)^2), y, x, 7)^(-4)
 
 -- P_{L₁}(w)
 l1Prior :: PP 'R
@@ -196,12 +196,12 @@ l1Prior = contextDistribution ⋆ \w ->
           η w
 
 l1PriorExpr :: P ('Unit × 'R)
-l1PriorExpr = asExpression1 $ distr l1Prior
+l1PriorExpr = asExpression1 $ \x -> {-log-}(distr l1Prior x)
 l1PriorSamples :: V.Vec Double
 l1PriorSamples = approxTop plotOptions l1PriorExpr
 
 -- >>> maxima l1PriorExpr
--- charfun(-x <= 0)*charfun(-7 + x <= 0)*exp(-1/2*(4 - x)^2)*integrate(integrate(exp(-1/2*(4 - z)^2), z, y, 7)^4, y, 0, x)^(-1)*integrate(exp(-1/2*(4 - y)^2)*integrate(integrate(exp(-1/2*(4 - u)^2), u, z, 7)^4, z, 0, y)^(-1), y, 0, 7)^(-1)
+-- charfun(-x <= 0)*charfun(-7 + x <= 0)*exp(-1/2*(4 - x)^2)*integrate(integrate(exp(-1/2*(4 - z)^2), z, y, 7)^4, y, 0, x)^(-1)
 
 plotData :: IO ()
 plotData = do
@@ -216,3 +216,14 @@ plotData = do
   putStrLn "l1x..." ; toGnuPlot1d plotOptions (prefix ++ "l1x.1d.dat") l1xSamples
   putStrLn "l1y..." ; toGnuPlot1d plotOptions (prefix ++ "l1y.1d.dat") l1ySamples
 
+-- >>> plotData
+-- ----- cookies-continuous-4.0-
+-- l0...
+-- s1...
+-- s1...
+-- l1...
+-- l1...
+-- l0x...
+-- l0y...
+-- l1x...
+-- l1y...
