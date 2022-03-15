@@ -12,7 +12,8 @@
 module TLC.HOAS (Exp(..), (@@), (&), module TLC.Terms,
                 uniform, normal, (≥), measure, distr, average, observe,
                 lesbegue,
-                factor, fromHoas, (⋆), (>>), η, toHoas, π) where
+                factor, fromHoas, (⋆), (>>), η, toHoas, π,
+                probability) where
 
 import Prelude hiding ((>>), Num(..), Fractional(..))
 import Algebra.Classes
@@ -102,17 +103,17 @@ lk' (F.Weaken v) t = lk' v (Fst t)
 toHoas :: 'F.Unit ⊢ t -> Exp t
 toHoas e = toHOAS e TT
 
+type Cont r α = Exp ((α ⟶ r) ⟶ r)
 
-η :: Exp α -> Exp ((α ⟶ r) ⟶ r)
+type P α = Exp ((α ⟶ 'R) ⟶ 'R)
+
+η :: Exp α -> Cont r α
 η m = Lam $ \f -> f @@ m
 
--- (⋆) :: Exp ((α ⟶ r) ⟶ r) -> Exp (α ⟶ ((β ⟶ r) ⟶ r)) -> Exp ((β ⟶ r) ⟶ r)
--- m ⋆ k = Lam $ \f -> m @@ (Lam $ \x -> k @@ x @@ f)
-
-(⋆) :: Exp ((α ⟶ r) ⟶ r) -> (Exp α -> Exp ((β ⟶ r) ⟶ r)) -> Exp ((β ⟶ r) ⟶ r)
+(⋆) :: Cont r α -> (Exp α -> Cont r β) -> Cont r β
 m ⋆ k = Lam $ \f -> m @@ (Lam $ \x -> k x @@ f)
 
-(>>) :: Exp (('F.Unit ⟶ r) ⟶ r) -> Exp ((β ⟶ r) ⟶ r) -> Exp ((β ⟶ r) ⟶ r)
+(>>) :: Cont r 'F.Unit -> Cont r β -> Cont r β
 m >> k = m ⋆ (\_ -> k) 
 
 (≐) :: Equality α => Exp α -> Exp α -> Exp 'R
@@ -130,13 +131,13 @@ infixl &
 f ∘ g = Lam $ \x -> f @@ (g @@ x)
 
 
-measure :: Exp ((α ⟶ 'R) ⟶ 'R) -> Exp 'R
+measure :: P α -> Exp 'R
 measure p = p @@ (Lam $ \_ -> one)
 
-average :: Exp (('R ⟶ 'R) ⟶ 'R) -> Exp 'R
+average :: P 'R -> Exp 'R
 average p = p @@ (Lam $ \x -> x)
 
-distr :: Equality α => Exp ((α ⟶ 'R) ⟶ 'R) -> Exp α -> Exp 'R
+distr :: Equality α => P α -> Exp α -> Exp 'R
 distr p x = p @@ (Lam $ \y -> y ≐ x) / measure p
 
 instance Additive (Exp 'R) where
@@ -160,20 +161,23 @@ instance Ring (Exp 'R) where
 instance Roots (Exp 'R) where
   x ^/ y = Con Expo @@ x @@ fromRational y
 
-uniform :: Rational -> Rational -> Exp (('R ⟶ 'R) ⟶ 'R)
+uniform :: Rational -> Rational -> P 'R
 uniform x y = App (Con Uni) (Pair (Con $ Incl x) (Con $ Incl y))
 
-normal :: Rational -> Rational -> Exp (('R ⟶ 'R) ⟶ 'R)
+normal :: Rational -> Rational -> P 'R
 normal x y = App (Con Nml) (Pair (Con $ Incl x) (Con $ Incl y))
 
-lesbegue :: Exp (('R ⟶ 'R) ⟶ 'R)
+lesbegue :: P 'R
 lesbegue = Con Les 
 
-factor :: Exp 'R -> Exp (('Unit ⟶ 'R) ⟶ 'R)
+factor :: Exp 'R -> P 'Unit
 factor x = Lam (\k -> (k @@ TT) * x)
 
-observe :: Exp 'T -> Exp (('Unit ⟶ 'R) ⟶ 'R)
+observe :: Exp 'T -> P 'Unit
 observe x = factor (Con Indi @@ x)  
+
+probability :: P 'T -> Exp 'R
+probability p = (p @@ (Lam (\x -> (Con Indi @@ x)))) / measure p
 
 (≥) :: Exp 'R -> Exp 'R -> Exp 'T
 x ≥ y = Con GTE @@ x @@ y 

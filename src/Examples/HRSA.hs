@@ -31,6 +31,7 @@ data RSAIn = forall context utterance. (Equality context, Equality utterance) =>
 
 data RSAOut = RSAOut {
     l0Expr, l1Expr, s1Expr :: P ('Unit × 'R × 'R),
+
     l0X,l0Y :: P ('Unit × 'R),
     l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double),
     l0xSamples,l0ySamples :: V.Vec Double,
@@ -253,7 +254,18 @@ evaluate RSAIn{..} = RSAOut {..} where
   l0Y = normalise $ integrateOnPlotDomain $ swap2P $ l0Expr
   l1X = normalise $ integrateOnPlotDomain l1Expr
   l1Y = normalise $ integrateOnPlotDomain $ swap2P $ l1Expr
-    
+
+
+  -- P_{S₁}(u)
+  s1Prior = utteranceDistribution ⋆ \u ->
+            factor ((measure (contextDistribution ⋆ \w -> η (interpU u w))) ^/ α) >>
+            η u
+
+  -- P_{L₁}(w)
+  l1Prior = contextDistribution ⋆ \w ->
+            factor (recip (measure (s1Prior ⋆ \u -> η (interpU u w)))) >>
+            η w
+  
 
   plotData :: IO ()
   plotData = do
