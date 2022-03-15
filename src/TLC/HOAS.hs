@@ -9,7 +9,7 @@
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE LambdaCase #-}
 
-module TLC.HOAS (Exp(..), (@@), (&), module TLC.Terms,
+module TLC.HOAS (PP, Exp(..), (@@), (&), module TLC.Terms,
                 uniform, normal, (≥), measure, distr, average, observe,
                 lesbegue,
                 factor, fromHoas, (⋆), (>>), η, toHoas, π,
@@ -105,7 +105,7 @@ toHoas e = toHOAS e TT
 
 type Cont r α = Exp ((α ⟶ r) ⟶ r)
 
-type P α = Exp ((α ⟶ 'R) ⟶ 'R)
+type PP α = Exp ((α ⟶ 'R) ⟶ 'R)
 
 η :: Exp α -> Cont r α
 η m = Lam $ \f -> f @@ m
@@ -131,13 +131,13 @@ infixl &
 f ∘ g = Lam $ \x -> f @@ (g @@ x)
 
 
-measure :: P α -> Exp 'R
+measure :: PP α -> Exp 'R
 measure p = p @@ (Lam $ \_ -> one)
 
-average :: P 'R -> Exp 'R
+average :: PP 'R -> Exp 'R
 average p = p @@ (Lam $ \x -> x)
 
-distr :: Equality α => P α -> Exp α -> Exp 'R
+distr :: Equality α => PP α -> Exp α -> Exp 'R
 distr p x = p @@ (Lam $ \y -> y ≐ x) / measure p
 
 instance Additive (Exp 'R) where
@@ -161,23 +161,25 @@ instance Ring (Exp 'R) where
 instance Roots (Exp 'R) where
   x ^/ y = Con Expo @@ x @@ fromRational y
 
-uniform :: Rational -> Rational -> P 'R
+uniform :: Rational -> Rational -> PP 'R
 uniform x y = App (Con Uni) (Pair (Con $ Incl x) (Con $ Incl y))
 
-normal :: Rational -> Rational -> P 'R
+normal :: Rational -> Rational -> PP 'R
 normal x y = App (Con Nml) (Pair (Con $ Incl x) (Con $ Incl y))
 
-lesbegue :: P 'R
+lesbegue :: PP 'R
 lesbegue = Con Les 
 
-factor :: Exp 'R -> P 'Unit
+factor :: Exp 'R -> PP 'Unit
 factor x = Lam (\k -> (k @@ TT) * x)
 
-observe :: Exp 'T -> P 'Unit
+observe :: Exp 'T -> PP 'Unit
 observe x = factor (Con Indi @@ x)  
 
-probability :: P 'T -> Exp 'R
+probability :: PP 'T -> Exp 'R
 probability p = (p @@ (Lam (\x -> (Con Indi @@ x)))) / measure p
+
+
 
 (≥) :: Exp 'R -> Exp 'R -> Exp 'T
 x ≥ y = Con GTE @@ x @@ y 
