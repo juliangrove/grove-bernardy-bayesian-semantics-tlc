@@ -64,6 +64,8 @@ data Con α where
   Addi :: Con ('R ⟶ 'R ⟶ 'R)
   Mult :: Con ('R ⟶ 'R ⟶ 'R)
   Expo :: Con ('R ⟶ 'R ⟶ 'R)
+  Exp :: Con ('R ⟶ 'R)
+  CircleConstant :: Con 'R
   Divi :: Con ('R ⟶ 'R ⟶ 'R)
   EqGen :: Equality α => Con ((α × α) ⟶ 'R)
   EqRl :: Con ('R ⟶ 'R ⟶ 'R)
@@ -406,6 +408,8 @@ instance Show (Con α) where
   show (Incl x) = showR x
   show Indi = "𝟙"
   show Expo = "(^)"
+  show Exp = "exp"
+  show CircleConstant = "pi"
   show Addi = "(+)"
   show Mult = "(*)"
   show Divi = "(/)"

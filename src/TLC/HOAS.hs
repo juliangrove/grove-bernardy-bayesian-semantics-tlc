@@ -15,7 +15,7 @@ module TLC.HOAS (PP, Exp(..), (@@), (&), module TLC.Terms,
                 factor, fromHoas, (⋆), (>>), η, toHoas, π,
                 probability) where
 
-import Prelude hiding ((>>), Num(..), Fractional(..))
+import Prelude hiding ((>>), Num(..), Fractional(..), sqrt, exp, pi)
 import Algebra.Classes
 import qualified TLC.Terms as F
 import TLC.Terms (type (⊢), type(∈)(..), type (×),  type (⟶), Type(..), Con(..),
@@ -160,6 +160,9 @@ instance Ring (Exp 'R) where
   fromInteger = Con . Incl . fromInteger
 instance Roots (Exp 'R) where
   x ^/ y = Con Expo @@ x @@ fromRational y
+instance Transcendental (Exp 'R) where
+  exp x = Con Exp @@ x
+  pi = Con CircleConstant
 
 uniform :: Rational -> Rational -> PP 'R
 uniform x y = App (Con Uni) (Pair (Con $ Incl x) (Con $ Incl y))
