@@ -10,9 +10,14 @@
 {-# LANGUAGE LambdaCase #-}
 
 module TLC.HOAS (PP, Exp(..), (@@), (&), module TLC.Terms,
-                uniform, normal, (≥), measure, distr, average, observe,
-                lesbegue,
-                factor, fromHoas, (⋆), (>>), η, toHoas, π,
+                -- distributionos
+                uniform, normal, lesbegue, logisticDistr,
+                -- probabilistic program coombinators
+                observe, factor, (⋆), (>>), η,
+                -- running probabilistic programs
+                measure, distr, average,
+                -- other
+                (≥), fromHoas, toHoas, π,
                 probability) where
 
 import Prelude hiding ((>>), Num(..), Fractional(..), sqrt, exp, pi)
@@ -164,28 +169,33 @@ instance Transcendental (Exp 'R) where
   exp x = Con Exp @@ x
   pi = Con CircleConstant
 
+(⸾) :: PP β -> (Exp β -> Exp 'R) -> PP β
+p ⸾ f = p ⋆ \x -> factor (f x) >> η x
+
+uniform :: Exp 'R -> Exp 'R -> Cont 'R 'R
 uniform lo hi = lesbegue ⋆ \x ->
   observe (x ≥ lo) >>
   observe (hi ≥ x) >>
   η x
 
 cauchy :: Exp 'R -> Exp 'R -> Cont 'R 'R
-cauchy x0 γ = lesbegue ⋆ \x ->
-  factor ((pi * γ) * (one + ((one/γ) * (x - x0)) ^+2)) >>
-  η x
-
+cauchy x0 γ = lesbegue ⸾ \ x -> ((pi * γ) * (one + ((one/γ) * (x - x0)) ^+2))
+   
 normal :: Rational -> Rational -> PP 'R
-normal μ σ = lesbegue ⋆ \x ->
+normal μ σ = lesbegue ⸾ \x ->
   -- TODO: get rid of the constant factor below
-  factor (exp (negate (((x - fromRational μ) / fromRational σ) ^+ 2)) / (fromRational σ * sqrt (fromRational 2 * pi))) >>
-  η x
+  (exp (negate (((x - fromRational μ) / fromRational σ) ^+ 2)) / (fromRational σ * sqrt (fromRational 2 * pi)))
 
-quartic :: Exp 'R -> Exp 'R -> Cont 'R 'Unit
-quartic μ σ = uniform (μ - a) (μ + a) ⋆ \x ->
-  factor (((fromRational (15 / 16) / (a ^+ 5)))
-     * ((x - μ) -  a) ^+ 2
-     * ((x - μ) +  a) ^+ 2)
+quarticDistr :: Exp 'R -> Exp 'R -> PP 'R
+quarticDistr μ σ = uniform (μ - a) (μ + a) ⸾ \x ->
+     (((fromRational (15 / 16) / (a ^+ 5)))
+        * ((x - μ) -  a) ^+ 2
+        * ((x - μ) +  a) ^+ 2)
   where a = sqrt (fromRational 7) * σ
+
+logisticDistr :: Exp 'R -> Exp 'R -> PP 'R
+logisticDistr μ s = lesbegue ⸾ \x ->
+   exp(negate (x-μ)/s) / (s * (one+exp(negate (x-μ)/s))^+2)
 
 
 lesbegue :: PP 'R
