@@ -53,11 +53,11 @@ toMath RSAOut {..} = do
   maxima $ l0Y
 
 -- >>> toMath (exampleCookies 1)
--- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)*integrate(exp((-4 + z)^2), z, max(0, y), 7)^(-1)
--- s1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)^(-1)*exp((-4 + x)^2)*integrate(integrate(exp((-4 + u)^2), u, z, 7)^(-1), z, 0, x)^(-1)*integrate(exp((-4 + z)^2), z, y, 7)^(-1)
--- l1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)^(-1)*exp((-4 + x)^2)*exp((-4 + x)^2)*integrate(exp((-4 + z)^2), z, y, 7)*integrate(integrate(exp((-4 + u)^2), u, z, 7)^(-1), z, 0, x)^(-1)*integrate(exp((-4 + z)^2), z, y, 7)^(-1)*integrate(exp((-4 + z)^2)^(-1)*exp((-4 + z)^2)*exp((-4 + z)^2)*integrate(integrate(exp((-4 + v)^2), v, u, 7)^(-1), u, 0, z)^(-1), z, y, 7)^(-1
--- l0 marginalised in X charfun(-7 + x <= 0)*integrate(exp((-4 + y)^2), y, max(0, x), 7)^(-1)*integrate(exp((-4 + y)^2), y, max(0, x), 7)
--- l0 marginalised in Y charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)*integrate(integrate(exp((-4 + z)^2), z, max(0, y), 7)^(-1), y, 0, min(7, x))
+-- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp(-2*(-4 + x))*integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, max(0, y), 7)^(-1)*(1 + exp(-2*(-4 + x)))^(-2)
+-- s1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp(-2*(-4 + x))^(-1)*exp(-2*(-4 + x))*integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, y, 7)^(-1)*(1 + exp(-2*(-4 + x)))^(-2)*(1 + exp(-2*(-4 + x)))^2*integrate(integrate(exp(-2*(-4 + u))*(1 + exp(-2*(-4 + u)))^(-2), u, z, 7)^(-1), z, 0, x)^(-1)
+-- l1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp(-2*(-4 + x))^(-1)*exp(-2*(-4 + x))*exp(-2*(-4 + x))*integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, y, 7)*integrate(integrate(exp(-2*(-4 + u))*(1 + exp(-2*(-4 + u)))^(-2), u, z, 7)^(-1), z, 0, x)^(-1)*integrate(exp(-2*(-4 + z))^(-1)*exp(-2*(-4 + z))*exp(-2*(-4 + z))*integrate(integrate(exp(-2*(-4 + v))*(1 + exp(-2*(-4 + v)))^(-2), v, u, 7)^(-1), u, 0, z)^(-1)*(1 + exp(-2*(-4 + z)))^(-2)*(1 + exp(-2*(-4 + z)))^(-2)*(1 + exp(-2*(-4 + z)))^2, z, y, 7)^(-1)*integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, y, 7)^(-1)*(1 + exp(-2*(-4 + x)))^(-2)*(1 + exp(-2*(-4 + x)))^(-2)*(1 + exp(-2*(-4 + x)))^2
+-- l0 marginalised in X charfun(-7 + x <= 0)*integrate(exp(-2*(-4 + y))*(1 + exp(-2*(-4 + y)))^(-2), y, max(0, x), 7)^(-1)*integrate(exp(-2*(-4 + y))*(1 + exp(-2*(-4 + y)))^(-2), y, max(0, x), 7)
+-- l0 marginalised in Y charfun(-7 + x <= 0)*charfun(-x <= 0)*exp(-2*(-4 + x))*(1 + exp(-2*(-4 + x)))^(-2)*integrate(integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, max(0, y), 7)^(-1), y, 0, min(7, x))
 
 -- >>> plotData exampleCookies
 -- l0...
@@ -78,10 +78,41 @@ exampleCookies alpha = evaluate RSAIn {..} where
   lo = fromRational (toRational plotDomainLo)
   hi = fromRational (toRational plotDomainHi)
   contextDistribution =
-      normal 4 1 ⋆ \nCookies ->
+      normal (fromRational 4) (fromRational 1) ⋆ \nCookies ->
              observe (nCookies ≥ lo) >>
              observe (hi ≥ nCookies) >>
              η nCookies
+
+exampleCookiesLogistic :: Rational -> RSAOut
+exampleCookiesLogistic alpha = evaluate RSAIn {..} where
+  prefix = ("cookies-logistic-" ++ show (fromRational alpha :: Double) ++ "-")
+  varsToSituation y x = (x,y)
+  plotOptions = PlotOptions {..}
+  plotDomainLo = 0
+  plotDomainHi = 7
+  plotResolution = 128
+  utteranceDistribution = lesbegue ⋆ \x -> observe (x ≥ zero) >> η x
+  interpU u nCookies = nCookies ≥ u
+  lo, hi :: forall a. Field a => a
+  lo = fromRational (toRational plotDomainLo)
+  hi = fromRational (toRational plotDomainHi)
+  contextDistribution =
+      logisticDistr (fromRational 4) (fromRational 0.5) ⋆ \nCookies ->
+             observe (nCookies ≥ lo) >>
+             η nCookies
+
+-- NOTE: The below can be simplified by Maxima with:
+-- assume(x>0);
+-- assume(z>0);
+-- display2d: false;
+-- for l1, the normalisation factor depends on y (utterance), but not on x, as expected. Can be deleted to get the effect explained in ISA.org
+
+-- >>> toMath (exampleCookiesLogistic 1)
+-- l0 = charfun(-x + y <= 0)*charfun(-x <= 0)*exp(-2*(-4 + x))*integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, max(0, y), inf)^(-1)*(1 + exp(-2*(-4 + x)))^(-2)
+-- s1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-x <= 0)*exp(-2*(-4 + x))^(-1)*exp(-2*(-4 + x))*integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, y, inf)^(-1)*(1 + exp(-2*(-4 + x)))^(-2)*(1 + exp(-2*(-4 + x)))^2*integrate(integrate(exp(-2*(-4 + u))*(1 + exp(-2*(-4 + u)))^(-2), u, z, inf)^(-1), z, 0, x)^(-1)
+-- l1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-x <= 0)*exp(-2*(-4 + x))^(-1)*exp(-2*(-4 + x))*exp(-2*(-4 + x))*integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, y, inf)*integrate(integrate(exp(-2*(-4 + u))*(1 + exp(-2*(-4 + u)))^(-2), u, z, inf)^(-1), z, 0, x)^(-1)*integrate(exp(-2*(-4 + z))^(-1)*exp(-2*(-4 + z))*exp(-2*(-4 + z))*integrate(integrate(exp(-2*(-4 + v))*(1 + exp(-2*(-4 + v)))^(-2), v, u, inf)^(-1), u, 0, z)^(-1)*(1 + exp(-2*(-4 + z)))^(-2)*(1 + exp(-2*(-4 + z)))^(-2)*(1 + exp(-2*(-4 + z)))^2, z, y, inf)^(-1)*integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, y, inf)^(-1)*(1 + exp(-2*(-4 + x)))^(-2)*(1 + exp(-2*(-4 + x)))^(-2)*(1 + exp(-2*(-4 + x)))^2
+-- l0 marginalised in X charfun(-7 + x <= 0)*integrate(exp(-2*(-4 + y))*(1 + exp(-2*(-4 + y)))^(-2), y, max(0, x), inf)^(-1)*integrate(exp(-2*(-4 + y))*(1 + exp(-2*(-4 + y)))^(-2), y, max(0, x), 7)
+-- l0 marginalised in Y charfun(-x <= 0)*exp(-2*(-4 + x))*(1 + exp(-2*(-4 + x)))^(-2)*integrate(integrate(exp(-2*(-4 + z))*(1 + exp(-2*(-4 + z)))^(-2), z, max(0, y), inf)^(-1), y, 0, min(7, x))
 
 exampleTallThreshold :: RSAOut
 exampleTallThreshold = evaluate RSAIn {..} where
@@ -267,7 +298,6 @@ evaluate RSAIn{..} = RSAOut {..} where
   l1Prior = contextDistribution ⋆ \w ->
             factor (recip (measure (s1Prior ⋆ \u -> η (interpU u w)))) >>
             η w
-  
 
   plotData :: IO ()
   plotData = do
