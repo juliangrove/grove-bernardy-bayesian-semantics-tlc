@@ -33,15 +33,12 @@ toMath = do
   maxima $ l0Y
 
 
--- >>> toMath exampleCookies
--- l0 = charfun(-40 + y <= 0)*charfun(-y <= 0)*charfun(x - y <= 0)*exp(-1/2*(1/5*(40 - y))^2)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, max(x, 0), 40)^(-1)
--- s1 = charfun(-40 + y <= 0)*charfun(-x <= 0)*charfun(-40 + x <= 0)*charfun(x - y <= 0)*integrate(integrate(exp(-1/2*(1/5*(40 - u))^2), u, z, 40)^(-4), z, 0, y)^(-1)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, x, 40)^(-4)
--- l1 = charfun(-40 + y <= 0)*charfun(-x <= 0)*charfun(-40 + x <= 0)*charfun(x - y <= 0)*exp(-1/2*(1/5*(40 - y))^2)*integrate(exp(-1/2*(1/5*(40 - z))^2)*integrate(integrate(exp(-1/2*(1/5*(40 - v))^2), v, u, 40)^(-4), u, 0, z)^(-1)*integrate(exp(-1/2*(1/5*(40 - u))^2), u, x, 40)^(-4), z, x, 40)^(-1)*integrate(integrate(exp(-1/2*(1/5*(40 - u))^2), u, z, 40)^(-4), z, 0, y)^(-1)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, x, 40)^(-4)
-
--- >>> plotData exampleCookies
--- l0...
--- s1...
--- l1...
+-- >>> toMath
+-- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp(-1/2*(4 - x)^2)*integrate(exp(-1/2*(4 - z)^2), z, max(0, y), 7)^(-1)
+-- s1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp(-1/2*(4 - x)^2)^(-4)*exp(-1/2*(4 - x)^2)^4*integrate(integrate(exp(-1/2*(4 - u)^2), u, z, 7)^(-4), z, 0, x)^(-1)*integrate(exp(-1/2*(4 - z)^2), z, y, 7)^(-4)
+-- l1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp(-1/2*(4 - x)^2)^(-4)*exp(-1/2*(4 - x)^2)^4*exp(-1/2*(4 - x)^2)*integrate(integrate(exp(-1/2*(4 - u)^2), u, z, 7)^(-4), z, 0, x)^(-1)*integrate(exp(-1/2*(4 - z)^2), z, y, 7)^(-4)*integrate(exp(-1/2*(4 - z)^2), z, y, 7)^4*integrate(exp(-1/2*(4 - z)^2)^(-4)*exp(-1/2*(4 - z)^2)^4*exp(-1/2*(4 - z)^2)*integrate(integrate(exp(-1/2*(4 - v)^2), v, u, 7)^(-4), u, 0, z)^(-1), z, y, 7)^(-1)
+-- l0 marginalised in X charfun(-7 + x <= 0)*integrate(exp(-1/2*(4 - y)^2), y, max(0, x), 7)^(-1)*integrate(exp(-1/2*(4 - y)^2), y, max(0, x), 7)
+-- l0 marginalised in Y charfun(-7 + x <= 0)*charfun(-x <= 0)*exp(-1/2*(4 - x)^2)*integrate(integrate(exp(-1/2*(4 - z)^2), z, max(0, y), 7)^(-1), y, 0, min(7, x))
 
 
 plotOptions :: PlotOptions
@@ -72,34 +69,6 @@ contextDistribution =
 cost :: Double -> Exp 'R
 cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
   
-
--- >>> plotData exampleLassGoodExtra
--- ----- goodlass-std-extra-
--- l0...
--- s1...
--- l1...
--- l0x...
--- l0y...
--- l1x...
--- l1y...
-
-
--- >>> toMath exampleLassGood
--- l0 = charfun(-7 + y <= 0)*charfun(9/2 - y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*2/5*20/7*(2/5)^(-1)*(20/7)^(-1)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1)
--- s1 = charfun(-7 + y <= 0)*charfun(9/2 - y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4) + (5/2)^(-4)*exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4))^(-1)
--- l1 = charfun(-7 + y <= 0)*charfun(9/2 - y <= 0)*charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*charfun(-x + y <= 0)*20/7*2/5*(2*%pi)^(-1/2)*exp(-1/2*(20/7*(23/4 - x))^2)^5*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4) + (5/2)^(-4)*exp(-1/2*(20/7*(23/4 - x))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-4))^(-1)*(20/7*2/5*(2*%pi)^(-1/2)*integrate((z - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2)^5*integrate((min(u, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-4)*(exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate((min(u, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-4) + (5/2)^(-4)*exp(-1/2*(20/7*(23/4 - z))^2)^4*integrate(exp(-1/2*(20/7*(23/4 - u))^2), u, 9/2, 7)^(-4))^(-1), z, 9/2, 7))^(-1)
--- l0 marginalised in X charfun(-7 + x <= 0)*charfun(9/2 - x <= 0)*2/5*20/7*(2/5)^(-1)*(20/7)^(-1)*integrate(exp(-1/2*(20/7*(23/4 - y))^2)*integrate((min(z, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - z))^2), z, 9/2, 7)^(-1), y, max(x, 9/2), min(7, 7))
--- l0 marginalised in Y charfun(9/2 - x <= 0)*charfun(-7 + x <= 0)*2/5*20/7*(2/5)^(-1)*(20/7)^(-1)*(min(7, min(x, 7)) - 9/2)*exp(-1/2*(20/7*(23/4 - x))^2)*integrate((min(y, 7) - 9/2)*exp(-1/2*(20/7*(23/4 - y))^2), y, 9/2, 7)^(-1)
-
--- >>> plotData exampleLassGood
--- l0...
--- s1...
--- l1...
-
--- >>> plotMarginalisedData exampleLassGood
--- l0x...
--- l0y...
-
 
 asExpression :: Exp ('R ⟶ 'R ⟶ 'R) -> P ('Unit × 'R × 'R)
 asExpression = simplifyFun2 [] . fromHoas
@@ -201,7 +170,7 @@ l1PriorSamples :: V.Vec Double
 l1PriorSamples = approxTop plotOptions l1PriorExpr
 
 -- >>> maxima l1PriorExpr
--- charfun(-x <= 0)*charfun(-7 + x <= 0)*exp(-1/2*(4 - x)^2)*integrate(integrate(exp(-1/2*(4 - z)^2), z, y, 7)^4, y, 0, x)^(-1)
+-- charfun(-x <= 0)*charfun(-7 + x <= 0)*exp(-1/2*(4 - x)^2)*integrate(integrate(exp(-1/2*(4 - z)^2), z, y, 7)^(-4), y, 0, x)^(-1)*integrate(exp(-1/2*(4 - y)^2)*integrate(integrate(exp(-1/2*(4 - u)^2), u, z, 7)^(-4), z, 0, y)^(-1), y, 0, 7)^(-1)
 
 plotData :: IO ()
 plotData = do

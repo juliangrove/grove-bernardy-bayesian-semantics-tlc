@@ -54,7 +54,7 @@ plotOptions = PlotOptions {..} where
 
 -- distribution for θ 
 linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
-linguisticParameterDistribution = uniform domLo domHi
+linguisticParameterDistribution = uniform (fromRational domLo) (fromRational domHi)
 
 interpU :: Exp 'U -> Exp 'R -> Exp 'R -> Exp 'T
 interpU u θ h = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)

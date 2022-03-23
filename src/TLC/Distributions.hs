@@ -22,17 +22,17 @@ observe' φ = App observe φ
 -- normal x y =
 --   App (Con $  Nml) (Pair (Con $ Incl x) (Con $ Incl y))
 
-cauchy :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
-cauchy x0 γ =
-  App (Con $  Cau) (Pair (Con $ Incl x0) (Con $ Incl γ))
+-- cauchy :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
+-- cauchy x0 γ =
+--   App (Con $  Cau) (Pair (Con $ Incl x0) (Con $ Incl γ))
 
-quartic :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
-quartic x y =
-  App (Con $  Qua) (Pair (Con $ Incl x) (Con $ Incl y))
+-- quartic :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
+-- quartic x y =
+--   App (Con $  Qua) (Pair (Con $ Incl x) (Con $ Incl y))
 
-uniform :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
-uniform x y =
-  App (Con $  Uni) (Pair (Con $ Incl x) (Con $ Incl y))
+-- uniform :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
+-- uniform x y =
+--   App (Con $  Uni) (Pair (Con $ Incl x) (Con $ Incl y))
 
 lesbegue :: γ ⊢ (('R ⟶ 'R) ⟶ 'R)
 lesbegue = Con $  Les

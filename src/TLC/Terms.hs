@@ -72,10 +72,7 @@ data Con α where
   Utt :: NLExp 'SP -> Con 'U
   Silence :: Con 'U
   MakeUtts :: Witness n -> Con ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
-  Cau :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Les :: Con (('R ⟶ 'R) ⟶ 'R)
-  Qua :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
-  Uni :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Interp :: Witness n -> Con ('U ⟶ Context n ⟶ 'T)
   Empty :: Con 'Γ
   Upd :: Con ('E ⟶ 'Γ ⟶ 'Γ)
@@ -412,9 +409,7 @@ instance Show (Con α) where
   show Addi = "(+)"
   show Mult = "(*)"
   show Divi = "(/)"
-  show Uni = "Uniform"
-  show Cau = "Cauchy"
-  show Les = "Lesbeue"
+  show Les = "Lesbegue"
   show EqGen = "(≐)"
   show EqRl = "(≡)"
   show (Utt s) = show s

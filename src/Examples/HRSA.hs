@@ -55,7 +55,7 @@ toMath RSAOut {..} = do
 -- >>> toMath (exampleCookies 1)
 -- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)*integrate(exp((-4 + z)^2), z, max(0, y), 7)^(-1)
 -- s1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)^(-1)*exp((-4 + x)^2)*integrate(integrate(exp((-4 + u)^2), u, z, 7)^(-1), z, 0, x)^(-1)*integrate(exp((-4 + z)^2), z, y, 7)^(-1)
--- l1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)^(-1)*exp((-4 + x)^2)*exp((-4 + x)^2)*integrate(exp((-4 + z)^2), z, y, 7)*integrate(integrate(exp((-4 + u)^2), u, z, 7)^(-1), z, 0, x)^(-1)*integrate(exp((-4 + z)^2), z, y, 7)^(-1)*integrate(exp((-4 + z)^2)^(-1)*exp((-4 + z)^2)*exp((-4 + z)^2)*integrate(integrate(exp((-4 + v)^2), v, u, 7)^(-1), u, 0, z)^(-1), z, y, 7)^(-1)
+-- l1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)^(-1)*exp((-4 + x)^2)*exp((-4 + x)^2)*integrate(exp((-4 + z)^2), z, y, 7)*integrate(integrate(exp((-4 + u)^2), u, z, 7)^(-1), z, 0, x)^(-1)*integrate(exp((-4 + z)^2), z, y, 7)^(-1)*integrate(exp((-4 + z)^2)^(-1)*exp((-4 + z)^2)*exp((-4 + z)^2)*integrate(integrate(exp((-4 + v)^2), v, u, 7)^(-1), u, 0, z)^(-1), z, y, 7)^(-1
 -- l0 marginalised in X charfun(-7 + x <= 0)*integrate(exp((-4 + y)^2), y, max(0, x), 7)^(-1)*integrate(exp((-4 + y)^2), y, max(0, x), 7)
 -- l0 marginalised in Y charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)*integrate(integrate(exp((-4 + z)^2), z, max(0, y), 7)^(-1), y, 0, min(7, x))
 
@@ -104,7 +104,7 @@ exampleTallThreshold = evaluate RSAIn {..} where
       normal 68 10 ⋆ \h ->
              observe (h ≥ fromInteger 0) >>
              observe (fromInteger 100 ≥ h) >>
-      uniform 0 100 ⋆ \θ ->
+      uniform (fromRational 0) (fromRational 100) ⋆ \θ ->
              η (θ `Pair` h)
 
 exampleLassGood :: RSAOut
@@ -128,7 +128,7 @@ exampleLassGood = evaluate RSAIn {..} where
     normal 5.75 0.35 ⋆ \h ->
              observe (h ≥ fromRational 4.5) >>
              observe (fromInteger 7 ≥ h) >>
-      uniform 4.5 7 ⋆ \θ ->
+      uniform (fromRational 4.5) (fromRational 7) ⋆ \θ ->
              η (θ `Pair` h)
 
 
@@ -156,7 +156,7 @@ exampleLassGoodExtra = evaluate RSAIn {..} where
     normal 5.75 0.35 ⋆ \h ->
              observe (h ≥ fromRational 4.5) >>
              observe (fromInteger 7 ≥ h) >>
-      uniform 4.5 7 ⋆ \θ ->
+      uniform (fromRational 4.5) (fromRational 7) ⋆ \θ ->
              η (θ `Pair` h)
 
 -- >>> plotData exampleLassGoodExtra

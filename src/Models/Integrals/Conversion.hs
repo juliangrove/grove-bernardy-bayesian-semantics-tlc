@@ -39,15 +39,6 @@ pattern InEq :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern InEq x y = Neu (NeuApp (NeuCon (Indi))
                             (Neu (NeuApp (NeuApp (NeuCon (GTE))
                                           x) y)))
-pattern Cauchy :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Cauchy x y f <- Neu (NeuApp (NeuApp (NeuCon (Cau))
-                                    (NFPair (NNCon x) (NNCon y))) f)
-pattern Quartic :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Quartic x y f <- Neu (NeuApp (NeuApp (NeuCon (Qua))
-                                    (NFPair (NNCon x) (NNCon y))) f)
-pattern Uniform :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Uniform x y f <- Neu (NeuApp (NeuApp (NeuCon (Uni))
-                                     (NFPair (NNCon x) (NNCon y))) f)
 pattern Lesbegue :: NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Lesbegue f = Neu (NeuApp (NeuCon (Les)) f)
 pattern Divide :: NF γ 'R -> NF γ 'R -> NF γ 'R
@@ -77,21 +68,6 @@ evalP' = \case
   Mults (evalP' -> x) (evalP' -> y) -> x * y
   Divide x y -> evalP' x / evalP' y -- TODO: get rid of this and use * and recip
   Expos (evalP' -> x) (NNCon y) -> Power x y
-  Cauchy x0 γ f -> Integrate full $
-    (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)) /
-    (retPoly $ (constPoly (pi * γ)
-                 * (one + (constPoly (one/γ)
-                            * (varPoly Get - constPoly x0)) ^+2)))
-  Quartic μ σ f -> Integrate (Domain [A.constant (μ - a)]
-                              [A.constant (μ + a)]) $
-    retPoly ((constPoly ((15 / 16) / (a ^+ 5)))
-     * ((varPoly Get - constPoly μ) - constPoly a) ^+ 2
-     * ((varPoly Get - constPoly μ) + constPoly a) ^+ 2)
-    * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-    where a = sqrt 7 * σ
-  Uniform x y f -> Integrate (Domain [A.constant x] [A.constant y]) $ 
-    retPoly (constPoly (1 / (y - x)))
-    * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Lesbegue f -> Integrate (Domain [] []) $
                 (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   t -> retPoly (evalRet t)
