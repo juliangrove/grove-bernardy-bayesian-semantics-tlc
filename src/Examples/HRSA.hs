@@ -52,10 +52,12 @@ toMath RSAOut {..} = do
   putStr "l0 marginalised in Y "
   maxima $ l0Y
 
--- >>> toMath exampleCookies
--- l0 = charfun(-40 + y <= 0)*charfun(-y <= 0)*charfun(x - y <= 0)*exp(-1/2*(1/5*(40 - y))^2)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, max(x, 0), 40)^(-1)
--- s1 = charfun(-40 + y <= 0)*charfun(-x <= 0)*charfun(-40 + x <= 0)*charfun(x - y <= 0)*integrate(integrate(exp(-1/2*(1/5*(40 - u))^2), u, z, 40)^(-4), z, 0, y)^(-1)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, x, 40)^(-4)
--- l1 = charfun(-40 + y <= 0)*charfun(-x <= 0)*charfun(-40 + x <= 0)*charfun(x - y <= 0)*exp(-1/2*(1/5*(40 - y))^2)*integrate(exp(-1/2*(1/5*(40 - z))^2)*integrate(integrate(exp(-1/2*(1/5*(40 - v))^2), v, u, 40)^(-4), u, 0, z)^(-1)*integrate(exp(-1/2*(1/5*(40 - u))^2), u, x, 40)^(-4), z, x, 40)^(-1)*integrate(integrate(exp(-1/2*(1/5*(40 - u))^2), u, z, 40)^(-4), z, 0, y)^(-1)*integrate(exp(-1/2*(1/5*(40 - z))^2), z, x, 40)^(-4)
+-- >>> toMath (exampleCookies 1)
+-- l0 = charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)*integrate(exp((-4 + z)^2), z, max(0, y), 7)^(-1)
+-- s1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)^(-1)*exp((-4 + x)^2)*integrate(integrate(exp((-4 + u)^2), u, z, 7)^(-1), z, 0, x)^(-1)*integrate(exp((-4 + z)^2), z, y, 7)^(-1)
+-- l1 = charfun(-y <= 0)*charfun(-x + y <= 0)*charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)^(-1)*exp((-4 + x)^2)*exp((-4 + x)^2)*integrate(exp((-4 + z)^2), z, y, 7)*integrate(integrate(exp((-4 + u)^2), u, z, 7)^(-1), z, 0, x)^(-1)*integrate(exp((-4 + z)^2), z, y, 7)^(-1)*integrate(exp((-4 + z)^2)^(-1)*exp((-4 + z)^2)*exp((-4 + z)^2)*integrate(integrate(exp((-4 + v)^2), v, u, 7)^(-1), u, 0, z)^(-1), z, y, 7)^(-1)
+-- l0 marginalised in X charfun(-7 + x <= 0)*integrate(exp((-4 + y)^2), y, max(0, x), 7)^(-1)*integrate(exp((-4 + y)^2), y, max(0, x), 7)
+-- l0 marginalised in Y charfun(-7 + x <= 0)*charfun(-x <= 0)*exp((-4 + x)^2)*integrate(integrate(exp((-4 + z)^2), z, max(0, y), 7)^(-1), y, 0, min(7, x))
 
 -- >>> plotData exampleCookies
 -- l0...

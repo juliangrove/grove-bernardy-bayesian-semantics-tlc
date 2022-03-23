@@ -165,10 +165,13 @@ instance Transcendental (Exp 'R) where
   pi = Con CircleConstant
 
 uniform :: Rational -> Rational -> PP 'R
-uniform x y = App (Con Uni) (Pair (Con $ Incl x) (Con $ Incl y))
+xuniform x y = App (Con Uni) (Pair (Con $ Incl x) (Con $ Incl y))
 
 normal :: Rational -> Rational -> PP 'R
-normal x y = App (Con Nml) (Pair (Con $ Incl x) (Con $ Incl y))
+normal μ σ = lesbegue ⋆ \x ->
+  -- TODO: get rid of the constant factor below
+  factor (exp (negate (((x - fromRational μ) / fromRational σ) ^+ 2)) / (fromRational σ * sqrt (fromRational 2 * pi))) >>
+  η x
 
 lesbegue :: PP 'R
 lesbegue = Con Les 

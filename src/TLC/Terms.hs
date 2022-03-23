@@ -74,7 +74,6 @@ data Con α where
   MakeUtts :: Witness n -> Con ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
   Cau :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Les :: Con (('R ⟶ 'R) ⟶ 'R)
-  Nml :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Qua :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Uni :: Con (('R × 'R) ⟶ ('R ⟶ 'R) ⟶ 'R)
   Interp :: Witness n -> Con ('U ⟶ Context n ⟶ 'T)
@@ -413,7 +412,6 @@ instance Show (Con α) where
   show Addi = "(+)"
   show Mult = "(*)"
   show Divi = "(/)"
-  show Nml = "Normal"
   show Uni = "Uniform"
   show Cau = "Cauchy"
   show Les = "Lesbeue"

@@ -39,9 +39,6 @@ pattern InEq :: NF γ 'R -> NF γ 'R -> NF γ 'R
 pattern InEq x y = Neu (NeuApp (NeuCon (Indi))
                             (Neu (NeuApp (NeuApp (NeuCon (GTE))
                                           x) y)))
-pattern Normal :: Field x=> x -> x -> NF γ ('R ⟶ 'R) -> NF γ 'R
-pattern Normal x y f <- Neu (NeuApp (NeuApp (NeuCon (Nml))
-                                    (NFPair (NNCon x) (NNCon y))) f)
 pattern Cauchy :: Field x => x -> x ->NF γ ('R ⟶ 'R) -> NF γ 'R
 pattern Cauchy x y f <- Neu (NeuApp (NeuApp (NeuCon (Cau))
                                     (NFPair (NNCon x) (NNCon y))) f)
@@ -67,7 +64,6 @@ evalP = evalP'
 
 evalP' :: forall γ. NF γ 'R -> P γ
 evalP' = \case
-  NNCon x -> retPoly $ constPoly (fromRational x)
   Neu (NeuApp (NeuCon (Indi)) (Neu (NeuCon (Tru)))) -> one
   Neu (NeuApp (NeuApp (NeuCon (EqRl))
                (Adds (NNVar i) (NNVar j))) (NNVar k)) ->
@@ -79,12 +75,8 @@ evalP' = \case
   InEq (NNCon x) (NNVar i) -> Cond (IsNegative $ A.var i - A.constant x) one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
   Mults (evalP' -> x) (evalP' -> y) -> x * y
+  Divide x y -> evalP' x / evalP' y -- TODO: get rid of this and use * and recip
   Expos (evalP' -> x) (NNCon y) -> Power x y
-  Normal μ σ f -> Integrate full $
-      retPoly (constPoly (1 / (σ * sqrt (2 * pi)))
-       * exp (constPoly (-1/2)
-                       * (constPoly (1/σ) * (constPoly μ - varPoly Get)) ^+ 2))
-    * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Cauchy x0 γ f -> Integrate full $
     (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get)) /
     (retPoly $ (constPoly (pi * γ)
@@ -102,8 +94,17 @@ evalP' = \case
     * (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
   Lesbegue f -> Integrate (Domain [] []) $
                 (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
-  NNVar i -> retPoly $ varPoly i
-  Divide x y -> (evalP' x) / (evalP' y)
-  t -> error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
+  t -> retPoly (evalRet t)
+    -- error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
 
-
+evalRet :: forall γ. NF γ 'R -> Ret γ
+evalRet = \case
+  NNCon x -> constPoly (fromRational x)
+  Adds x y -> evalRet x + evalRet y
+  Mults x y -> evalRet x * evalRet y
+  Divide x y -> evalRet x / evalRet y
+  Expos x (NNCon y) -> evalRet x ^/ y
+  NNVar i -> varPoly i
+  Neu (NeuApp (NeuCon Exp) x) -> exp (evalRet x)
+  (Neu (NeuCon CircleConstant)) -> pi
+  t -> error ("evalRet: don't know how to handle: " ++ (show . nf_to_λ) t)

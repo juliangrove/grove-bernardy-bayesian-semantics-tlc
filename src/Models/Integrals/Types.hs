@@ -73,8 +73,11 @@ data Cond' e = IsNegative { condExpr :: e }
 data Domain γ = Domain { domainLoBounds, domainHiBounds :: [Expr γ] }
   deriving (Show, Eq, Ord)
 
+
+-- | needs to be 1st a order representation for optimisations to be
+-- implementable
 data P (γ :: Type) where
-  Done :: Ret γ -> P γ -- needs to be 1st in order for optimisation to work
+  Done :: Ret γ -> P γ
   Cond :: Cond γ -> P γ -> P γ
   Integrate :: Domain γ -> P (γ × 'R) -> P γ
   Add :: P γ -> P γ -> P γ

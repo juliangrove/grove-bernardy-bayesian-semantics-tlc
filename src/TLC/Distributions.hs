@@ -18,9 +18,9 @@ observe :: γ ⊢ (T ⟶ ((Unit ⟶ R) ⟶ R))
 observe = Lam (App factor (App (Con ( Indi)) (Var Get)))
 observe' φ = App observe φ
  
-normal :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
-normal x y =
-  App (Con $  Nml) (Pair (Con $ Incl x) (Con $ Incl y))
+-- normal :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)
+-- normal x y =
+--   App (Con $  Nml) (Pair (Con $ Incl x) (Con $ Incl y))
 
 cauchy :: Rational -> Rational -> γ ⊢ (('R ⟶ 'R) ⟶ 'R)
 cauchy x0 γ =
