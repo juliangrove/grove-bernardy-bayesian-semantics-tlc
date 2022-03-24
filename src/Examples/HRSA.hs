@@ -97,7 +97,7 @@ exampleCookiesLogistic alpha = evaluate RSAIn {..} where
   lo = fromRational (toRational plotDomainLo)
   hi = fromRational (toRational plotDomainHi)
   contextDistribution =
-      logisticDistr (fromRational 4) (fromRational 0.5) ⋆ \nCookies ->
+      logisticDistr (fromRational 4) (sqrt (fromRational 3) / pi) ⋆ \nCookies ->
              observe (nCookies ≥ lo) >>
              η nCookies
 
