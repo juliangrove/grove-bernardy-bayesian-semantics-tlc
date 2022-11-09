@@ -1,8 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -36,10 +36,11 @@ import Control.Applicative (Const(..))
 import Data.Maybe (catMaybes)
 import qualified Algebra.Expression as E
 import Data.Either (partitionEithers)
-import Data.List (sort,insert)
+import Data.List (sort, insert)
 
----------------------------------------------------------
--- Normalisation of integrals 
+
+--------------------------------------------------------------------------------
+-- | Normalisation of integrals 
 
 insertUniq :: Eq a => a -> [a] -> [a]
 insertUniq x [] = [x]
@@ -69,7 +70,7 @@ solve' :: Cond (γ × 'R) -> Solution γ
 solve' c0 = case c0 of
     IsZero _ -> (EQ, e)
     IsNegative _ -> if positive then (LT, e) else (GT, e) 
-  where (positive,e) = solveGet (condExpr c0) 
+  where (positive, e) = solveGet (condExpr c0) 
 
 occurExpr :: Expr (γ × 'R) -> Maybe (Expr γ)
 occurExpr = A.traverseVars $ \case
@@ -77,9 +78,9 @@ occurExpr = A.traverseVars $ \case
   Weaken x -> Just x
 
 domainToConds :: Domain γ -> [Cond (γ × 'R)]
-domainToConds (Domain los his)
-  = [wkExpr e `lessThan` A.var Get | e <- los] ++
-    [A.var Get `lessThan` wkExpr e | e <- his]
+domainToConds (Domain los his) =
+  [wkExpr e `lessThan` A.var Get | e <- los] ++
+  [A.var Get `lessThan` wkExpr e | e <- his]
 
 noGet :: Available x (γ × a) -> Maybe (Available x γ)
 noGet = (\case Get -> Nothing; Weaken x -> Just x)
@@ -100,8 +101,8 @@ integrate :: Domain γ -> P (γ × 'R) -> P γ
 integrate _ PZero = zero
 integrate d (Done k) | Just k' <- traverse (varTraverse noGet) k
                      -- integration variable does not occur in k
-  = Done ((hi-lo) * k')
-  where (lo,hi) = mkSuprema d -- ∫_lo^hi dx = (hi-lo)
+  = Done ((hi - lo) * k')
+  where (lo, hi) = mkSuprema d -- ∫_lo^hi dx = (hi-lo)
 integrate d (Cond c@(IsNegative c') e) = case occurExpr c' of
   Nothing -> foldr cond (integrate d' e) cs
     where (d', cs) = restrictDomain c d
@@ -114,17 +115,20 @@ integrate d (Cond (IsZero c') e) = case occurExpr c' of
     -- HOWEVER, due to the way we generate the equalities, my hunch is
     -- that we already take into account this coefficient. To be
     -- investigated.)
-    substP (\case Get -> x0; Weaken i -> A.var i) $ foldr cond e (domainToConds d)
+    substP (\case Get -> x0; Weaken i -> A.var i) $
+    foldr cond e (domainToConds d)
     where (_, x0) = solveGet c'
   Just c'' -> cond (IsZero c'') (integrate d e)
 integrate d (Add e e') = Add (integrate d e) (integrate d e')
-integrate d (Mul xs) = product ks * if null rest then integrate d one else Integrate d (Mul rest)
-  where (ks,rest) = partitionEithers (fmap isConst xs)
+integrate d (Mul xs) = product ks * if null rest
+                                    then integrate d one
+                                    else Integrate d (Mul rest)
+  where (ks, rest) = partitionEithers (fmap isConst xs)
         isConst p = case varTraverse noGet p of
           Just p' -> Left (p')
           Nothing -> Right p
-integrate d e | Just z' <- varTraverse noGet e = mul [Done (hi-lo), z']  
-  where (lo,hi) = mkSuprema d
+integrate d e | Just z' <- varTraverse noGet e = mul [Done (hi - lo), z']  
+  where (lo, hi) = mkSuprema d
 
         
 --- NOTE: the above causes many traversals. To avoid it we'd need to compute the (un)used
@@ -152,7 +156,7 @@ power k = \case
   Cond c e -> Cond c (power k e)
   Done e -> Done (e ** numberToRet k)
   -- Scale x e -> Scale (x ** numberToRet k) (power k e)
-  Power e k' -> power (k*k') e
+  Power e k' -> power (k * k') e
   e -> Power e k
 
 -- scal :: Ret γ -> P γ -> P γ
@@ -179,12 +183,13 @@ done x = Done x
 
 mur :: P γ -> P γ -> P γ
 mur a = \case
-  (Done E.Zero) -> zero
-  (Done E.One) -> a
-  (Cond c x) -> Cond c (mur a x)
-  (Add p1 p2) -> Add (mur a p1) (mur a p2)
-  Mul (Done x:xs) | Done y <- a, null (retVars x) && null (retVars y) -> mur (Done (x * y)) (Mul xs)
-  (Mul xs) -> Mul (a `insert` xs)
+  Done E.Zero -> zero
+  Done E.One -> a
+  Cond c x -> Cond c (mur a x)
+  Add p1 p2 -> Add (mur a p1) (mur a p2)
+  Mul (Done x:xs) | Done y <- a, null (retVars x) && null (retVars y) ->
+                    mur (Done (x * y)) (Mul xs)
+  Mul xs -> Mul (a `insert` xs)
   x -> Mul (a `insert` [x])
 
 mul :: [P γ] -> P γ
@@ -245,7 +250,7 @@ cleanConds cs = \case
   -- Scale k e -> Scale k (cleanConds cs e)
   Integrate d e -> Integrate (cleanDomain cs d) 
                    $ cleanConds' ((fromNegative <$> domainToConds d) ++ -- new conditions coming from the domain being traversed
-                                  (map (A.mapVars  Weaken) cs)) -- keep old conditions (but weaken variables)
+                                  (map (A.mapVars Weaken) cs)) -- keep old conditions (but weaken variables)
                    $ e
   Cond c e -> if cs `entail` fromNegative c
               then cleanConds cs e
@@ -256,14 +261,16 @@ cleanConds cs = \case
        fromNegative _ = error "cleanConds: equality condition remaining?"
 
 cleanConds' :: (a ~ Rat) => [Negative γ] -> P γ -> P γ
-cleanConds' cs e = if hasContradictionStrict (map negate cs) then zero else cleanConds cs e
+cleanConds' cs e = if hasContradictionStrict (map negate cs)
+                   then zero
+                   else cleanConds cs e
 
--- | Traversing with this returns free variables
+-- | Traversing with this returns free variables.
 getVars :: Var γ -> Const [Var γ] (Var γ)
 getVars v = Const [v]
 
--- | Return a list of conditions occuring, in the form of expressions
--- whose sign is tested.
+-- | Return a list of conditions occuring, in the form of expressions whose sign
+-- is tested.
 discontinuities :: forall γ. P γ -> [Expr γ]
 discontinuities  = \case
   Add a b -> discontinuities a <> discontinuities b

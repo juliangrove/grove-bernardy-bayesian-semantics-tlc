@@ -15,7 +15,7 @@ factor =
 factor' x = App factor x
 
 observe :: γ ⊢ (T ⟶ ((Unit ⟶ R) ⟶ R))
-observe = Lam (App factor (App (Con ( Indi)) (Var Get)))
+observe = Lam (App factor (App (Con Indi) (Var Get)))
 observe' φ = App observe φ
  
 -- normal :: Rational -> Rational -> γ ⊢ ((R ⟶ R) ⟶ R)

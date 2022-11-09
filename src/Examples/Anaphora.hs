@@ -43,9 +43,13 @@ prop i = Con $ T.Property i
 rel :: Int -> Exp ('E ':-> ('E ⟶ 'T))
 rel i = Con $ T.Relation i
 vlad :: Exp 'E
-vlad = Con $ T.Vlad
+vlad = Con T.Vlad
 jp :: Exp 'E
 jp = Con T.JP
+emacs :: Exp 'E
+emacs = Con T.JP
+the_command :: Exp 'E
+the_command = Con T.Vlad
 entity :: Int -> Exp 'E
 entity i = Con $ T.Entity i
 height :: Exp ('E ':-> 'R)
@@ -93,20 +97,38 @@ ktx (T.S T.Z) =
   η (TT & φ6 & π & π' & rel 0 & entity 1 & entity 0)
 ktx (T.S (T.S T.Z)) =
   pis [0, 1] ⋆ \π ->
-  makeBernoulli (exists' (\x -> rel 1 @@ x @@ jp)) (incl 0.05) ⋆ \φ0 ->
-  makeBernoulli (exists' (\x -> rel 1 @@ x @@ vlad)) (incl 0.05) ⋆ \φ1 ->
-  makeBernoulli (prop 0 @@ jp) (incl 0.05) ⋆ \φ2 ->
-  makeBernoulli (prop 0 @@ vlad) (incl 0.05) ⋆ \φ3 ->
-  makeBernoulli (prop 1 @@ jp) (incl 0.2) ⋆ \φ2 ->
-  makeBernoulli (prop 1 @@ vlad) (incl 0.2) ⋆ \φ3 ->
+  makeBernoulli (exists' (\x -> rel 1 @@ x @@ emacs)) (incl 0.05) ⋆ \φ0 ->
+  makeBernoulli (exists' (\x -> rel 1 @@ x @@ the_command)) (incl 0.05) ⋆ \φ1 ->
+  makeBernoulli (prop 0 @@ emacs) (incl 0.05) ⋆ \φ2 ->
+  makeBernoulli (prop 0 @@ the_command) (incl 0.05) ⋆ \φ3 ->
+  makeBernoulli (prop 1 @@ emacs) (incl 0.2) ⋆ \φ2 ->
+  makeBernoulli (prop 1 @@ the_command) (incl 0.2) ⋆ \φ3 ->
   η (φ0 ∧ φ1 ∧ φ2 ∧ φ3 ∧
     forall' (\x -> exists' (\y -> rel 1 @@ y @@ x) → (prop 1 @@ x)) ∧
     forall' (\x -> prop 0 @@ x → (prop 1 @@ x)) ∧
-    (rel 1 @@ vlad @@ jp)) ⋆ \φ6 ->
-  η (TT & φ6 & π & prop 0 & entity 1 & entity 0)
+    (rel 1 @@ the_command @@ emacs)) ⋆ \φ6 ->
+  η (TT & φ6 & π & prop 0 & the_command & emacs)
 ktx _ = error "k: not defined yet."
 
 
+p1 :: Exp (('T ⟶ 'R) ⟶ 'R)
+p1 =
+  makeBernoulli (exists' (\x -> rel 0 @@ x @@ emacs)) (incl 0.05) ⋆ \φ0 ->
+  makeBernoulli (prop 0 @@ emacs) (incl 0.2) ⋆ \φ1 ->
+  η (φ0 ∧ φ1 ∧ (rel 0 @@ the_command @@ emacs))
+
+p1' :: 'Unit ⊢ (('T ⟶ 'R) ⟶ 'R)
+p1' = fromHoas p1
+
+p2 :: Exp (('T ⟶ 'R) ⟶ 'R)
+p2 =
+  makeBernoulli (exists' (\x -> rel 0 @@ x @@ emacs)) (incl 0.05) ⋆ \φ0 ->
+  makeBernoulli (prop 0 @@ emacs) (incl 0.2) ⋆ \φ1 ->
+  observe (φ0 ∧ φ1 ∧ (forall' (\x -> exists' (\y -> rel 0 @@ y @@ x) → (prop 0 @@ x)))) >>
+  η (φ0 ∧ φ1 ∧ (rel 0 @@ the_command @@ emacs))
+
+p2' :: 'Unit ⊢ (('T ⟶ 'R) ⟶ 'R)
+p2' = fromHoas p2
 
 -- | Literal listener
 l0 :: T.Witness n -> Exp ('U ⟶ (T.Context n ⟶ 'R) ⟶ 'R)

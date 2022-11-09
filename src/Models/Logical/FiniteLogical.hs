@@ -20,7 +20,6 @@ import Text.Pretty.Math
 import qualified Algebra.Expression as E
 
 
-
 makeBernoulli :: γ ⊢ 'T -> γ ⊢ 'R -> γ ⊢ (('T ⟶ 'R) ⟶ 'R)
 makeBernoulli φ x = Lam $ App (Var Get) (wkn φ) * (wkn x) +
                     App (Var Get) (Imp' (wkn φ) False') * (one - wkn x)

@@ -34,6 +34,17 @@ data Type = E | T | R | U | Γ
           | Unit
           | Type :× Type
 
+
+data SType (t :: Type) where
+  SE :: SType 'E
+  ST :: SType 'T
+  SR :: SType 'R
+  SU :: SType 'U
+  SΓ :: SType 'Γ
+  SArr :: SType a -> SType b -> SType (a ⟶ b)
+  SUnit :: SType 'Unit
+  SProd :: SType a -> SType b -> SType (a × b)
+
 type α × β = α ':× β
 type α ⟶ β = α ':-> β
 infixr ⟶
@@ -86,6 +97,7 @@ data Con α where
   Degree :: Int -> Con 'R
   GTE :: Con ('R ⟶ 'R ⟶ 'T)
   Sel :: Int -> Con ('Γ ⟶ 'E)
+  Con0 :: SType a -> String -> Con a
 
 -- | Well-typed terms.
 data γ ⊢ α where
@@ -434,6 +446,7 @@ instance Show (Con α) where
   show (Degree n) = "θ" ++ show n
   show GTE = "(≥)"
   show (Sel n) = "sel" ++ show n
+  show (Con0 _ s) = s
 
 instance Additive (γ ⊢ 'R) where
   zero = Con (Incl 0)
@@ -474,7 +487,6 @@ pattern Theta = Degree 1
 absInversion :: γ ⊢ ('R ⟶ α) -> (γ × 'R) ⊢ α
 absInversion (Lam f) = f
 absInversion t = App (wkn t) (Var Get)
-
 
 traverseNF :: Applicative f => (forall x. x ∈ γ -> f (x ∈ δ)) -> NF γ α -> f (NF δ α)
 traverseNF f = \case

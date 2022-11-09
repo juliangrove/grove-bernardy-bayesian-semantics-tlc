@@ -1,5 +1,5 @@
 set terminal svg;
-set output ARG2;
+set output ARG1;
 set zrange [0:1];
 set view map;
-splot ARG1 nonuniform matrix with pm3d;
+splot ARG2 nonuniform matrix with pm3d;

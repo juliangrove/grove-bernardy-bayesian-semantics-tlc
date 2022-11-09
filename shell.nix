@@ -7,8 +7,15 @@ in
 }:
 let
   ghc = pkgs.haskellPackages.ghcWithPackages (ps: with ps; ([
+    base
     cabal-install
+    containers
+    directory
     gasp
+    logict
+    MissingH
+    mtl
+    pretty
   ]));
 in
 pkgs.stdenv.mkDerivation {

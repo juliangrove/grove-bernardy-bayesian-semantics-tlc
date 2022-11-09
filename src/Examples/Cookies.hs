@@ -26,7 +26,6 @@ toMath = do
   maxima $ s1Expr
   putStr "l1 = "
   maxima $ l1Expr
-
   putStr "l0 marginalised in X "
   maxima $ l0X
   putStr "l0 marginalised in Y "
@@ -51,8 +50,8 @@ alpha = 4
 
 prefix = ("cookies-continuous-" ++ show (fromRational alpha :: Double) ++ "-")
 varsToSituation y x = (x,y)
-domLo = 0
-domHi = 7
+domLo = 30
+domHi = 37
 plotResolution = 128
 utteranceDistribution = uniform lo hi
 interpU u nCookies = nCookies ≥ u
@@ -170,7 +169,7 @@ l1PriorSamples :: V.Vec Double
 l1PriorSamples = approxTop plotOptions l1PriorExpr
 
 -- >>> maxima l1PriorExpr
--- charfun(-x <= 0)*charfun(-7 + x <= 0)*exp(-1/2*(4 - x)^2)*integrate(integrate(exp(-1/2*(4 - z)^2), z, y, 7)^(-4), y, 0, x)^(-1)*integrate(exp(-1/2*(4 - y)^2)*integrate(integrate(exp(-1/2*(4 - u)^2), u, z, 7)^(-4), z, 0, y)^(-1), y, 0, 7)^(-1)
+-- charfun(50 - x <= 0)*charfun(-57 + x <= 0)*exp(-(-4 + x)^2)*integrate(integrate(exp(-(-4 + z)^2), z, y, 57)^(-4), y, 50, x)^(-1)*integrate(exp(-(-4 + y)^2)*integrate(integrate(exp(-(-4 + u)^2), u, z, 57)^(-4), z, 50, y)^(-1), y, 50, 57)^(-1)
 
 plotData :: IO ()
 plotData = do
