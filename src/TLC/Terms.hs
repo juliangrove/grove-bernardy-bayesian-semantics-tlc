@@ -42,11 +42,6 @@ type U = 'Atom "u"
 type Γ = 'Atom "γ"
 
 data SType (t :: Type) where
-  -- SE :: SType E
-  ST :: SType T
-  SR :: SType R
-  SU :: SType U
-  SΓ :: SType Γ
   SAtom :: SType (Atom c)
   SArr :: SType a -> SType b -> SType (a ⟶ b)
   SUnit :: SType Unit
