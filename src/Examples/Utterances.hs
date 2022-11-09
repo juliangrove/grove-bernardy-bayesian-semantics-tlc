@@ -7,28 +7,28 @@ import Prelude hiding (Monad(..), Num(..), Fractional(..), Floating(..))
 import TLC.HOAS
 import qualified TLC.Terms as F
 
-isTall :: Exp 'U
+isTall :: Exp F.U
 isTall = Con $ Utt $ F.MergeRgt F.Vl F.IsTall
-isShort :: Exp 'U
+isShort :: Exp F.U
 isShort = Con $ Utt $ F.MergeRgt F.Vl F.IsShort
-vaccuous :: Exp 'U
+vaccuous :: Exp F.U
 vaccuous = Con $ Silence
-is5Feet :: Exp 'U
+is5Feet :: Exp F.U
 is5Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 5)
-is55Feet :: Exp 'U
+is55Feet :: Exp F.U
 is55Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 5.5)
-is6Feet :: Exp 'U
+is6Feet :: Exp F.U
 is6Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 6)
-is65Feet :: Exp 'U
+is65Feet :: Exp F.U
 is65Feet = Con $ Utt $ F.MergeRgt F.Vl (F.IsThisTall 65)
 
-cost :: Rational -> Double -> Exp 'R
+cost :: Rational -> Double -> Exp F.R
 cost α x = Con (F.Incl (toRational (exp (- x * (fromRational α)) :: Double))) 
 
 wordCost :: Double
 wordCost = 2/3
 
-tallShortOrSilence,tallOrSilenceOrGiven :: Rational -> Exp (('U ⟶ 'R) ⟶ 'R)
+tallShortOrSilence,tallOrSilenceOrGiven :: Rational -> Exp ((F.U ⟶ F.R) ⟶ F.R)
 
 tallShortOrSilence α = Lam $ \k -> cost α 2 * (k @@ isTall) + k @@ vaccuous  
   -- + k @@ isShort -- makes no difference on L0[isTall] (obviously),

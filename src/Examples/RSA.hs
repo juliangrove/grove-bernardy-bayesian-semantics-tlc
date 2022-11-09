@@ -17,17 +17,17 @@ import qualified Algebra.Linear.Vector as V
 test2' :: V.Vec (V.Vec Double)
 test2' = approxTop test2
 
-test2 :: P (('Unit × 'R) × 'R)
+test2 :: P ((Unit × R) × R)
 test2 = simplifyFun2 [] utilityl1
 
 -- >>> maxima test2
 -- charfun(53 - y <= 0)*charfun(-83 + y <= 0)*charfun(-78 + y <= 0)*charfun(-x + y <= 0)*charfun(-83 + x <= 0)*integrate(integrate(exp(-1/2*(1/3*(68 - u))^2), u, z, 83)^(-4), z, 53, min(78, x))^(-1)*integrate(exp(-1/2*(1/3*(68 - z))^2), z, y, 83)^(-4)
 
 
-utts'' :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
+utts'' :: γ ⊢ ((U ⟶ R) ⟶ R)
 utts'' = uniform (68-15) (68+10) ⋆ Lam (η (u' (Var Get)))
 
-k :: γ ⊢ ((Context0 ⟶ 'R) ⟶ 'R)
+k :: γ ⊢ ((Context0 ⟶ R) ⟶ R)
 k = uniform 0 1
     ⋆ Lam (normal 68 3
            ⋆ Lam
@@ -43,15 +43,15 @@ k = uniform 0 1
                  (Lam (Var (Weaken Get))))
                 vlad)))))
 
-makeUtts :: [γ ⊢ 'U] -> γ ⊢ (('U ⟶ 'R) ⟶ 'R)
+makeUtts :: [γ ⊢ U] -> γ ⊢ ((U ⟶ R) ⟶ R)
 makeUtts us = Lam $ foldr1 addi $ map (App (Var Get) . wkn) us
-  where addi :: γ ⊢ 'R -> γ ⊢ 'R -> γ ⊢ 'R
+  where addi :: γ ⊢ R -> γ ⊢ R -> γ ⊢ R
         addi x y = (Con $ General Addi) `App` x `App` y
 
--- utts123 :: γ ⊢ (('U ⟶ 'R) ⟶ 'R)
+-- utts123 :: γ ⊢ ((U ⟶ R) ⟶ R)
 -- utts123 = makeUtts [u 1, u 2, u 3]
 
-updctx :: γ ⊢ Context0 -> γ ⊢ ('R ⟶ Context0)
+updctx :: γ ⊢ Context0 -> γ ⊢ (R ⟶ Context0)
 updctx kk = Lam (Pair
                 (Pair (Fst (Fst $ wkn kk))
                  (Lam (Var (Weaken Get))))
@@ -61,55 +61,55 @@ updctx kk = Lam (Pair
 -- (height(v) ≥ θ)
 
 -- | Pragmatic listener
-l1 :: γ ⊢ ('U ⟶ (Context0 ⟶ 'R) ⟶ 'R)
+l1 :: γ ⊢ (U ⟶ (Context0 ⟶ R) ⟶ R)
 l1 = Lam (k ⋆ Lam (
              factor' ((App (distr (App s1 (Var Get))) (Var (Weaken Get)))) >>
              η (Var Get)))
 
-l1Distr :: γ ⊢ ('U ⟶ Context0 ⟶ 'R)
+l1Distr :: γ ⊢ (U ⟶ Context0 ⟶ R)
 l1Distr = Lam (Lam (distr (l1 `App` Var (Weaken Get))) `App` Var Get)
 
 -- | Pragmatic speaker
-s1' :: Integer -> γ ⊢ (Context0 ⟶ ('U ⟶ 'R) ⟶ 'R)
+s1' :: Integer -> γ ⊢ (Context0 ⟶ (U ⟶ R) ⟶ R)
 s1' α = Lam (
              utts''
              ⋆ Lam (
              factor' ((distr (l0 `App` Var Get) `App`  (Var (Weaken Get))) ^+ α) >>
              η (Var Get)))
 
--- s1'' :: Integer -> H.Exp (Context0 ⟶ ('U ⟶ 'R) ⟶ 'R)
+-- s1'' :: Integer -> H.Exp (Context0 ⟶ (U ⟶ R) ⟶ R)
 -- s1'' α = H.Lam $ \ctx ->
 --            H.toHOAS utts'' H.⋆ H.Lam (\u ->
 --               (H.toHOAS factor `H.App` _) H.>> H.η u
 --                                      )
 
-s1 :: γ ⊢ (Context0 ⟶ ('U ⟶ 'R) ⟶ 'R)
+s1 :: γ ⊢ (Context0 ⟶ (U ⟶ R) ⟶ R)
 s1 = s1' 4
 
-s1Distr :: γ ⊢ (Context0 ⟶ 'U ⟶ 'R)
+s1Distr :: γ ⊢ (Context0 ⟶ U ⟶ R)
 s1Distr = Lam (Lam (distr (s1 `App` Var (Weaken Get))) `App` Var Get)
 
 -- | Literal listener
-l0 :: γ ⊢ ('U ⟶ (Context0 ⟶ 'R) ⟶ 'R)
+l0 :: γ ⊢ (U ⟶ (Context0 ⟶ R) ⟶ R)
 l0 = Lam (k ⋆
           Lam (
              observe'
              (App (App (Con (General (Interp Z))) (Var (Weaken Get))) (Var Get)) >>
              η (Var Get)))
 
-l0Distr :: γ ⊢ ('U ⟶ Context0 ⟶ 'R)
+l0Distr :: γ ⊢ (U ⟶ Context0 ⟶ R)
 l0Distr = Lam (Lam (distr (l0 `App` Var (Weaken Get))) `App` Var Get)
 
--- l0DistrForFixedU2 :: γ ⊢ ('R ⟶ 'R)
+-- l0DistrForFixedU2 :: γ ⊢ (R ⟶ R)
 -- l0DistrForFixedU2 = distr $ App l0 (u 2) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Var Get)))
 
--- l1DistrForFixedU :: Int -> γ ⊢ ('R ⟶ 'R)
+-- l1DistrForFixedU :: Int -> γ ⊢ (R ⟶ R)
 -- l1DistrForFixedU n = distr $ App l1 (u n) ⋆ Lam (η (App (hmorph (height `App` vlad)) (Var Get)))
 
-test :: γ ⊢ ('R ⟶ 'R)
+test :: γ ⊢ (R ⟶ R)
 test = distr $ uniform 0 10 ⋆ Lam (uniform 0 10 ⋆ Lam (η ((Con (General Addi)) `App` (Var Get) `App` (Var (Weaken Get)))))
 
-heightToCtx :: γ ⊢ ('R ⟶ Context0)
+heightToCtx :: γ ⊢ (R ⟶ Context0)
 heightToCtx = Lam ((Pair
                     (Pair
                      (Pair
@@ -120,16 +120,16 @@ heightToCtx = Lam ((Pair
                      (Lam (Var (Weaken Get))))
                     vlad))
   
-toAtLeastHeight :: γ ⊢ ('R ⟶ 'U)
+toAtLeastHeight :: γ ⊢ (R ⟶ U)
 toAtLeastHeight = Con (General Utt')  
 
-utilityl0 :: γ ⊢ ('R ⟶ 'R ⟶ 'R)
+utilityl0 :: γ ⊢ (R ⟶ R ⟶ R)
 utilityl0 = Lam (Lam (l0Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `App` (heightToCtx `App` Var Get)))
 
-utilitys1 :: γ ⊢ ('R ⟶ 'R ⟶ 'R)
+utilitys1 :: γ ⊢ (R ⟶ R ⟶ R)
 utilitys1 = Lam (Lam (s1Distr `App` (heightToCtx `App` Var Get) `App` (toAtLeastHeight `App` (Var (Weaken Get))) ))
 
-utilityl1 :: γ ⊢ ('R ⟶ 'R ⟶ 'R)
+utilityl1 :: γ ⊢ (R ⟶ R ⟶ R)
 utilityl1 = Lam (Lam (l1Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `App` (heightToCtx `App` Var Get) ))
 
 -- Lam (Lam (expectedValue $ k ⋆ Lam (η $ App (distr $ App s1 (App (updctx (Var Get)) (Var (Weaken (Weaken Get))))) (u' (Var (Weaken Get))))))
@@ -155,7 +155,7 @@ utilityl1 = Lam (Lam (l1Distr `App` (toAtLeastHeight `App` (Var (Weaken Get))) `
 -- >>> displayVs $ evalβ $ s1
 -- (λx.(λy.Uniform(⟨50, 80⟩)(λz.((((Uniform(⟨0, 1000⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙((v ≥ 50)) * (𝟙((80 ≥ v)) * (𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⋄, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * (⟨⟨⟨⟨⟨⋄, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩ ≐ x)))))) / Uniform(⟨0, 1000⟩)(λu.Normal(⟨68, 3⟩)(λv.(𝟙((v ≥ 50)) * (𝟙((80 ≥ v)) * (𝟙(⟦U(z)⟧(⟨⟨⟨⟨⟨⋄, (≥)⟩, u⟩, human⟩, (λw.v)⟩, v⟩)) * 1)))))) * 1) * 1) * y(U(z))))))
 
-test1 :: P ('Unit × 'R)
+test1 :: P (Unit × R)
 test1 = simplifyFun [] $ distr $ App l0 (u' (Con (General (Incl 65)))) ⋆ Lam (η (App (hmorph Z (App height vlad)) (Var Get)))
 
 -- >>> test1

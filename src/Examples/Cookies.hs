@@ -10,7 +10,7 @@ module Examples.GoodLassStd where
 import Algebra.Classes hiding (normalize)
 import Prelude hiding (Monad(..), Num(..), Fractional(..), Floating(..))
 import Models.Integrals
-import Models.Integrals.Types (P(..),Domain(..),swap2P)
+import Models.Integrals.Types (P(..), Domain(..), swap2P)
 import TLC.HOAS
 import qualified TLC.Terms as F
 import qualified Algebra.Morphism.Affine as A
@@ -65,57 +65,57 @@ contextDistribution =
            η nCookies
 
 
-cost :: Double -> Exp 'R
+cost :: Double -> Exp F.R
 cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
   
 
-asExpression :: Exp ('R ⟶ 'R ⟶ 'R) -> P ('Unit × 'R × 'R)
+asExpression :: Exp (F.R ⟶ F.R ⟶ F.R) -> P ('Unit × F.R × F.R)
 asExpression = simplifyFun2 [] . fromHoas
 
-asExpression1 :: (Exp 'R -> Exp 'R) -> P ('Unit × 'R)
+asExpression1 :: (Exp F.R -> Exp F.R) -> P ('Unit × F.R)
 asExpression1 = simplifyFun [] . fromHoas . Lam
 
 α :: Rational
 α = alpha
 
--- s1 :: Exp context -> Exp (('U ⟶ 'R) ⟶ 'R)
+-- s1 :: Exp context -> Exp (('U ⟶ F.R) ⟶ F.R)
 s1 ctx = utteranceDistribution ⋆ \u ->
             factor ((distr (l0 u) ctx) ^/ α) >>
             η u
 
 -- | Literal listener
--- l0 ::  Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
+-- l0 ::  Exp 'U -> Exp ((context ⟶ F.R) ⟶ F.R)
 l0 u = contextDistribution ⋆ \ctx ->
        observe (interpU u ctx) >>
        η ctx
 
 -- | Pragmatic listener
--- l1 :: Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
+-- l1 :: Exp 'U -> Exp ((context ⟶ F.R) ⟶ F.R)
 l1 u = contextDistribution ⋆ \ctx -> 
          factor (s1Distr u ctx) >>
          η ctx
 
--- l0Distr :: Exp 'U -> Exp context -> Exp 'R
+-- l0Distr :: Exp 'U -> Exp context -> Exp F.R
 l0Distr u ctx = distr (l0 u) ctx
 
--- s1Distr :: Exp context -> Exp 'U -> Exp 'R
+-- s1Distr :: Exp context -> Exp 'U -> Exp F.R
 s1Distr u ctx = distr (s1 ctx) u
 
--- l1Distr :: Exp 'U -> Exp context -> Exp 'R
+-- l1Distr :: Exp 'U -> Exp context -> Exp F.R
 l1Distr u ctx = distr (l1 u) ctx
 
--- twoDimFunOf :: (Exp utterance -> Exp context -> Exp 'R) -> Exp ('R ⟶ 'R ⟶ 'R)
+-- twoDimFunOf :: (Exp utterance -> Exp context -> Exp F.R) -> Exp (F.R ⟶ F.R ⟶ F.R)
 twoDimFunOf f = Lam $ \x -> Lam $ \y ->
    let (h,u) = varsToSituation x y
    in f u h
 
-utilityl0 :: Exp ('R ⟶ 'R ⟶ 'R)
+utilityl0 :: Exp (F.R ⟶ F.R ⟶ F.R)
 utilityl0 = twoDimFunOf l0Distr
 
-utilitys1 :: Exp ('R ⟶ 'R ⟶ 'R)
+utilitys1 :: Exp (F.R ⟶ F.R ⟶ F.R)
 utilitys1 = twoDimFunOf s1Distr 
 
-utilityl1 :: Exp ('R ⟶ 'R ⟶ 'R)
+utilityl1 :: Exp (F.R ⟶ F.R ⟶ F.R)
 utilityl1 = twoDimFunOf l1Distr
 
 l0Expr = asExpression utilityl0
@@ -140,16 +140,16 @@ l0Y = normalise $ integrateOnPlotDomain $ swap2P $ l0Expr
 l1X = normalise $ integrateOnPlotDomain l1Expr
 l1Y = normalise $ integrateOnPlotDomain $ swap2P $ l1Expr
 
-measureTrue :: PP 'T -> Exp 'R
+measureTrue :: PP F.T -> Exp F.R
 measureTrue p = (p @@ (Lam (\x -> (Con Indi @@ x))))
 
 -- P_{S₁}(u)
-s1Prior :: PP 'R
+s1Prior :: PP F.R
 s1Prior = utteranceDistribution ⋆ \u ->
           factor (recip (measureTrue ((contextDistribution ⋆ \w -> η (interpU u w))) ^/ α)) >>
           η u
 
-s1PriorExpr :: P ('Unit × 'R)
+s1PriorExpr :: P ('Unit × F.R)
 s1PriorExpr = asExpression1 $ {-log .  .  . -}  distr s1Prior
 s1PriorSamples :: V.Vec Double
 s1PriorSamples = approxTop plotOptions s1PriorExpr
@@ -158,12 +158,12 @@ s1PriorSamples = approxTop plotOptions s1PriorExpr
 -- charfun(-7 + x <= 0)*charfun(-x <= 0)*integrate(integrate(exp(-1/2*(4 - z)^2), z, y, 7)^(-4), y, 0, 7)^(-1)*integrate(exp(-1/2*(4 - y)^2), y, x, 7)^(-4)
 
 -- P_{L₁}(w)
-l1Prior :: PP 'R
+l1Prior :: PP F.R
 l1Prior = contextDistribution ⋆ \w ->
           factor (recip (measureTrue (s1Prior ⋆ \u -> η (interpU u w)))) >>
           η w
 
-l1PriorExpr :: P ('Unit × 'R)
+l1PriorExpr :: P ('Unit × F.R)
 l1PriorExpr = asExpression1 $ \x -> {-log-}(distr l1Prior x)
 l1PriorSamples :: V.Vec Double
 l1PriorSamples = approxTop plotOptions l1PriorExpr

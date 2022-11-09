@@ -17,22 +17,22 @@ import qualified Algebra.Linear.Vector as V
 import qualified Algebra.Morphism.Affine as A
 import Examples.Utterances
 
--- ∃γ. ∃u. (... × .. Exp ((γ ⟶ 'R) ⟶ 'R))
+-- ∃γ. ∃u. (... × .. Exp ((γ ⟶ F.R) ⟶ F.R))
 data RSAIn = forall context utterance. (Equality context, Equality utterance) => RSAIn {
     prefix :: String,
     alpha :: Rational,
-    contextDistribution    :: Exp ((context ⟶ 'R) ⟶ 'R),
-    utteranceDistribution  :: Exp ((utterance ⟶ 'R) ⟶ 'R),
-    interpU :: Exp utterance -> Exp context -> Exp 'T,
+    contextDistribution    :: Exp ((context ⟶ F.R) ⟶ F.R),
+    utteranceDistribution  :: Exp ((utterance ⟶ F.R) ⟶ F.R),
+    interpU :: Exp utterance -> Exp context -> Exp F.T,
 
-    varsToSituation :: Exp 'R -> Exp 'R -> (Exp context, Exp utterance),
+    varsToSituation :: Exp F.R -> Exp F.R -> (Exp context, Exp utterance),
     plotOptions :: PlotOptions
   }
 
 data RSAOut = RSAOut {
-    l0Expr, l1Expr, s1Expr :: P ('Unit × 'R × 'R),
+    l0Expr, l1Expr, s1Expr :: P (F.Unit × F.R × F.R),
 
-    l0X,l0Y :: P ('Unit × 'R),
+    l0X,l0Y :: P (F.Unit × F.R),
     l0Samples, l1Samples, s1Samples :: V.Vec (V.Vec Double),
     l0xSamples,l0ySamples :: V.Vec Double,
     plotData :: IO ()
@@ -123,9 +123,9 @@ exampleTallThreshold = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y, isTall)
   alpha = 4
-  utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
+  utteranceDistribution :: Exp ((F.U ⟶ F.R) ⟶ F.R)
   utteranceDistribution = Lam $ \k -> k @@ isTall + k @@ isShort + k @@ vaccuous
-  interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
+  interpU :: Exp F.U -> Exp (F.R × F.R) -> Exp F.T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                `Pair` Fst ctx
                                                `Pair` (Lam $ \_ -> Con (F.Tru))
@@ -147,9 +147,9 @@ exampleLassGood = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
-  utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
+  utteranceDistribution :: Exp ((F.U ⟶ F.R) ⟶ F.R)
   utteranceDistribution = tallShortOrSilence alpha
-  interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
+  interpU :: Exp F.U -> Exp (F.R × F.R) -> Exp F.T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                          `Pair` Fst ctx
                                                          `Pair` (Lam $ \_ -> Con (F.Tru))
@@ -163,7 +163,7 @@ exampleLassGood = evaluate RSAIn {..} where
              η (θ `Pair` h)
 
 
-cost :: Double -> Exp 'R
+cost :: Double -> Exp F.R
 cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
   
 exampleLassGoodExtra :: RSAOut
@@ -175,9 +175,9 @@ exampleLassGoodExtra = evaluate RSAIn {..} where
   plotResolution = 128
   varsToSituation x y = (Pair x y,isTall)
   alpha = 4
-  utteranceDistribution :: Exp (('U ⟶ 'R) ⟶ 'R)
+  utteranceDistribution :: Exp ((F.U ⟶ F.R) ⟶ F.R)
   utteranceDistribution = tallOrSilenceOrGiven alpha
-  interpU :: Exp 'U -> Exp ('R × 'R) -> Exp 'T
+  interpU :: Exp F.U -> Exp (F.R × F.R) -> Exp F.T
   interpU u ctx = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                                          `Pair` Fst ctx
                                                          `Pair` (Lam $ \_ -> Con (F.Tru))
@@ -218,51 +218,51 @@ exampleLassGoodExtra = evaluate RSAIn {..} where
 -- l0y...
 
 
-asExpression :: Exp ('R ⟶ 'R ⟶ 'R) -> P ('Unit × 'R × 'R)
+asExpression :: Exp (F.R ⟶ F.R ⟶ F.R) -> P (F.Unit × F.R × F.R)
 asExpression = simplifyFun2 [] . fromHoas
 
 evaluate :: RSAIn -> RSAOut
 evaluate RSAIn{..} = RSAOut {..} where
   α = alpha
   
-  -- s1 :: Exp context -> Exp (('U ⟶ 'R) ⟶ 'R)
+  -- s1 :: Exp context -> Exp ((F.U ⟶ F.R) ⟶ F.R)
   s1 ctx = utteranceDistribution ⋆ \u ->
               factor ((distr (l0 u) ctx) ^/ α) >>
               η u
 
   -- | Literal listener
-  -- l0 ::  Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
+  -- l0 ::  Exp F.U -> Exp ((context ⟶ F.R) ⟶ F.R)
   l0 u = contextDistribution ⋆ \ctx ->
          observe (interpU u ctx) >>
          η ctx
 
   -- | Pragmatic listener
-  -- l1 :: Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
+  -- l1 :: Exp F.U -> Exp ((context ⟶ F.R) ⟶ F.R)
   l1 u = contextDistribution ⋆ \ctx -> 
            factor (s1Distr u ctx) >>
            η ctx
 
-  -- l0Distr :: Exp 'U -> Exp context -> Exp 'R
+  -- l0Distr :: Exp F.U -> Exp context -> Exp F.R
   l0Distr u ctx = distr (l0 u) ctx
 
-  -- s1Distr :: Exp context -> Exp 'U -> Exp 'R
+  -- s1Distr :: Exp context -> Exp F.U -> Exp F.R
   s1Distr u ctx = distr (s1 ctx) u
 
-  -- l1Distr :: Exp 'U -> Exp context -> Exp 'R
+  -- l1Distr :: Exp F.U -> Exp context -> Exp F.R
   l1Distr u ctx = distr (l1 u) ctx
 
-  -- twoDimFunOf :: (Exp utterance -> Exp context -> Exp 'R) -> Exp ('R ⟶ 'R ⟶ 'R)
+  -- twoDimFunOf :: (Exp utterance -> Exp context -> Exp F.R) -> Exp (F.R ⟶ F.R ⟶ F.R)
   twoDimFunOf f = Lam $ \x -> Lam $ \y ->
      let (h,u) = varsToSituation x y
      in f u h
 
-  utilityl0 :: Exp ('R ⟶ 'R ⟶ 'R)
+  utilityl0 :: Exp (F.R ⟶ F.R ⟶ F.R)
   utilityl0 = twoDimFunOf l0Distr
 
-  utilitys1 :: Exp ('R ⟶ 'R ⟶ 'R)
+  utilitys1 :: Exp (F.R ⟶ F.R ⟶ F.R)
   utilitys1 = twoDimFunOf s1Distr 
 
-  utilityl1 :: Exp ('R ⟶ 'R ⟶ 'R)
+  utilityl1 :: Exp (F.R ⟶ F.R ⟶ F.R)
   utilityl1 = twoDimFunOf l1Distr
 
   l0Expr = asExpression utilityl0

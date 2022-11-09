@@ -20,7 +20,7 @@ import Text.Pretty.Math
 import qualified Algebra.Expression as E
 
 
-makeBernoulli :: γ ⊢ 'T -> γ ⊢ 'R -> γ ⊢ (('T ⟶ 'R) ⟶ 'R)
+makeBernoulli :: γ ⊢ T -> γ ⊢ R -> γ ⊢ ((T ⟶ R) ⟶ R)
 makeBernoulli φ x = Lam $ App (Var Get) (wkn φ) * (wkn x) +
                     App (Var Get) (Imp' (wkn φ) False') * (one - wkn x)
 
@@ -31,7 +31,7 @@ tryProve' = tryProve 10
 
 type Finite = E.Expr Double
 
-evalFL :: NF γ 'R -> Finite
+evalFL :: NF γ R -> Finite
 evalFL = \case
   NCon ((Incl x)) -> fromRational x
   Neu (NeuApp (NeuCon (Indi)) φ) ->
@@ -44,7 +44,7 @@ evalFL = \case
   Expos (evalFL -> x) (evalFL -> y) -> x Algebra.Classes.** y
   t -> error ("evalFL: don't know how to handle: " ++ (show . nf_to_λ) t)
 
-evalFLState' :: NF γ 'R -> State [NF γ 'T] Finite
+evalFLState' :: NF γ R -> State [NF γ T] Finite
 evalFLState' = \case
   NCon ((Incl x)) -> pure $ fromRational x
   Neu (NeuApp (NeuCon (Indi)) ψ) -> state $ \φs ->
@@ -60,6 +60,6 @@ evalFLState' = \case
     fmap (Algebra.Classes.** (fromRational y)) x
   t -> error ("evalFLState': don't know how to handle: " ++ (show . nf_to_λ) t)
 
-evalFLState :: NF 'Unit 'R -> Finite
+evalFLState :: NF 'Unit R -> Finite
 evalFLState = flip evalState [] . evalFLState'
 

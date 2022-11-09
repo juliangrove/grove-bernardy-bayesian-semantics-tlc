@@ -16,10 +16,10 @@ import TLC.Distributions
 import TLC.Terms
 
 
-pis :: [Int] -> γ ⊢ ((('Γ ⟶ 'E) ⟶ 'R) ⟶ 'R)
+pis :: [Int] -> γ ⊢ (((Γ ⟶ E) ⟶ R) ⟶ R)
 pis ns = Lam $ sum [ App (Var Get) (Con $ Pi i) | i <- ns ]
 
-k :: Witness n -> γ ⊢ ((Context n ⟶ 'R) ⟶ 'R)
+k :: Witness n -> γ ⊢ ((Context n ⟶ R) ⟶ R)
 k (S Z) =
   pis [0, 1] ⋆
   Lam (pis [0, 1] ⋆
@@ -99,7 +99,7 @@ k (S (S Z)) =
 k _ = error "k: not defined yet."
 
 -- | Literal listener
-l0 :: Witness n -> γ ⊢ (('U × 'U) ⟶ (Context n ⟶ 'R) ⟶ 'R)
+l0 :: Witness n -> γ ⊢ ((U × U) ⟶ (Context n ⟶ R) ⟶ R)
 l0 n = Lam (k n ⋆
             Lam (observe'
                  ((hmorph n (Con $ Proposition 0) `App` Var Get)
@@ -111,7 +111,7 @@ l0 n = Lam (k n ⋆
 
 -- | Pragmatic speaker
 s1' :: Equality (Context n)
-    => Witness n -> Rational -> γ ⊢ ((Context n × 'U) ⟶ ('U ⟶ 'R) ⟶ 'R)
+    => Witness n -> Rational -> γ ⊢ ((Context n × U) ⟶ (U ⟶ R) ⟶ R)
 s1' n α =
   Lam (Con (MakeUtts n) `App` Var Get ⋆
        Lam (factor'
@@ -119,12 +119,12 @@ s1' n α =
             η (Var Get)))
 
 s1 :: Equality (Context n)
-   => Witness n -> γ ⊢ ((Context n × 'U) ⟶ ('U ⟶ 'R) ⟶ 'R)
+   => Witness n -> γ ⊢ ((Context n × U) ⟶ (U ⟶ R) ⟶ R)
 s1 n = s1' n 0
 
 -- | Pragmatic listener
 l1 :: Equality (Context n)
-   => Rational -> Witness n -> γ ⊢ ('U ⟶ (Context n ⟶ 'R) ⟶ 'R)
+   => Rational -> Witness n -> γ ⊢ (U ⟶ (Context n ⟶ R) ⟶ R)
 l1 α n =
   Lam (k n ⋆
        Lam (factor'

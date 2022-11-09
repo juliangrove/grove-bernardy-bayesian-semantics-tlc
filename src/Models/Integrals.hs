@@ -22,15 +22,15 @@ import TLC.Terms hiding ((>>), u, Con)
 -- | Top-level Entry points
 
 -- | Take typed descriptions of real numbers onto integrators 
-simplify :: [Cond γ] -> (γ ⊢ 'R) -> P γ
+simplify :: [Cond γ] -> (γ ⊢ R) -> P γ
 simplify cs = normalise . cleanConds [] . conds_ cs . normalise . evalP' . normalForm
 
 -- | Take typed descriptions of functions onto integrators with a free var
-simplifyFun :: [Cond ('Unit × 'R)] -> 'Unit ⊢ ('R ⟶ 'R) -> P ('Unit × 'R)
+simplifyFun :: [Cond ('Unit × R)] -> 'Unit ⊢ (R ⟶ R) -> P ('Unit × R)
 simplifyFun cs = simplify cs . absInversion
 
 -- | Take typed descriptions of functions onto integrators with two free vars
-simplifyFun2 :: [Cond (('Unit × 'R) × 'R)] -> 'Unit ⊢ ('R ⟶ 'R ⟶ 'R) -> (P (('Unit × 'R) × 'R))
+simplifyFun2 :: [Cond (('Unit × R) × R)] -> 'Unit ⊢ (R ⟶ R ⟶ R) -> (P (('Unit × R) × R))
 simplifyFun2 cs = simplify cs . absInversion . absInversion
 
 --------------------------------------------------------------------------------
@@ -137,7 +137,7 @@ example4 = Integrate full $
 -- Integrate[Exp[-x^2 - x^2], {x, -3, 3}]
 
 
-example5 :: P ('Unit × 'R)
+example5 :: P ('Unit × R)
 example5 = Integrate full $
            Cond (IsNegative (A.constant (-3) - A.var Get)) $
            Cond (IsNegative (A.constant (-3) + A.var Get)) $

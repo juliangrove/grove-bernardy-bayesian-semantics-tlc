@@ -24,36 +24,36 @@ pattern App2 :: Neutral γ (α3 ⟶ (α2 ⟶ α)) -> NF γ α3 -> NF γ α2 -> N
 pattern App2 f x y = Neu (NeuApp (NeuApp f x) y)
 pattern NNVar :: Available (α) (γ) -> NF γ α
 pattern NNVar i <- Neu (NeuVar (i))
-pattern Equ :: NF γ 'R -> NF γ 'R -> NF γ 'R
+pattern Equ :: NF γ R -> NF γ R -> NF γ R
 pattern Equ x y = App2 (NeuCon (EqRl)) x y
-pattern EqVars :: Available 'R (γ) -> Available 'R (γ)  -> NF γ 'R
+pattern EqVars :: Available R (γ) -> Available R (γ)  -> NF γ R
 pattern EqVars i j <- Equ (NNVar i) (NNVar j)
-pattern Mults, Expos :: NF γ 'R -> NF γ 'R -> NF γ 'R
+pattern Mults, Expos :: NF γ R -> NF γ R -> NF γ R
 pattern Mults x y = App2 (NeuCon (Mult)) x y
 pattern Expos x y = App2 (NeuCon (Expo)) x y
-pattern Adds :: NF γ 'R -> NF γ 'R -> NF γ 'R
+pattern Adds :: NF γ R -> NF γ R -> NF γ R
 pattern Adds x y = App2 (NeuCon (Addi)) x y
-pattern InEqVars :: Available 'R (γ) -> Available 'R (γ) -> NF γ 'R
+pattern InEqVars :: Available R (γ) -> Available R (γ) -> NF γ R
 pattern InEqVars i j <- InEq (NNVar i) (NNVar j)
-pattern InEq :: NF γ 'R -> NF γ 'R -> NF γ 'R
+pattern InEq :: NF γ R -> NF γ R -> NF γ R
 pattern InEq x y = Neu (NeuApp (NeuCon (Indi))
                             (Neu (NeuApp (NeuApp (NeuCon (GTE))
                                           x) y)))
-pattern Lesbegue :: NF γ ('R ⟶ 'R) -> NF γ 'R
+pattern Lesbegue :: NF γ (R ⟶ R) -> NF γ R
 pattern Lesbegue f = Neu (NeuApp (NeuCon (Les)) f)
-pattern Divide :: NF γ 'R -> NF γ 'R -> NF γ 'R
+pattern Divide :: NF γ R -> NF γ R -> NF γ R
 pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (Divi)) x) y)
-pattern NNCon :: Field x => x -> NF γ 'R
+pattern NNCon :: Field x => x -> NF γ R
 pattern NNCon x <- Neu (NeuCon ((Incl (fromRational -> x))))
 
 retPoly :: Ret γ -> P γ
 retPoly = Done
 
-evalP :: NF 'Unit 'R -> P 'Unit
+evalP :: NF 'Unit R -> P 'Unit
 evalP = evalP'
 
 
-evalP' :: forall γ. NF γ 'R -> P γ
+evalP' :: forall γ. NF γ R -> P γ
 evalP' = \case
   Neu (NeuApp (NeuCon (Indi)) (Neu (NeuCon (Tru)))) -> one
   Neu (NeuApp (NeuApp (NeuCon (EqRl))
@@ -73,7 +73,7 @@ evalP' = \case
   t -> retPoly (evalRet t)
     -- error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
 
-evalRet :: forall γ. NF γ 'R -> Ret γ
+evalRet :: forall γ. NF γ R -> Ret γ
 evalRet = \case
   NNCon x -> constPoly (fromRational x)
   Adds x y -> evalRet x + evalRet y

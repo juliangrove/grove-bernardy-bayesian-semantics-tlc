@@ -33,7 +33,7 @@ import Models.Integrals.Types
 type family Env γ where
   Env 'Unit = ()
   Env (a ':× b) = (Env a, Env b)
-  Env 'R = Double
+  Env R = Double
 
 type RR = Double
 
@@ -76,7 +76,7 @@ evalOptions PlotOptions{..} = Eval'Options {..} where
    point i = domLo + (domHi - domLo) * (fromInt i/ fromInt (size__))
   
 
-type WithCache a = State (Map (P ('Unit × 'R)) (Vec RR)) a
+type WithCache a = State (Map (P ('Unit × R)) (Vec RR)) a
 -- the state maps expressions to vector of samples
 
 
@@ -115,13 +115,13 @@ approxIntegralsWithCache options@Eval'Options{..} =
 
 type family FUN γ x where
   FUN 'Unit x = x
-  FUN (a ':× 'R) x = Vec (FUN a x)
+  FUN (a ':× R) x = Vec (FUN a x)
 
 class KnownContext (γ :: Type) where
   approxFUN :: Eval'Options -> P γ -> WithCache (FUN γ RR)
 instance KnownContext 'Unit where
   approxFUN o x = approxIntegralsWithCache o x
-instance KnownContext γ => KnownContext (γ × 'R) where
+instance KnownContext γ => KnownContext (γ × R) where
   approxFUN o@Eval'Options{..} e =
     flip traverse (fromList $ (point <$> rng)) $ \x ->
       approxFUN o $

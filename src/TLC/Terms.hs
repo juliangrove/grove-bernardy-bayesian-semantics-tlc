@@ -21,6 +21,7 @@ import Algebra.Classes
 import Data.Ratio
 import Data.String.Utils
 import qualified FOL.FOL as FOL
+import qualified GHC.TypeLits as TL
 import Prelude hiding ((>>), Num(..), sum)
 
 
@@ -29,20 +30,26 @@ import Prelude hiding ((>>), Num(..), sum)
 
 -- | Atomic types for entities, truth values, real numbers, utterances, and
 -- discourse referent contexts. Products and arrows.
-data Type = E | T | R | U | Γ
+data Type = Atom TL.Symbol
           | Type :-> Type
           | Unit
           | Type :× Type
 
+type E = 'Atom "e"
+type T = 'Atom "t"
+type R = 'Atom "r"
+type U = 'Atom "u"
+type Γ = 'Atom "γ"
 
 data SType (t :: Type) where
-  SE :: SType 'E
-  ST :: SType 'T
-  SR :: SType 'R
-  SU :: SType 'U
-  SΓ :: SType 'Γ
+  -- SE :: SType E
+  ST :: SType T
+  SR :: SType R
+  SU :: SType U
+  SΓ :: SType Γ
+  SAtom :: SType (Atom c)
   SArr :: SType a -> SType b -> SType (a ⟶ b)
-  SUnit :: SType 'Unit
+  SUnit :: SType Unit
   SProd :: SType a -> SType b -> SType (a × b)
 
 type α × β = α ':× β
@@ -61,42 +68,42 @@ deriving instance Ord (α ∈ γ) -- Used to test depth of variables.
 -- | Constants
 data Con α where
   -- Logical constants
-  Tru :: Con 'T
-  Fal :: Con 'T
-  And :: Con ('T ⟶ 'T ⟶ 'T)
-  Or :: Con ('T ⟶ 'T ⟶ 'T)
-  Imp :: Con ('T ⟶ 'T ⟶ 'T)
-  Forall :: Con ((α ⟶ 'T) ⟶ 'T)
-  Exists :: Con ((α ⟶ 'T) ⟶ 'T)
-  Equals :: Con (α ⟶ α ⟶ 'T)
+  Tru :: Con T
+  Fal :: Con T
+  And :: Con (T ⟶ T ⟶ T)
+  Or :: Con (T ⟶ T ⟶ T)
+  Imp :: Con (T ⟶ T ⟶ T)
+  Forall :: Con ((α ⟶ T) ⟶ T)
+  Exists :: Con ((α ⟶ T) ⟶ T)
+  Equals :: Con (α ⟶ α ⟶ T)
   -- General purpose stuff
-  Incl :: Rational -> Con 'R
-  Indi :: Con ('T ⟶ 'R)
-  Addi :: Con ('R ⟶ 'R ⟶ 'R)
-  Mult :: Con ('R ⟶ 'R ⟶ 'R)
-  Expo :: Con ('R ⟶ 'R ⟶ 'R)
-  Exp :: Con ('R ⟶ 'R)
-  CircleConstant :: Con 'R
-  Divi :: Con ('R ⟶ 'R ⟶ 'R)
-  EqGen :: Equality α => Con ((α × α) ⟶ 'R)
-  EqRl :: Con ('R ⟶ 'R ⟶ 'R)
-  Utt :: NLExp 'SP -> Con 'U
-  Silence :: Con 'U
-  MakeUtts :: Witness n -> Con ((Context n × 'U) ⟶ (('U ⟶ 'R) ⟶ 'R))
-  Les :: Con (('R ⟶ 'R) ⟶ 'R)
-  Interp :: Witness n -> Con ('U ⟶ Context n ⟶ 'T)
-  Empty :: Con 'Γ
-  Upd :: Con ('E ⟶ 'Γ ⟶ 'Γ)
-  Pi :: Int -> Con ('Γ ⟶ 'E)
+  Incl :: Rational -> Con R
+  Indi :: Con (T ⟶ R)
+  Addi :: Con (R ⟶ R ⟶ R)
+  Mult :: Con (R ⟶ R ⟶ R)
+  Expo :: Con (R ⟶ R ⟶ R)
+  Exp :: Con (R ⟶ R)
+  CircleConstant :: Con R
+  Divi :: Con (R ⟶ R ⟶ R)
+  EqGen :: Equality α => Con ((α × α) ⟶ R)
+  EqRl :: Con (R ⟶ R ⟶ R)
+  Utt :: NLExp 'SP -> Con U
+  Silence :: Con U
+  MakeUtts :: Witness n -> Con ((Context n × U) ⟶ ((U ⟶ R) ⟶ R))
+  Les :: Con ((R ⟶ R) ⟶ R)
+  Interp :: Witness n -> Con (U ⟶ Context n ⟶ T)
+  Empty :: Con Γ
+  Upd :: Con (E ⟶ Γ ⟶ Γ)
+  Pi :: Int -> Con (Γ ⟶ E)
   -- Special constants (may take on distributions)
-  Entity :: Int -> Con 'E
-  MeasureFun :: Int -> Con ('E ⟶ 'R)
-  Property :: Int -> Con ('E ⟶ 'T)
-  Relation :: Int -> Con ('E ⟶ 'E ⟶ 'T)
-  Proposition :: Int -> Con 'T
-  Degree :: Int -> Con 'R
-  GTE :: Con ('R ⟶ 'R ⟶ 'T)
-  Sel :: Int -> Con ('Γ ⟶ 'E)
+  Entity :: Int -> Con E
+  MeasureFun :: Int -> Con (E ⟶ R)
+  Property :: Int -> Con (E ⟶ T)
+  Relation :: Int -> Con (E ⟶ E ⟶ T)
+  Proposition :: Int -> Con T
+  Degree :: Int -> Con R
+  GTE :: Con (R ⟶ R ⟶ T)
+  Sel :: Int -> Con (Γ ⟶ E)
   Con0 :: SType a -> String -> Con a
 
 -- | Well-typed terms.
@@ -107,7 +114,7 @@ data γ ⊢ α where
   Lam :: (γ × α) ⊢ β -> γ ⊢ (α ⟶ β)
   Fst :: γ ⊢ (α × β) -> γ ⊢ α
   Snd :: γ ⊢ (α × β) -> γ ⊢ β
-  TT :: γ ⊢ 'Unit
+  TT :: γ ⊢ Unit
   Pair :: γ ⊢ α -> γ ⊢ β -> γ ⊢ (α × β)
 
 infixl `App`
@@ -125,7 +132,7 @@ data Neutral γ α where
   NeuApp :: Neutral γ (α ⟶ β) -> NF γ α -> Neutral γ β
   NeuFst :: Neutral γ (α × β) -> Neutral γ α
   NeuSnd :: Neutral γ (α × β) -> Neutral γ β
-  NeuTT :: Neutral γ 'Unit
+  NeuTT :: Neutral γ Unit
 
 -- | Terms in normal form.
 data NF γ α where
@@ -133,7 +140,7 @@ data NF γ α where
   NFPair :: NF γ α -> NF γ β -> NF γ (α × β)
   Neu :: Neutral γ α -> NF γ α
   
-(≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ 'R
+(≐) :: Equality α => γ ⊢ α -> γ ⊢ α -> γ ⊢ R
 m ≐ n = App (Con (EqGen)) (Pair m n)
 
 noOccur :: (α ∈ (γ × x)) -> Maybe (α ∈ γ)
@@ -146,12 +153,12 @@ pattern NCon x = Neu (NeuCon x)
 pattern NVar :: forall (γ :: Type) (α :: Type). (α ∈ γ) -> NF γ α
 pattern NVar x = Neu (NeuVar x)
 class Equality α where
-  equals :: forall γ. NF γ α -> NF γ α -> NF γ 'R
-instance Equality 'E where
+  equals :: forall γ. NF γ α -> NF γ α -> NF γ R
+instance Equality E where
   equals (NCon (Entity m)) (NCon (Entity n)) =
     NCon $ Incl $ case m == n of True -> 1; False -> 0
   equals x y = Neu $ NeuApp (NeuCon EqGen) (NFPair x y) 
-instance Equality 'R where
+instance Equality R where
   equals (NCon (Incl x)) (NCon (Incl y))
     = case x == y of
         True -> one
@@ -159,7 +166,7 @@ instance Equality 'R where
   equals (NCon (Degree m)) (NCon (Degree n)) =
           NCon $ Incl $ case m == n of True -> 1; False -> 0
   equals x y = Neu $ NeuCon EqRl `NeuApp` x `NeuApp` y
-instance Equality 'U where
+instance Equality U where
   equals (NCon (Utt s0)) (NCon (Utt s1)) = case s0 == s1 of
                              True -> one
                              False -> incl 0
@@ -167,33 +174,33 @@ instance Equality 'U where
   equals (NCon Silence) (NCon _) = incl 0
   equals (NCon _) (NCon Silence) = incl 0
   equals m n = Neu $ (NeuCon EqGen) `NeuApp` (NFPair m n)
-instance Equality 'Unit where
+instance Equality Unit where
   equals _ _ = one
 instance (Equality α, Equality β) => Equality (α × β) where
   equals (NFPair m n) (NFPair m' n') = equals m m' * equals n n'
   equals m n = Neu $ (NeuCon EqGen) `NeuApp` (NFPair m n)
-instance Equality ('E ⟶ 'R) where
-  equals :: forall γ. NF γ ('E ⟶ 'R) -> NF γ ('E ⟶ 'R) -> NF γ 'R
+instance Equality (E ⟶ R) where
+  equals :: forall γ. NF γ (E ⟶ R) -> NF γ (E ⟶ R) -> NF γ R
   equals (NCon (MeasureFun m)) (NCon (MeasureFun n)) =
     NCon $ Incl $ case m == n of True -> 1; False -> 0
   equals (NFLam m) (NFLam n)
     | Just x <- traverseNF noOccur (equals m n) = x
   equals t u = Neu ((NeuCon EqGen) `NeuApp` (NFPair t u))
-instance Equality ('E ⟶ 'T) where
+instance Equality (E ⟶ T) where
   equals (NCon (Property m)) (NCon (Property n)) =
     NCon $ Incl $ case m == n of True -> 1; False -> 0
-instance Equality ('E ⟶ 'E ⟶ 'T) where
+instance Equality (E ⟶ E ⟶ T) where
   equals (NCon (Relation m)) (NCon (Relation n)) =
     NCon $ Incl $ case m == n of True -> 1; False -> 0
-instance Equality ('R ⟶ 'R ⟶ 'T) where
+instance Equality (R ⟶ R ⟶ T) where
   equals (NCon GTE) (NCon GTE) = one
-instance Equality 'Γ where
+instance Equality Γ where
   equals (NCon Empty) (NCon Empty) = one
-instance Equality ('E ⟶ 'Γ ⟶ 'Γ) where
+instance Equality (E ⟶ Γ ⟶ Γ) where
   equals (NCon Upd) (NCon Upd) = one
-instance Equality 'T where
+instance Equality T where
   equals ϕ ψ = if termToFol ϕ == termToFol ψ then one else zero 
-instance Equality ('Γ ⟶ 'E) where
+instance Equality (Γ ⟶ E) where
   equals (NCon (Sel i)) (NCon (Sel j)) =
     case i == j of
       True -> one
@@ -240,13 +247,13 @@ termToFol = termToFol' (\case) . nf_to_λ
 --------------------------------------------------------------------------------
 
 
-u :: NLExp 'SP -> γ ⊢ 'U
+u :: NLExp 'SP -> γ ⊢ U
 u = Con . Utt
-prop :: Int -> γ ⊢ ('E ⟶ 'T)
+prop :: Int -> γ ⊢ (E ⟶ T)
 prop i = Con $ Property i
-rel :: Int -> γ ⊢ ('E ⟶ ('E ⟶ 'T))
+rel :: Int -> γ ⊢ (E ⟶ (E ⟶ T))
 rel i = Con $ Relation i
-jp, vlad :: γ ⊢ 'E
+jp, vlad :: γ ⊢ E
 jp = Con $ Entity 0
 vlad = Con $ Entity 1
 entity i = Con $ Entity i
@@ -261,16 +268,16 @@ sel n = Con $ Sel n
 sel' n c = sel n `App` c
 incl n = NCon $ Incl n
 
-(/\) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
+(/\) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
 p /\ q = App (App (Con And) p) q
 
-(\/) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
+(\/) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
 p \/ q = App (App (Con Or) p) q
 
-(-->) :: γ ⊢ 'T -> γ ⊢ 'T -> γ ⊢ 'T
+(-->) :: γ ⊢ T -> γ ⊢ T -> γ ⊢ T
 p --> q = App (App (Con Imp) p) q
 
-exists :: γ ⊢ (α ⟶ 'T) -> γ ⊢ 'T
+exists :: γ ⊢ (α ⟶ T) -> γ ⊢ T
 exists φ = App (Con (Exists)) φ
 
 reduce1step :: γ ⊢ α -> γ ⊢ α
@@ -326,9 +333,9 @@ special = \case
 data Cat = N | NP | SP | Cat :/: Cat | Cat :\: Cat
 
 type family SemType (α :: Cat) where
-  SemType 'N = 'E ⟶ 'T
-  SemType 'NP = 'E
-  SemType 'SP = 'T
+  SemType 'N = E ⟶ T
+  SemType 'NP = E
+  SemType 'SP = T
   SemType (β ':/: α) = SemType α ⟶ SemType β
   SemType (α ':\: β) = SemType α ⟶ SemType β
 
@@ -401,7 +408,7 @@ pattern Or' φ ψ = Con Or `App` φ `App` ψ
 pattern Imp' φ ψ = Con Imp `App` φ `App` ψ
 pattern Forall' f = Con Forall `App` f
 pattern Exists' f = Con Exists `App` f
-pattern Equals' :: γ ⊢ α -> γ ⊢ α -> γ ⊢ 'T
+pattern Equals' :: γ ⊢ α -> γ ⊢ α -> γ ⊢ T
 pattern Equals' m n = Con Equals `App` m `App` n
 
 instance Show (Con α) where
@@ -448,33 +455,33 @@ instance Show (Con α) where
   show (Sel n) = "sel" ++ show n
   show (Con0 _ s) = s
 
-instance Additive (γ ⊢ 'R) where
+instance Additive (γ ⊢ R) where
   zero = Con (Incl 0)
   x + y  = Con Addi `App` x `App` y
-instance Additive (NF γ 'R) where
+instance Additive (NF γ R) where
   zero = normalForm zero
   x + y = normalForm (nf_to_λ x + nf_to_λ y)
-instance AbelianAdditive (γ ⊢ 'R)
-instance AbelianAdditive (NF γ 'R)
-instance Group (γ ⊢ 'R) where
+instance AbelianAdditive (γ ⊢ R)
+instance AbelianAdditive (NF γ R)
+instance Group (γ ⊢ R) where
   negate = App (App (Con Mult) (Con (Incl (-1))))
-instance Group (NF γ 'R) where
+instance Group (NF γ R) where
   negate = normalForm . negate . nf_to_λ
-instance Multiplicative (γ ⊢ 'R) where
+instance Multiplicative (γ ⊢ R) where
   one = Con (Incl 1)
   x * y  = Con Mult `App` x `App` y
   x ^+ n = Con (Expo) `App` x `App` Con ((Incl (fromInteger n)))
-instance Multiplicative (NF γ 'R) where
+instance Multiplicative (NF γ R) where
   one = normalForm one
   x * y = normalForm (nf_to_λ x * nf_to_λ y)
-instance Division (γ ⊢ 'R) where
+instance Division (γ ⊢ R) where
   x / y  = Con Divi `App` x `App` y
-instance Division (NF γ 'R) where
+instance Division (NF γ R) where
   x / y = normalForm (nf_to_λ x Algebra.Classes./ nf_to_λ y)
-instance Roots (γ ⊢ 'R) where
+instance Roots (γ ⊢ R) where
   x ^/ n = Con (Expo) `App` x `App` Con (Incl n)
 
-name :: Con 'E -> NLExp 'NP
+name :: Con E -> NLExp 'NP
 name = \case
   JP -> Jp
   Vlad -> Vl
@@ -484,7 +491,7 @@ pattern Height = MeasureFun 1
 pattern Human = Property 1
 pattern Theta = Degree 1
  
-absInversion :: γ ⊢ ('R ⟶ α) -> (γ × 'R) ⊢ α
+absInversion :: γ ⊢ (R ⟶ α) -> (γ × R) ⊢ α
 absInversion (Lam f) = f
 absInversion t = App (wkn t) (Var Get)
 
@@ -503,7 +510,7 @@ traverseNeu f = \case
   NeuSnd t -> NeuSnd <$>  traverseNeu f t
   NeuTT -> pure NeuTT 
   
-absInversionNF :: NF γ ('R ⟶ α) -> NF (γ × 'R) α
+absInversionNF :: NF γ (R ⟶ α) -> NF (γ × R) α
 absInversionNF (NFLam f) = f
 absInversionNF (Neu t) = Neu (NeuApp (renameNeu Weaken t) (Neu (NeuVar Get)))
 
@@ -567,18 +574,18 @@ apply t u = case t of
       _ -> deflt
       where deflt = Neu (NeuApp m' u)
             ctx = upd' jp (upd' vlad emp)
-            listFromContext :: NF γ 'Γ -> [NF γ 'E]
+            listFromContext :: NF γ Γ -> [NF γ E]
             listFromContext u = case nf_to_λ u of
               Con Empty -> []
               App (App (Con Upd) x) c ->
                 normalForm x : listFromContext (normalForm c)
 
-toFinite :: [NF γ α] -> NF γ ((α ⟶ 'R) ⟶ 'R)
+toFinite :: [NF γ α] -> NF γ ((α ⟶ R) ⟶ R)
 toFinite ts = NFLam $ sum [ apply (Neu (NeuVar Get)) (wknNF t) | t <- ts ]
 
-makeUtts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> Con 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
+makeUtts :: NF γ Γ -> [NF γ (Γ ⟶ E)] -> Con U -> NF γ ((U ⟶ R) ⟶ R)
 makeUtts ctx sels (Utt u) = toFinite $ map (NCon . Utt) $ alts ctx sels u
-  where alts :: NF γ 'Γ -> [NF γ ('Γ ⟶ 'E)] -> NLExp c -> [NLExp c]
+  where alts :: NF γ Γ -> [NF γ (Γ ⟶ E)] -> NLExp c -> [NLExp c]
         alts ctx sels = \case
           Pn i -> [Pn i, case apply (sels !! i) ctx of NCon e -> name e]
           MergeLft hd cmp -> [ MergeLft hd' cmp' | hd' <- alts ctx sels hd
@@ -588,7 +595,7 @@ makeUtts ctx sels (Utt u) = toFinite $ map (NCon . Utt) $ alts ctx sels u
           e -> [e]
 
 makeUtts' :: Witness n
-          -> NF γ 'Γ -> NF γ (Context n) -> NF γ 'U -> NF γ (('U ⟶ 'R) ⟶ 'R)
+          -> NF γ Γ -> NF γ (Context n) -> NF γ U -> NF γ ((U ⟶ R) ⟶ R)
 makeUtts' (S Z) ctx k u =
   let Pair (Pair (Pair (Pair (Pair _ sel1) sel0) _) _) _ = nf_to_λ k
       Con (u') = nf_to_λ u
@@ -677,14 +684,14 @@ instance Show (γ ⊢ α) where
 displayDB :: γ ⊢ α -> IO ()
 displayDB t = putStrLn $ show t
 
-displayVs :: 'Unit ⊢ α -> IO ()
+displayVs :: Unit ⊢ α -> IO ()
 displayVs t = putStrLn $ replace "%" "/" $ displayVs' freshes (\case) t
 
 freshes :: [String]
 freshes = "" : map show ints >>= \i -> map (:i) ['x', 'y', 'z', 'u', 'v', 'w']
   where ints = 1 : map succ ints
 
-displayVs1 :: ('Unit × β)  ⊢ α -> String
+displayVs1 :: (Unit × β)  ⊢ α -> String
 displayVs1 t = case freshes of
   [] -> error "displayVs1: panic"
   f:fs -> displayVs' fs (\case Get -> f; Weaken _ -> "γ") t
@@ -750,9 +757,9 @@ lft f = \case
 π Get κ = Snd κ
 π (Weaken i) κ = π i (Fst κ)
 
-type Context0 = 'Unit × ('R ⟶ 'R ⟶ 'T) × 'R × ('E ⟶ 'T) × ('E ⟶ 'R) × 'E
-type Context1 = 'Unit × 'T × ('Γ ⟶ 'E) × ('Γ ⟶ 'E) × ('E ⟶ 'E ⟶ 'T) × 'E × 'E
-type Context2 = 'Unit × 'T × ('Γ ⟶ 'E) × ('E ⟶ 'T) × 'E × 'E
+type Context0 = Unit × (R ⟶ R ⟶ T) × R × (E ⟶ T) × (E ⟶ R) × E
+type Context1 = Unit × T × (Γ ⟶ E) × (Γ ⟶ E) × (E ⟶ E ⟶ T) × E × E
+type Context2 = Unit × T × (Γ ⟶ E) × (E ⟶ T) × E × E
 
 data Nat where
   Zero :: Nat
@@ -844,11 +851,11 @@ hmorph0 n = \case
 hmorph :: Witness n -> γ ⊢ α -> γ ⊢ (Context n ⟶ α)
 hmorph n (hmorph0 n -> m) = Lam m
 
-η :: γ ⊢ α -> γ ⊢ ((α ⟶ 'R) ⟶ 'R)
+η :: γ ⊢ α -> γ ⊢ ((α ⟶ R) ⟶ R)
 η m = Lam (App (Var Get) (wkn m))
 
-(⋆) :: γ ⊢ ((α ⟶ 'R) ⟶ 'R) -> γ ⊢ (α ⟶ ((β ⟶ 'R) ⟶ 'R)) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
+(⋆) :: γ ⊢ ((α ⟶ R) ⟶ R) -> γ ⊢ (α ⟶ ((β ⟶ R) ⟶ R)) -> γ ⊢ ((β ⟶ R) ⟶ R)
 m ⋆ k = Lam (App (wkn m) (Lam (App (App (wkn (wkn k)) (Var Get)) (Var (Weaken Get)))))
 
-(>>) :: γ ⊢ (('Unit ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R) -> γ ⊢ ((β ⟶ 'R) ⟶ 'R)
+(>>) :: γ ⊢ ((Unit ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R) -> γ ⊢ ((β ⟶ R) ⟶ R)
 m >> k = m ⋆ Lam (wkn k)

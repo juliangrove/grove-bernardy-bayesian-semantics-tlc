@@ -26,7 +26,7 @@ import qualified Algebra.Morphism.LinComb as LC
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp, (**))
 import Data.Complex
-import TLC.Terms (type (∈)(..), Type(..), type(×), type(⟶))
+import TLC.Terms (type (∈)(..), Type(..), type(×), type(⟶), R)
 import qualified Algebra.Expression as E
 import Data.Function (on)
 import Data.Foldable
@@ -55,7 +55,7 @@ instance DecidableZero Rat where
 type RatLike α = (Ring α, Ord α, DecidableZero α)
 
 
-type Var γ = 'R ∈ γ
+type Var γ = R ∈ γ
 data Dir = Min | Max deriving (Eq,Ord,Show)
 data Elem γ = Vari (Var γ)
             | Supremum Dir [Ret γ] -- either minimum or maximum of the arguments
@@ -79,7 +79,7 @@ data Domain γ = Domain { domainLoBounds, domainHiBounds :: [Expr γ] }
 data P (γ :: Type) where
   Done :: Ret γ -> P γ
   Cond :: Cond γ -> P γ -> P γ
-  Integrate :: Domain γ -> P (γ × 'R) -> P γ
+  Integrate :: Domain γ -> P (γ × R) -> P γ
   Add :: P γ -> P γ -> P γ
   Power :: P γ -> Rat -> P γ
   Mul :: [P γ] -> P γ
@@ -253,7 +253,7 @@ supremum dir es =
 constPoly :: Number -> Ret γ
 constPoly (Number n) = (\case) <$> n
 
-varPoly :: 'R ∈ γ -> Ret γ
+varPoly :: R ∈ γ -> Ret γ
 varPoly = E.Var . Vari
 
 retToNumber :: Ret 'Unit -> Number

@@ -53,10 +53,10 @@ plotOptions = PlotOptions {..} where
 
 
 -- distribution for θ 
-linguisticParameterDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
+linguisticParameterDistribution :: Exp ((F.R ⟶ F.R) ⟶ F.R)
 linguisticParameterDistribution = uniform (fromRational domLo) (fromRational domHi)
 
-interpU :: Exp 'U -> Exp 'R -> Exp 'R -> Exp 'T
+interpU :: Exp F.U -> Exp F.R -> Exp F.R -> Exp F.T
 interpU u θ h = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x ≥ y)
                                              `Pair` θ
                                              `Pair` (Lam $ \_ -> Con (F.Tru))
@@ -64,44 +64,44 @@ interpU u θ h = Con (Interp F.Z) @@ u @@ (TT `Pair` (Lam $ \x -> Lam $ \y -> x 
                                              `Pair` Con (F.Entity 0))
 
 -- Distribution over height (w in Good-Lass)
-worldDistribution :: Exp (('R ⟶ 'R) ⟶ 'R)
+worldDistribution :: Exp ((F.R ⟶ F.R) ⟶ F.R)
 worldDistribution = normal 5.75 0.35 ⋆ \h ->
            observe (h ≥ fromRational domLo) >>
            observe (fromRational domHi ≥ h) >>
            η h
 
-asExpression :: Exp ('R ⟶ 'R ⟶ 'R) -> P ('Unit × 'R × 'R)
+asExpression :: Exp (F.R ⟶ F.R ⟶ F.R) -> P (F.Unit × F.R × F.R)
 asExpression = simplifyFun2 [] . fromHoas
 
 α :: Rational
 α = alpha
 
 -- | Literal listener (posterior distribution over worlds)
--- l0 ::  Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
-l0 :: Exp 'R -> Exp 'U -> Exp (('R ⟶ 'R) ⟶ 'R)
+-- l0 ::  Exp F.U -> Exp ((context ⟶ F.R) ⟶ F.R)
+l0 :: Exp F.R -> Exp F.U -> Exp ((F.R ⟶ F.R) ⟶ F.R)
 l0 θ u = worldDistribution ⋆ \h ->
          observe (interpU u θ h) >> -- filter incompatible worlds
          η h
 
 
--- l0Distr :: Exp 'U -> Exp context -> Exp 'R
-l0Distr :: Exp 'U -> Exp ('R × 'R) -> Exp 'R
+-- l0Distr :: Exp F.U -> Exp context -> Exp F.R
+l0Distr :: Exp F.U -> Exp (F.R × F.R) -> Exp F.R
 l0Distr u ctx = distr (l0 θ u) h
   where θ = Fst ctx
         h = Snd ctx
 
-l0X,l0Y :: P ('Unit × 'R)
+l0X,l0Y :: P (F.Unit × F.R)
 l0X = integrateOnPlotDomain l0Expr
 l0Y = integrateOnPlotDomain $ swap2P $ l0Expr
 
--- twoDimFunOf :: (Exp utterance -> Exp context -> Exp 'R) -> Exp ('R ⟶ 'R ⟶ 'R)
-twoDimFunOf :: (Exp 'U -> Exp (a ':× b1) -> Exp b2) -> Exp (a ':-> (b1 ':-> b2))
+-- twoDimFunOf :: (Exp utterance -> Exp context -> Exp F.R) -> Exp (F.R ⟶ F.R ⟶ F.R)
+twoDimFunOf :: (Exp F.U -> Exp (a ':× b1) -> Exp b2) -> Exp (a ':-> (b1 ':-> b2))
 twoDimFunOf f = Lam $ \θ -> Lam $ \h -> f isTall (Pair θ h)
 
-utilityl0 :: Exp ('R ⟶ 'R ⟶ 'R)
+utilityl0 :: Exp (F.R ⟶ F.R ⟶ F.R)
 utilityl0 = twoDimFunOf l0Distr
 
-l0Expr :: P (('Unit × 'R) × 'R)
+l0Expr :: P ((F.Unit × F.R) × F.R)
 l0Expr = asExpression utilityl0
 
 l0Samples :: V.Vec (V.Vec Double)
@@ -112,49 +112,49 @@ l0xSamples = approxTop plotOptions l0X
 
 l0ySamples = approxTop plotOptions l0Y
 
-integrateOnPlotDomain :: P (γ × 'R) -> P γ
+integrateOnPlotDomain :: P (γ × F.R) -> P γ
 integrateOnPlotDomain  = normalise . Integrate (Domain
                   [A.constant (fromRational (toRational plotDomainLo))]
                   [A.constant (fromRational (toRational plotDomainHi))])
  where PlotOptions{..} = plotOptions
                          
 
-asExpression1 :: Exp ('R ⟶ 'R) -> P ('Unit × 'R)
+asExpression1 :: Exp (F.R ⟶ F.R) -> P (F.Unit × F.R)
 asExpression1 = simplifyFun [] . fromHoas
 
     
-runAll :: String -> Exp (('U ⟶ 'R) ⟶ 'R) -> IO ()
+runAll :: String -> Exp ((F.U ⟶ F.R) ⟶ F.R) -> IO ()
 runAll prefix utteranceDistribution = do
   -- toMath
   plotData
   where
 
-  -- s1 :: Exp context -> Exp (('U ⟶ 'R) ⟶ 'R)
-  s1 :: Exp 'R -> Exp 'R -> Exp (('U ⟶ 'R) ⟶ 'R)
+  -- s1 :: Exp context -> Exp ((F.U ⟶ F.R) ⟶ F.R)
+  s1 :: Exp F.R -> Exp F.R -> Exp ((F.U ⟶ F.R) ⟶ F.R)
   s1 θ h = utteranceDistribution ⋆ \u ->
            factor ((distr (l0 θ u) h) ^/ α) >>
            η u
   -- | Pragmatic listener
-  -- l1 :: Exp 'U -> Exp ((context ⟶ 'R) ⟶ 'R)
+  -- l1 :: Exp F.U -> Exp ((context ⟶ F.R) ⟶ F.R)
 
-  l1 :: Exp 'U -> Exp ((('R ':× 'R) ⟶ 'R) ⟶ 'R)
+  l1 :: Exp F.U -> Exp (((F.R ':× F.R) ⟶ F.R) ⟶ F.R)
   l1 u = worldDistribution ⋆ \h ->
          linguisticParameterDistribution ⋆ \θ ->
          factor (distr (s1 θ h) u) >>
          η (θ `Pair` h)
 
-  -- s1Distr :: Exp context -> Exp 'U -> Exp 'R
-  s1Distr :: Exp 'U -> Exp ('R ':× 'R) -> Exp 'R
+  -- s1Distr :: Exp context -> Exp F.U -> Exp F.R
+  s1Distr :: Exp F.U -> Exp (F.R ':× F.R) -> Exp F.R
   s1Distr u ctx = distr (s1 (Fst ctx) (Snd ctx)) u
 
-  -- l1Distr :: Exp 'U -> Exp context -> Exp 'R
-  l1Distr :: Exp 'U -> Exp ('R ':× 'R) -> Exp 'R
+  -- l1Distr :: Exp F.U -> Exp context -> Exp F.R
+  l1Distr :: Exp F.U -> Exp (F.R ':× F.R) -> Exp F.R
   l1Distr u ctx = distr (l1 u) ctx
 
-  utilitys1 :: Exp ('R ⟶ 'R ⟶ 'R)
+  utilitys1 :: Exp (F.R ⟶ F.R ⟶ F.R)
   utilitys1 = twoDimFunOf s1Distr 
 
-  utilityl1 :: Exp ('R ⟶ 'R ⟶ 'R)
+  utilityl1 :: Exp (F.R ⟶ F.R ⟶ F.R)
   utilityl1 = twoDimFunOf l1Distr
 
   l1Expr = asExpression utilityl1

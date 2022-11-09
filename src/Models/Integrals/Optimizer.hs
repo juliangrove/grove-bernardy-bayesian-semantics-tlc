@@ -50,13 +50,13 @@ insertUniq x (y:xs) | x == y = (y:xs)
 -- | Restrict the bounds in the domain according to some
 -- conditions. Also return conditions that ensure that the bounds are
 -- in the right order.
-restrictDomain :: Cond (γ × 'R) -> Domain γ -> (Domain γ, [Cond γ])
+restrictDomain :: Cond (γ × R) -> Domain γ -> (Domain γ, [Cond γ])
 restrictDomain c (Domain los his) = case solve' c of -- version with solver
   (LT, e) -> (Domain los (e `insertUniq` his), [ lo `lessThan` e | lo <- los ])
   (GT, e) -> (Domain (e `insertUniq` los) his, [ e `lessThan` hi | hi <- his ])
   _ -> error "restrictDomain: cannot be called/(1) on equality condition"
 
-solveGet :: (x ~ Rat) => A.Affine (Var (γ × 'R)) x -> (Bool, Expr γ)
+solveGet :: (x ~ Rat) => A.Affine (Var (γ × R)) x -> (Bool, Expr γ)
 solveGet e0 = case A.solve Get e0 of
   Left _ -> error "solveGet: division by zero"
   Right (p, e1) -> case occurExpr e1 of
@@ -66,18 +66,18 @@ solveGet e0 = case A.solve Get e0 of
 type Solution γ = (Ordering, Expr γ)
   
 -- FIXME: detect always true and always false cases.
-solve' :: Cond (γ × 'R) -> Solution γ
+solve' :: Cond (γ × R) -> Solution γ
 solve' c0 = case c0 of
     IsZero _ -> (EQ, e)
     IsNegative _ -> if positive then (LT, e) else (GT, e) 
   where (positive, e) = solveGet (condExpr c0) 
 
-occurExpr :: Expr (γ × 'R) -> Maybe (Expr γ)
+occurExpr :: Expr (γ × R) -> Maybe (Expr γ)
 occurExpr = A.traverseVars $ \case
   Get -> Nothing
   Weaken x -> Just x
 
-domainToConds :: Domain γ -> [Cond (γ × 'R)]
+domainToConds :: Domain γ -> [Cond (γ × R)]
 domainToConds (Domain los his) =
   [wkExpr e `lessThan` A.var Get | e <- los] ++
   [A.var Get `lessThan` wkExpr e | e <- his]
@@ -97,7 +97,7 @@ cond c (Cond c' e) = if deepest (condVars c) > deepest (condVars c')
 cond c e = Cond c e
 
 
-integrate :: Domain γ -> P (γ × 'R) -> P γ
+integrate :: Domain γ -> P (γ × R) -> P γ
 integrate _ PZero = zero
 integrate d (Done k) | Just k' <- traverse (varTraverse noGet) k
                      -- integration variable does not occur in k
@@ -208,7 +208,7 @@ deepest :: [Var γ] -> SomeVar γ
 deepest [] = NoVar
 deepest xs = SomeVar (minimum xs)
 
--- varExamples :: [SomeVar ('Unit × 'R × 'R)]
+-- varExamples :: [SomeVar ('Unit × R × R)]
 -- varExamples = [NoVar, SomeVar (Get), SomeVar (Weaken Get)]
 
 -- >>> [(x,y,x > y) | x <- varExamples, y <- varExamples]
@@ -285,7 +285,7 @@ discontinuities  = \case
 
 -- | Make an explicit test on a condition. The underlying formula is:
 -- e = cond c e + cond (not c) e
-testCond :: Domain γ -> [Expr (γ × 'R)] -> P (γ × 'R) -> P γ
+testCond :: Domain γ -> [Expr (γ × R)] -> P (γ × R) -> P γ
 testCond d [] e = Integrate d e
 testCond d (f:fs) e = testCond d fs (Cond (isPositive f) e) + testCond d fs (Cond (isNegative f) e)
 
