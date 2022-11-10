@@ -88,7 +88,7 @@ data Con α where
   Gaussian :: Con ((R × R) ⟶ (R ⟶ R) ⟶ R)
   Les :: Con ((R ⟶ R) ⟶ R)
   Bernoulli :: Con (R ⟶ (T ⟶ R) ⟶ R)
-  Beta :: Con ((R × R) ⟶ (R ⟶ R) ⟶ R)
+  Beta :: Con (R ⟶ R ⟶ (R ⟶ R) ⟶ R)
   Interp :: Witness n -> Con (U ⟶ Context n ⟶ T)
   Empty :: Con Γ
   Upd :: Con (E ⟶ Γ ⟶ Γ)
