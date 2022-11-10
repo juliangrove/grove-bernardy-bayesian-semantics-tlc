@@ -74,6 +74,7 @@ data Con α where
   -- General purpose stuff
   Incl :: Rational -> Con R
   Indi :: Con (T ⟶ R)
+  IfThenElse :: Con (T ⟶ α ⟶ α)
   Addi :: Con (R ⟶ R ⟶ R)
   Mult :: Con (R ⟶ R ⟶ R)
   Expo :: Con (R ⟶ R ⟶ R)
@@ -420,6 +421,7 @@ instance Show (Con α) where
   show Equals = "(=)"
   show (Incl x) = showR x
   show Indi = "𝟙"
+  show IfThenElse = "ifThenElse"
   show Expo = "(^)"
   show Exp = "exp"
   show CircleConstant = "pi"
