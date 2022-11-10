@@ -74,7 +74,7 @@ data Con α where
   -- General purpose stuff
   Incl :: Rational -> Con R
   Indi :: Con (T ⟶ R)
-  IfThenElse :: Con (T ⟶ α ⟶ α)
+  IfThenElse :: Con (T ⟶ α ⟶ α ⟶ α)
   Addi :: Con (R ⟶ R ⟶ R)
   Mult :: Con (R ⟶ R ⟶ R)
   Expo :: Con (R ⟶ R ⟶ R)
