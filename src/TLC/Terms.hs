@@ -85,7 +85,10 @@ data Con α where
   Utt :: NLExp 'SP -> Con U
   Silence :: Con U
   MakeUtts :: Witness n -> Con ((Context n × U) ⟶ ((U ⟶ R) ⟶ R))
+  Gaussian :: Con ((R × R) ⟶ (R ⟶ R) ⟶ R)
   Les :: Con ((R ⟶ R) ⟶ R)
+  Bernoulli :: Con (R ⟶ (T ⟶ R) ⟶ R)
+  Beta :: Con ((R × R) ⟶ (R ⟶ R) ⟶ R)
   Interp :: Witness n -> Con (U ⟶ Context n ⟶ T)
   Empty :: Con Γ
   Upd :: Con (E ⟶ Γ ⟶ Γ)
@@ -423,7 +426,10 @@ instance Show (Con α) where
   show Addi = "(+)"
   show Mult = "(*)"
   show Divi = "(/)"
-  show Les = "Lesbegue"
+  show Les = "lesbegue"
+  show Gaussian = "gaussian"
+  show Beta = "beta"
+  show Bernoulli = "bernoulli"
   show EqGen = "(≐)"
   show EqRl = "(≡)"
   show (Utt s) = show s
