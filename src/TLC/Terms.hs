@@ -442,6 +442,7 @@ instance Show (Con α) where
   show Upd = "(∷)"
   show (Pi n) = "π" ++ show n
   show (MakeUtts _) = "MakeUtts"
+  show Form = "form"
   show JP = "emacs"
   show Vlad = "the_command"
   show (Entity n) = "entity" ++ show n
