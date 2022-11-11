@@ -210,9 +210,9 @@ instance Equality (Γ ⟶ E) where
       False -> NCon (Incl 0)
 
 -------------------------------------------------------------------------------
-type ValueSubst = forall δ β. β ∈ δ -> FOL.Value
+type ValueSubst δ = forall β. β ∈ δ -> FOL.Value
 
-viewApp :: ValueSubst -> γ ⊢ α -> Maybe (String, [FOL.Value])
+viewApp :: ValueSubst γ -> γ ⊢ α -> Maybe (String, [FOL.Value])
 viewApp ρ = \case
   TLC.Terms.Con c -> Just (show c, [])
   App x y -> case viewApp ρ x of
@@ -220,7 +220,7 @@ viewApp ρ = \case
                _ -> Nothing
   _ -> Nothing
 
-termToFol' :: ValueSubst -> γ ⊢ α -> FOL.Value
+termToFol' :: ValueSubst γ -> γ ⊢ α -> FOL.Value
 termToFol' ρ t =
   case t of
     Var i -> ρ i

@@ -47,7 +47,7 @@ evalFL = \case
 evalFLState' :: NF γ R -> State [NF γ T] Finite
 evalFLState' = \case
   NCon ((Incl x)) -> pure $ fromRational x
-  Neu (NeuApp (NeuCon (Indi)) ψ) -> state $ \φs ->
+  Neu (NeuApp (NeuCon Indi) ψ) -> state $ \φs ->
     case tryProve' (map termToFol φs) (termToFol ψ) of
       Contradiction -> (zero, [λToNF False'])
       _ -> (one, ψ:φs)
