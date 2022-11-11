@@ -94,6 +94,7 @@ data Con α where
   Empty :: Con Γ
   Upd :: Con (E ⟶ Γ ⟶ Γ)
   Pi :: Int -> Con (Γ ⟶ E)
+  Form :: Con (T ⟶ T)
   -- Special constants (may take on distributions)
   Entity :: Int -> Con E
   MeasureFun :: Int -> Con (E ⟶ R)
