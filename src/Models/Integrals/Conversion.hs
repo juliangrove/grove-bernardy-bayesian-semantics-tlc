@@ -69,9 +69,9 @@ evalP' = \case
   Divide x y -> evalP' x / evalP' y -- TODO: get rid of this and use * and recip
   Expos (evalP' -> x) (NNCon y) -> Power x y
   Lesbegue f -> Integrate (Domain [] []) $
-                (evalP' $ normalForm $ App (wkn $ nf_to_λ f) (Var Get))
+                (evalP' $ λToNF $ App (wkn $ nfToλ f) (Var Get))
   t -> retPoly (evalRet t)
-    -- error ("evalP': don't know how to handle: " ++ (show . nf_to_λ) t)
+    -- error ("evalP': don't know how to handle: " ++ (show . nfToλ) t)
 
 evalRet :: forall γ. NF γ R -> Ret γ
 evalRet = \case
@@ -83,4 +83,4 @@ evalRet = \case
   NNVar i -> varPoly i
   Neu (NeuApp (NeuCon Exp) x) -> exp (evalRet x)
   (Neu (NeuCon CircleConstant)) -> pi
-  t -> error ("evalRet: don't know how to handle: " ++ (show . nf_to_λ) t)
+  t -> error ("evalRet: don't know how to handle: " ++ (show . nfToλ) t)

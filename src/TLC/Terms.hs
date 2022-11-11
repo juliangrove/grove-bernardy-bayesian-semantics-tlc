@@ -94,7 +94,6 @@ data Con α where
   Empty :: Con Γ
   Upd :: Con (E ⟶ Γ ⟶ Γ)
   Pi :: Int -> Con (Γ ⟶ E)
-  Form :: Con (T ⟶ T)
   -- Special constants (may take on distributions)
   Entity :: Int -> Con E
   MeasureFun :: Int -> Con (E ⟶ R)
@@ -238,12 +237,17 @@ termToFol' ρ t =
                                                 Get -> x
                                                 Weaken i -> ρ i)
                             (evalβ $ App (wkn f) (Var Get)))
+    
+    IfThenElse' (termToFol' ρ -> b) (termToFol' ρ -> φ) (termToFol' ρ -> ψ) ->
+      case b of
+        FOL.VTru -> φ
+        FOL.VFal -> ψ
     _ -> case viewApp ρ t of
                  Just (f, args) -> FOL.VApp f args
                  Nothing -> error $ "termToFol': viewApp produced Nothing"
 
 termToFol :: NF γ α -> FOL.Value
-termToFol = termToFol' (\case) . nf_to_λ 
+termToFol = termToFol' (\case) . nfToλ 
 --------------------------------------------------------------------------------
 
 
@@ -395,7 +399,7 @@ interp = \case
   Pn i -> sel' i ctx
   IsTall -> Lam ((≥) @@ (height @@ Var Get) @@ θ)
   IsShort -> Lam ((≥) @@ θ @@ (height @@ Var Get))
-  IsThisTall d -> Lam ((≥) @@ (height @@ Var Get) @@ nf_to_λ (incl d))
+  IsThisTall d -> Lam ((≥) @@ (height @@ Var Get) @@ nfToλ (incl d))
   IsPrepared -> prop 0
   Saw -> rel 0
   IsWaitingFor -> rel 1
@@ -410,6 +414,7 @@ pattern Forall' f = Con Forall `App` f
 pattern Exists' f = Con Exists `App` f
 pattern Equals' :: γ ⊢ α -> γ ⊢ α -> γ ⊢ T
 pattern Equals' m n = Con Equals `App` m `App` n
+pattern IfThenElse' b m n = Con IfThenElse `App` b `App` m `App` n
 
 instance Show (Con α) where
   show Tru = "⊤"
@@ -442,7 +447,6 @@ instance Show (Con α) where
   show Upd = "(∷)"
   show (Pi n) = "π" ++ show n
   show (MakeUtts _) = "MakeUtts"
-  show Form = "form"
   show JP = "emacs"
   show Vlad = "the_command"
   show (Entity n) = "entity" ++ show n
@@ -464,25 +468,25 @@ instance Additive (γ ⊢ R) where
   zero = Con (Incl 0)
   x + y  = Con Addi `App` x `App` y
 instance Additive (NF γ R) where
-  zero = normalForm zero
-  x + y = normalForm (nf_to_λ x + nf_to_λ y)
+  zero = λToNF zero
+  x + y = λToNF (nfToλ x + nfToλ y)
 instance AbelianAdditive (γ ⊢ R)
 instance AbelianAdditive (NF γ R)
 instance Group (γ ⊢ R) where
   negate = App (App (Con Mult) (Con (Incl (-1))))
 instance Group (NF γ R) where
-  negate = normalForm . negate . nf_to_λ
+  negate = λToNF . negate . nfToλ
 instance Multiplicative (γ ⊢ R) where
   one = Con (Incl 1)
   x * y  = Con Mult `App` x `App` y
   x ^+ n = Con (Expo) `App` x `App` Con ((Incl (fromInteger n)))
 instance Multiplicative (NF γ R) where
-  one = normalForm one
-  x * y = normalForm (nf_to_λ x * nf_to_λ y)
+  one = λToNF one
+  x * y = λToNF (nfToλ x * nfToλ y)
 instance Division (γ ⊢ R) where
   x / y  = Con Divi `App` x `App` y
 instance Division (NF γ R) where
-  x / y = normalForm (nf_to_λ x Algebra.Classes./ nf_to_λ y)
+  x / y = λToNF (nfToλ x Algebra.Classes./ nfToλ y)
 instance Roots (γ ⊢ R) where
   x ^/ n = Con (Expo) `App` x `App` Con (Incl n)
 
@@ -557,7 +561,7 @@ apply t u = case t of
         case u of
           NFPair k (Neu (NeuCon u''))
             -> if checkk n k
-               then makeUtts' n (normalForm ctx) k (Neu (NeuCon u''))
+               then makeUtts' n (λToNF ctx) k (Neu (NeuCon u''))
                else deflt
           _ -> deflt
         where checkk :: Witness n -> NF γ (Context n) -> Bool
@@ -571,19 +575,19 @@ apply t u = case t of
                   True
                 _ -> False
       (NeuCon EqGen) -> equals (fst' u) (snd' u)
-      (NeuCon (Interp i)) -> case nf_to_λ u of
+      (NeuCon (Interp i)) -> case nfToλ u of
         Con (Utt e) -> morph $ interp e
         Con Silence -> morph True'
         _ -> deflt
-        where morph = normalForm . hmorph i
+        where morph = λToNF . hmorph i
       _ -> deflt
       where deflt = Neu (NeuApp m' u)
             ctx = upd' jp (upd' vlad emp)
             listFromContext :: NF γ Γ -> [NF γ E]
-            listFromContext u = case nf_to_λ u of
+            listFromContext u = case nfToλ u of
               Con Empty -> []
               App (App (Con Upd) x) c ->
-                normalForm x : listFromContext (normalForm c)
+                λToNF x : listFromContext (λToNF c)
 
 toFinite :: [NF γ α] -> NF γ ((α ⟶ R) ⟶ R)
 toFinite ts = NFLam $ sum [ apply (Neu (NeuVar Get)) (wknNF t) | t <- ts ]
@@ -602,23 +606,23 @@ makeUtts ctx sels (Utt u) = toFinite $ map (NCon . Utt) $ alts ctx sels u
 makeUtts' :: Witness n
           -> NF γ Γ -> NF γ (Context n) -> NF γ U -> NF γ ((U ⟶ R) ⟶ R)
 makeUtts' (S Z) ctx k u =
-  let Pair (Pair (Pair (Pair (Pair _ sel1) sel0) _) _) _ = nf_to_λ k
-      Con (u') = nf_to_λ u
-  in makeUtts ctx [normalForm sel0, normalForm sel1] u'
+  let Pair (Pair (Pair (Pair (Pair _ sel1) sel0) _) _) _ = nfToλ k
+      Con (u') = nfToλ u
+  in makeUtts ctx [λToNF sel0, λToNF sel1] u'
 makeUtts' (S (S Z)) ctx k u =
-  let Pair (Pair (Pair (Pair _ sel0) _) _) _ = nf_to_λ k
-      Con (u') = nf_to_λ u
-  in makeUtts ctx [normalForm sel0] u'
+  let Pair (Pair (Pair (Pair _ sel0) _) _) _ = nfToλ k
+      Con (u') = nfToλ u
+  in makeUtts ctx [λToNF sel0] u'
 
-normalForm :: γ ⊢ α -> NF γ α
-normalForm = \case
+λToNF :: γ ⊢ α -> NF γ α
+λToNF = \case
   Var i -> Neu $ NeuVar i
   Con c -> Neu $ NeuCon c
-  App (normalForm -> m) (normalForm -> n) -> apply m n 
-  Lam (normalForm -> m) -> NFLam m
-  Fst (normalForm -> m) -> fst' m
-  Snd (normalForm -> m) -> snd' m
-  Pair (normalForm -> m) (normalForm -> n) -> NFPair m n
+  App (λToNF -> m) (λToNF -> n) -> apply m n 
+  Lam (λToNF -> m) -> NFLam m
+  Fst (λToNF -> m) -> fst' m
+  Snd (λToNF -> m) -> snd' m
+  Pair (λToNF -> m) (λToNF -> n) -> NFPair m n
   TT -> Neu NeuTT
 
 fst' :: NF γ (α × β) -> NF γ α
@@ -631,26 +635,26 @@ snd' = \case
            NFPair _ n' -> n'
            Neu m' -> Neu $ NeuSnd m'
 
-nf_to_λ :: NF γ α -> γ ⊢ α
-nf_to_λ = \case
-  Neu (neu_to_λ -> m) -> m
-  NFLam (nf_to_λ -> m) -> Lam m
-  NFPair (nf_to_λ -> m) (nf_to_λ -> n) -> Pair m n
+nfToλ :: NF γ α -> γ ⊢ α
+nfToλ = \case
+  Neu (neuToλ -> m) -> m
+  NFLam (nfToλ -> m) -> Lam m
+  NFPair (nfToλ -> m) (nfToλ -> n) -> Pair m n
 
-neu_to_λ :: Neutral γ α -> γ ⊢ α
-neu_to_λ = \case
+neuToλ :: Neutral γ α -> γ ⊢ α
+neuToλ = \case
   NeuVar i -> Var i
   NeuCon c -> Con c
-  NeuApp (neu_to_λ -> m) (nf_to_λ -> n) -> App m n
-  NeuFst (neu_to_λ -> m) -> Fst m
-  NeuSnd (neu_to_λ -> m) -> Snd m
+  NeuApp (neuToλ -> m) (nfToλ -> n) -> App m n
+  NeuFst (neuToλ -> m) -> Fst m
+  NeuSnd (neuToλ -> m) -> Snd m
   NeuTT -> TT
 
 evalβ :: γ ⊢ α -> γ ⊢ α
-evalβ = nf_to_λ . normalForm
+evalβ = nfToλ . λToNF
 
 instance Show (NF γ α) where
-  show = show . nf_to_λ
+  show = show . nfToλ
 instance Show (γ ⊢ α) where
   show = replace "%" "/" . \case
     Var Get -> "x"

@@ -23,7 +23,7 @@ import TLC.Terms hiding ((>>), u, Con)
 
 -- | Take typed descriptions of real numbers onto integrators 
 simplify :: [Cond γ] -> (γ ⊢ R) -> P γ
-simplify cs = normalise . cleanConds [] . conds_ cs . normalise . evalP' . normalForm
+simplify cs = normalise . cleanConds [] . conds_ cs . normalise . evalP' . λToNF
 
 -- | Take typed descriptions of functions onto integrators with a free var
 simplifyFun :: [Cond ('Unit × R)] -> 'Unit ⊢ (R ⟶ R) -> P ('Unit × R)

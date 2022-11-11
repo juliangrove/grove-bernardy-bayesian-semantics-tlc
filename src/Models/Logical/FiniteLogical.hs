@@ -42,14 +42,14 @@ evalFL = \case
   Adds (evalFL -> x) (evalFL -> y) -> x + y
   Divide (evalFL -> x) (evalFL -> y) -> x / y
   Expos (evalFL -> x) (evalFL -> y) -> x Algebra.Classes.** y
-  t -> error ("evalFL: don't know how to handle: " ++ (show . nf_to_λ) t)
+  t -> error ("evalFL: don't know how to handle: " ++ (show . nfToλ) t)
 
 evalFLState' :: NF γ R -> State [NF γ T] Finite
 evalFLState' = \case
   NCon ((Incl x)) -> pure $ fromRational x
   Neu (NeuApp (NeuCon (Indi)) ψ) -> state $ \φs ->
     case tryProve' (map termToFol φs) (termToFol ψ) of
-      Contradiction -> (zero, [normalForm False'])
+      Contradiction -> (zero, [λToNF False'])
       _ -> (one, ψ:φs)
   Mults (evalFLState' -> x) (evalFLState' -> y) -> (*) <$> x <*> y
   Adds (evalState . evalFLState' -> x) (evalState . evalFLState' -> y) ->
@@ -58,7 +58,7 @@ evalFLState' = \case
     flip (/) <$> state (\φs -> (y φs, φs)) <*> x
   Expos (evalFLState' -> x) (NCon ((Incl y))) ->
     fmap (Algebra.Classes.** (fromRational y)) x
-  t -> error ("evalFLState': don't know how to handle: " ++ (show . nf_to_λ) t)
+  t -> error ("evalFLState': don't know how to handle: " ++ (show . nfToλ) t)
 
 evalFLState :: NF 'Unit R -> Finite
 evalFLState = flip evalState [] . evalFLState'
