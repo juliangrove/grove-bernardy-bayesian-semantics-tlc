@@ -72,6 +72,7 @@ data Con α where
   Exists :: Con ((α ⟶ T) ⟶ T)
   Equals :: Con (α ⟶ α ⟶ T)
   -- General purpose stuff
+  Factor :: Con (R ⟶ ('Unit ⟶ R) ⟶ R)
   Incl :: Rational -> Con R
   Indi :: Con (T ⟶ R)
   IfThenElse :: Con (T ⟶ α ⟶ α ⟶ α)
