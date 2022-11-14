@@ -11,7 +11,7 @@
 
 module TLC.HOAS (PP, Exp(..), (@@), (&), module TLC.Terms,
                 -- distributionos
-                uniform, normal, lesbegue, logisticDistr,
+                beta, uniform, normal, lesbegue, logisticDistr,
                 -- probabilistic program coombinators
                 observe, factor, (⋆), (>>), η,
                 -- running probabilistic programs
