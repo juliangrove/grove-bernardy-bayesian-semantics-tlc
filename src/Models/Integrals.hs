@@ -18,6 +18,7 @@ import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt
                       , exp)
 import TLC.Terms hiding ((>>), u, Con)
 
+
 --------------------------------------------------------------------------------
 -- | Top-level Entry points
 
@@ -32,6 +33,7 @@ simplifyFun cs = simplify cs . absInversion
 -- | Take typed descriptions of functions onto integrators with two free vars
 simplifyFun2 :: [Cond (('Unit × R) × R)] -> 'Unit ⊢ (R ⟶ R ⟶ R) -> (P (('Unit × R) × R))
 simplifyFun2 cs = simplify cs . absInversion . absInversion
+
 
 --------------------------------------------------------------------------------
 -- | Examples

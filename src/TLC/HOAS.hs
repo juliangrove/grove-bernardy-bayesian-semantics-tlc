@@ -179,8 +179,12 @@ uniform lo hi = lesbegue ⋆ \x ->
   η x
 
 cauchy :: Exp R -> Exp R -> Cont R R
-cauchy x0 γ = lesbegue ⸾ \ x -> ((pi * γ) * (one + ((one/γ) * (x - x0)) ^+2))
-   
+cauchy x0 γ = lesbegue ⸾ \ x -> ((pi * γ) * (one + ((one/γ) * (x - x0)) ^+ 2))
+
+beta :: Integer -> Integer -> PP R
+beta α β = lesbegue ⸾ \x ->
+  (x ^+ (α - one)) * ((one - x) ^+ (β - one))
+
 normal :: Rational -> Rational -> PP R
 normal μ σ = lesbegue ⸾ \x ->
   -- TODO: get rid of the constant factor below

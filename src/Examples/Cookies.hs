@@ -64,11 +64,9 @@ contextDistribution =
            observe (hi ≥ nCookies) >>
            η nCookies
 
-
 cost :: Double -> Exp F.R
 cost x = Con (F.Incl (toRational (exp (- x) :: Double))) 
   
-
 asExpression :: Exp (F.R ⟶ F.R ⟶ F.R) -> P ('Unit × F.R × F.R)
 asExpression = simplifyFun2 [] . fromHoas
 

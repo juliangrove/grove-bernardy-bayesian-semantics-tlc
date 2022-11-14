@@ -79,8 +79,8 @@ occurExpr = A.traverseVars $ \case
 
 domainToConds :: Domain γ -> [Cond (γ × R)]
 domainToConds (Domain los his) =
-  [wkExpr e `lessThan` A.var Get | e <- los] ++
-  [A.var Get `lessThan` wkExpr e | e <- his]
+  [ wkExpr e `lessThan` A.var Get | e <- los ] ++
+  [ A.var Get `lessThan` wkExpr e | e <- his ]
 
 noGet :: Available x (γ × a) -> Maybe (Available x γ)
 noGet = (\case Get -> Nothing; Weaken x -> Just x)
@@ -125,7 +125,7 @@ integrate d (Mul xs) = product ks * if null rest
                                     else Integrate d (Mul rest)
   where (ks, rest) = partitionEithers (fmap isConst xs)
         isConst p = case varTraverse noGet p of
-          Just p' -> Left (p')
+          Just p' -> Left p'
           Nothing -> Right p
 integrate d e | Just z' <- varTraverse noGet e = mul [Done (hi - lo), z']  
   where (lo, hi) = mkSuprema d
@@ -216,7 +216,7 @@ deepest xs = SomeVar (minimum xs)
 
 
 data SomeVar γ = SomeVar (Var γ) | NoVar
-  deriving (Eq,Ord,Show)
+  deriving (Eq, Ord, Show)
 
 type Negative γ = Expr γ 
 
@@ -232,7 +232,7 @@ cleanBounds _ _ [] kept = kept
 cleanBounds cs d (x:xs) kept =
   if dominated d cs x kept
   then cleanBounds cs d xs kept
-  else cleanBounds cs d xs (x:filter (\k -> not (dominated d cs k [x])) kept)
+  else cleanBounds cs d xs (x : filter (\k -> not (dominated d cs k [x])) kept)
  -- Example. We have kept z as bound (z ∈ kept).
  -- Now we consider 80, under (z ≤ 80) ∈ cs.
  -- We test the condition x ≤ 80, and find that it is entailed by cs.
@@ -281,7 +281,7 @@ discontinuities  = \case
   -- Scale _ e -> discontinuities e
   Done _ -> []
   Integrate (Domain los his) e -> mkEqs los <> mkEqs his <> catMaybes (fmap (A.traverseVars noGet) (discontinuities e))
-    where mkEqs as = [a-b | a <- as, b <- as]
+    where mkEqs as = [ a - b | a <- as, b <- as ]
 
 -- | Make an explicit test on a condition. The underlying formula is:
 -- e = cond c e + cond (not c) e
