@@ -81,6 +81,7 @@ toAffine = \case
   Adds (toAffine -> x) (toAffine -> y) -> x + y
   Mults (toRat -> x) (toAffine -> y) -> x *< y
   Divide (toAffine -> x) (toRat -> y) -> (one / y) *< x
+  t -> error $ show t ++ "can't be made affine"
 
 toRat :: NF γ R -> Rat
 toRat = \case
@@ -88,6 +89,7 @@ toRat = \case
   Adds (toRat -> x) (toRat -> y) -> x + y
   Mults (toRat -> x) (toRat -> y) -> x * y
   Divide (toRat -> x) (toRat -> y) -> x / y
+  t -> error $ show t ++ "can't be made rational"
 
 evalRet :: forall γ. NF γ R -> Ret γ
 evalRet = \case
