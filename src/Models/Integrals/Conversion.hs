@@ -44,7 +44,7 @@ pattern Lesbegue f = Neu (NeuApp (NeuCon (Les)) f)
 pattern Divide :: NF γ R -> NF γ R -> NF γ R
 pattern Divide x y = Neu (NeuApp (NeuApp (NeuCon (Divi)) x) y)
 pattern NNCon :: Field x => x -> NF γ R
-pattern NNCon x <- Neu (NeuCon ((Incl (fromRational -> x))))
+pattern NNCon x <- Neu (NeuCon (Incl (fromRational -> x)))
 
 retPoly :: Ret γ -> P γ
 retPoly = Done
@@ -61,8 +61,8 @@ evalP' = \case
     Cond (IsZero $ A.var i + A.var j - A.var k) one
   EqVars i j -> Cond (IsZero $ A.var i - A.var j) one
   InEqVars i j -> Cond (IsNegative $ A.var j - A.var i) one
-  Equ (NNVar i) (NNCon x) -> Cond (IsZero $ A.constant x - A.var i) one
-  Equ (NNCon x) (NNVar i) -> Cond (IsZero $ A.constant x - A.var i) one
+  Equ (NNVar i) t -> Cond (IsZero $ toAffine t - A.var i) one
+  Equ t (NNVar i) -> Cond (IsZero $ toAffine t - A.var i) one
   InEq (NNVar i) (NNCon x) -> Cond (IsNegative $ A.constant x - A.var i) one
   InEq (NNCon x) (NNVar i) -> Cond (IsNegative $ A.var i - A.constant x) one
   Adds (evalP' -> x) (evalP' -> y) -> Add x y
@@ -73,6 +73,21 @@ evalP' = \case
                 (evalP' $ λToNF $ App (wkn $ nfToλ f) (Var Get))
   t -> retPoly (evalRet t)
     -- error ("evalP': don't know how to handle: " ++ (show . nfToλ) t)
+
+toAffine :: NF γ R -> A.Affine (Var γ) Rat
+toAffine = \case
+  NNCon x -> A.constant x
+  NNVar v -> A.var v
+  Adds (toAffine -> x) (toAffine -> y) -> x + y
+  Mults (toRat -> x) (toAffine -> y) -> x *< y
+  Divide (toAffine -> x) (toRat -> y) -> (one / y) *< x
+
+toRat :: NF γ R -> Rat
+toRat = \case
+  NNCon x -> x
+  Adds (toRat -> x) (toRat -> y) -> x + y
+  Mults (toRat -> x) (toRat -> y) -> x * y
+  Divide (toRat -> x) (toRat -> y) -> x / y
 
 evalRet :: forall γ. NF γ R -> Ret γ
 evalRet = \case
