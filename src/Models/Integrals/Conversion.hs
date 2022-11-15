@@ -79,9 +79,9 @@ toAffine = \case
   NNCon x -> A.constant x
   NNVar v -> A.var v
   Adds (toAffine -> x) (toAffine -> y) -> x + y
-  Mults (toRat -> x) (toAffine -> y) -> x *< y
+  Mults (toAffine -> x) (toRat -> y) -> y *< x
   Divide (toAffine -> x) (toRat -> y) -> (one / y) *< x
-  t -> error $ show t ++ "can't be made affine"
+  t -> error $ show t ++ " can't be made affine"
 
 toRat :: NF γ R -> Rat
 toRat = \case
@@ -89,7 +89,7 @@ toRat = \case
   Adds (toRat -> x) (toRat -> y) -> x + y
   Mults (toRat -> x) (toRat -> y) -> x * y
   Divide (toRat -> x) (toRat -> y) -> x / y
-  t -> error $ show t ++ "can't be made rational"
+  t -> error $ show t ++ " can't be made rational"
 
 evalRet :: forall γ. NF γ R -> Ret γ
 evalRet = \case
