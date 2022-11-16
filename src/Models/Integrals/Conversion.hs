@@ -11,6 +11,8 @@ module Models.Integrals.Conversion where
 
 import Algebra.Classes
 import qualified Algebra.Morphism.Affine as A
+import Algebra.Morphism.LinComb
+import Data.Map
 import Prelude hiding (Num(..), Fractional(..), (^), product, sum, pi, sqrt, exp)
 import TLC.Terms hiding ((>>), u, Con)
 import Models.Integrals.Types
@@ -79,7 +81,11 @@ toAffine = \case
   NNCon x -> A.constant x
   NNVar v -> A.var v
   Adds (toAffine -> x) (toAffine -> y) -> x + y
-  Mults (toRat -> x) (toAffine -> y) -> x *< y
+  Mults (toAffine -> x) (toAffine -> y) ->
+    case x of
+      A.Affine x' (LinComb m) | size m == 0 -> x' *< y
+      _ -> case y of
+             A.Affine y' (LinComb n) | size n == 0 -> y' *< x
   Divide (toAffine -> x) (toAffine -> A.Affine y _) -> (one / y) *< x
   t -> error $ show t ++ " can't be made affine"
 
