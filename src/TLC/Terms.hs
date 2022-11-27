@@ -429,6 +429,7 @@ instance Show (Con α) where
   show Exists = "∃"
   show Equals = "(=)"
   show (Incl x) = showR x
+  show (InclNat x) = show x
   show Indi = "𝟙"
   show IfThenElse = "ifThenElse"
   show Expo = "(^)"
