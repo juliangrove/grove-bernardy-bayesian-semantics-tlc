@@ -75,6 +75,7 @@ data Con α where
   Factor :: Con (R ⟶ ('Unit ⟶ R) ⟶ R)
   ExpVal :: Con (((R ⟶ R) ⟶ R) ⟶ R)
   Incl :: Rational -> Con R
+  InclNat :: Natural -> Con R
   Indi :: Con (T ⟶ R)
   IfThenElse :: Con (T ⟶ α ⟶ α ⟶ α)
   Addi :: Con (R ⟶ R ⟶ R)
@@ -537,7 +538,7 @@ exchNF = renameNF $ \case
 substNeu :: Neutral γ α -> (forall β.β ∈ γ -> NF δ β) -> NF δ α
 substNeu (NeuVar i) f = f i
 substNeu (NeuCon c) _ = Neu $ NeuCon c
-substNeu (NeuApp m n) f = apply (substNeu m f) (substNF n f)
+substNeu (NeuApp m n) f = app' (substNeu m f) (substNF n f)
 substNeu (NeuFst m) f = fst' (substNeu m f)
 substNeu (NeuSnd m) f = snd' (substNeu m f)
 substNeu NeuTT _ = Neu NeuTT
@@ -554,51 +555,51 @@ substNF0 m t = substNF m $ \case
   Get -> t
   (Weaken i) -> Neu $ NeuVar i
 
-apply :: NF γ (α1 ⟶ α2) -> NF γ α1 -> NF γ α2
-apply t u = case t of
-    NFLam m' -> substNF0 m' u -- β rule
-    Neu m' -> case m' of      -- δ rules
-      (NeuCon ((Pi i))) -> listFromContext u !! i
-      (NeuCon ((MakeUtts n))) ->
-        case u of
-          NFPair k (Neu (NeuCon u''))
-            -> if checkk n k
-               then makeUtts' n (λToNF ctx) k (Neu (NeuCon u''))
-               else deflt
-          _ -> deflt
-        where checkk :: Witness n -> NF γ (Context n) -> Bool
-              checkk (S Z) = \case
-                NFPair (NFPair (NFPair (NFPair (NFPair _ (NCon (_)))
-                                        (NCon (_))) _) _) _ ->
-                  True
-                _ -> False
-              checkk (S (S Z)) = \case
-                NFPair (NFPair (NFPair (NFPair _ (NCon (_))) _) _) _ ->
-                  True
-                _ -> False
-      (NeuCon EqGen) -> equals (fst' u) (snd' u)
-      (NeuCon (Interp i)) -> case nfToλ u of
-        Con (Utt e) -> morph $ interp e
-        Con Silence -> morph True'
+app' :: NF γ (α1 ⟶ α2) -> NF γ α1 -> NF γ α2
+app' t u = case t of
+  NFLam m' -> substNF0 m' u -- β rule
+  Neu m' -> case m' of      -- δ rules
+    (NeuCon ((Pi i))) -> listFromContext u !! i
+    (NeuCon ((MakeUtts n))) ->
+      case u of
+        NFPair k (Neu (NeuCon u''))
+          -> if checkk n k
+             then makeUtts' n (λToNF ctx) k (Neu (NeuCon u''))
+             else deflt
         _ -> deflt
-        where morph = λToNF . hmorph i
+      where checkk :: Witness n -> NF γ (Context n) -> Bool
+            checkk (S Z) = \case
+              NFPair (NFPair (NFPair (NFPair (NFPair _ (NCon (_)))
+                                        (NCon (_))) _) _) _ ->
+                True
+              _ -> False
+            checkk (S (S Z)) = \case
+              NFPair (NFPair (NFPair (NFPair _ (NCon (_))) _) _) _ ->
+                True
+              _ -> False
+    (NeuCon EqGen) -> equals (fst' u) (snd' u)
+    (NeuCon (Interp i)) -> case nfToλ u of
+      Con (Utt e) -> morph $ interp e
+      Con Silence -> morph True'
       _ -> deflt
-      where deflt = Neu (NeuApp m' u)
-            ctx = upd' jp (upd' vlad emp)
-            listFromContext :: NF γ Γ -> [NF γ E]
-            listFromContext u = case nfToλ u of
-              Con Empty -> []
-              App (App (Con Upd) x) c ->
-                λToNF x : listFromContext (λToNF c)
+      where morph = λToNF . hmorph i
+    _ -> deflt
+    where deflt = Neu (NeuApp m' u)
+          ctx = upd' jp (upd' vlad emp)
+          listFromContext :: NF γ Γ -> [NF γ E]
+          listFromContext u = case nfToλ u of
+            Con Empty -> []
+            App (App (Con Upd) x) c ->
+              λToNF x : listFromContext (λToNF c)
 
 toFinite :: [NF γ α] -> NF γ ((α ⟶ R) ⟶ R)
-toFinite ts = NFLam $ sum [ apply (Neu (NeuVar Get)) (wknNF t) | t <- ts ]
+toFinite ts = NFLam $ sum [ app' (Neu (NeuVar Get)) (wknNF t) | t <- ts ]
 
 makeUtts :: NF γ Γ -> [NF γ (Γ ⟶ E)] -> Con U -> NF γ ((U ⟶ R) ⟶ R)
 makeUtts ctx sels (Utt u) = toFinite $ map (NCon . Utt) $ alts ctx sels u
   where alts :: NF γ Γ -> [NF γ (Γ ⟶ E)] -> NLExp c -> [NLExp c]
         alts ctx sels = \case
-          Pn i -> [Pn i, case apply (sels !! i) ctx of NCon e -> name e]
+          Pn i -> [Pn i, case app' (sels !! i) ctx of NCon e -> name e]
           MergeLft hd cmp -> [ MergeLft hd' cmp' | hd' <- alts ctx sels hd
                                                  , cmp' <- alts ctx sels cmp ]
           MergeRgt cmp hd -> [ MergeRgt cmp' hd' | hd' <- alts ctx sels hd
@@ -620,7 +621,7 @@ makeUtts' (S (S Z)) ctx k u =
 λToNF = \case
   Var i -> Neu $ NeuVar i
   Con c -> Neu $ NeuCon c
-  App (λToNF -> m) (λToNF -> n) -> apply m n 
+  App (λToNF -> m) (λToNF -> n) -> app' m n 
   Lam (λToNF -> m) -> NFLam m
   Fst (λToNF -> m) -> fst' m
   Snd (λToNF -> m) -> snd' m
