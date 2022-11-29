@@ -467,6 +467,7 @@ instance Show (Con α) where
   show GTE = "(≥)"
   show (Sel n) = "sel" ++ show n
   show (Con0 _ s) = s
+  show ExpVal = "𝔼"
 
 instance Additive (γ ⊢ R) where
   zero = Con (Incl 0)
@@ -681,6 +682,7 @@ instance Show (γ ⊢ α) where
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
     App (App (Con EqRl) (show -> m)) (show -> n)
       -> "(" ++ m ++ " ≐ " ++ n ++ ")"
+    App (Con ExpVal) (show -> u) -> "𝔼[" ++ u ++ "]"
     App (Con (Interp n)) (show -> u) -> "⟦" ++ u ++ "⟧"
     App (App (Con Upd) (show -> m)) (show -> n)
       -> m ++ "∷" ++ n
