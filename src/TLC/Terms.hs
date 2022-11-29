@@ -468,6 +468,7 @@ instance Show (Con α) where
   show (Sel n) = "sel" ++ show n
   show (Con0 _ s) = s
   show ExpVal = "𝔼"
+  show Factor = "factor"
 
 instance Additive (γ ⊢ R) where
   zero = Con (Incl 0)
