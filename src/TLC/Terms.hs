@@ -82,6 +82,7 @@ data Con α where
   Mult :: Con (R ⟶ R ⟶ R)
   Expo :: Con (R ⟶ R ⟶ R)
   Exp :: Con (R ⟶ R)
+  GE :: Con (R ⟶ R ⟶ T)
   CircleConstant :: Con R
   Divi :: Con (R ⟶ R ⟶ R)
   EqGen :: Equality α => Con ((α × α) ⟶ R)
@@ -440,6 +441,7 @@ instance Show (Con α) where
   show Divi = "(/)"
   show Les = "lesbegue"
   show Gaussian = "gaussian"
+  show GE = "(≥)"
   show Beta = "beta"
   show Bernoulli = "bernoulli"
   show EqGen = "(≐)"
@@ -733,6 +735,8 @@ displayVs' fs ρ t =
     -> "(" ++ m ++ " * " ++ n ++ ")"
   App (App (Con Divi) (dd -> m)) (dd -> n)
     -> "(" ++ m ++ " / " ++ n ++ ")"
+  App (App (Con GE) (dd -> m)) (dd -> n)
+    -> "(" ++ m ++ "≥" ++ n ++ ")"
   App (Con (EqGen)) (Pair (dd -> m) (dd -> n))
     -> "(" ++ m ++ " ≐ " ++ n ++ ")"
   App (App (Con EqRl) (dd -> m)) (dd -> n)
