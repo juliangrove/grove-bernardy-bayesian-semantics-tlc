@@ -419,6 +419,7 @@ pattern Exists' f = Con Exists `App` f
 pattern Equals' :: γ ⊢ α -> γ ⊢ α -> γ ⊢ T
 pattern Equals' m n = Con Equals `App` m `App` n
 pattern IfThenElse' b m n = Con IfThenElse `App` b `App` m `App` n
+pattern GE' m n = Con GE `App` m `App` n
 
 instance Show (Con α) where
   show Tru = "⊤"
