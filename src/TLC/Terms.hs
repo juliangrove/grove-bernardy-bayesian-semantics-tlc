@@ -83,6 +83,8 @@ data Con α where
   Expo :: Con (R ⟶ R ⟶ R)
   Exp :: Con (R ⟶ R)
   GE :: Con (R ⟶ R ⟶ T)
+  Logit :: Con (R ⟶ R)
+  Logistic :: Con (R ⟶ R)
   CircleConstant :: Con R
   Divi :: Con (R ⟶ R ⟶ R)
   EqGen :: Equality α => Con ((α × α) ⟶ R)
@@ -443,6 +445,8 @@ instance Show (Con α) where
   show Les = "lesbegue"
   show Gaussian = "gaussian"
   show GE = "(≥)"
+  show Logit = "logit"
+  show Logistic = "logistic"
   show Beta = "beta"
   show Bernoulli = "bernoulli"
   show EqGen = "(≐)"
